@@ -656,8 +656,8 @@ document.addEventListener('mousemove', (e) => {
     
     // Update temporary connection while dragging
     if (isConnecting && connectionStart) {
-        const container = nodeCanvas.getBoundingClientRect();
-        // Convert mouse position to screen space coordinates (matching getConnectionPoint output)
+        const container = connectionCanvas.getBoundingClientRect();
+        // Mouse position in screen space (canvas coordinates)
         const mouseX = e.clientX - container.left;
         const mouseY = e.clientY - container.top;
         tempConnectionEnd.x = mouseX;
