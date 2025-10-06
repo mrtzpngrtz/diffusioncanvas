@@ -962,7 +962,7 @@ async function generateImage(node) {
         const images = imageNodes.map(node => node.data.imageData).filter(data => data);
 
         // Call the backend API (with or without images)
-        const response = await fetch('http://localhost:3000/api/generate', {
+        const response = await fetch('/api/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
