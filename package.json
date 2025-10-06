@@ -9,7 +9,7 @@
     "dev": "nodemon server.js"
   },
   "keywords": [
-    "genai",
+    "genai", 
     "gemini",
     "image-generation",
     "node-editor"
