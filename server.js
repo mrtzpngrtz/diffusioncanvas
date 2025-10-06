@@ -18,9 +18,10 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Initialize Google GenAI client
-// The API key is automatically loaded from GOOGLE_API_KEY environment variable
-const ai = new GoogleGenAI({});
+// Initialize Google GenAI client with explicit API key
+const ai = new GoogleGenAI({
+    apiKey: process.env.GOOGLE_API_KEY
+});
 
 app.post('/api/generate', async (req, res) => {
     try {
