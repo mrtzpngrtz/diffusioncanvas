@@ -10,9 +10,27 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Password Modal -->
+    <div class="password-modal" id="passwordModal">
+        <div class="password-container">
+            <h2>Access Required</h2>
+            <p>Enter password to access Diffusion Canvas</p>
+            <input type="password" id="passwordInput" placeholder="Enter password">
+            <button id="passwordSubmit">Submit</button>
+            <p class="password-error" id="passwordError"></p>
+        </div>
+    </div>
+
     <div class="header">
-        <h1>Diffusion Canvas</h1>
-        <p>Node-based image prompting with Gemini Nano</p>
+        <div class="header-content">
+            <div class="header-text">
+                <h1>Diffusion Canvas</h1>
+                <p>node based prompting for people who dont like chat windows for image editing</p>
+            </div>
+            <button class="theme-toggle" id="themeToggle" title="Toggle day/night mode">
+                <span class="theme-icon">☀️</span>
+            </button>
+        </div>
     </div>
  
     <div class="toolbar">
@@ -51,6 +69,10 @@
         <div class="context-menu-item" data-action="addPrompt">Add Prompt Node</div>
         <div class="context-menu-item" data-action="addAction">Add Action Node</div>
     </div>
+
+    <footer class="footer">
+        <p>barely made by <a href="https://www.moritzpongratz.com" target="_blank">www.moritzpongratz.com</a></p>
+    </footer>
 
     <script src="script.js"></script>
 </body>

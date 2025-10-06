@@ -1,3 +1,61 @@
+// Password protection
+const CORRECT_PASSWORD = 'wtfsingularity';
+const passwordModal = document.getElementById('passwordModal');
+const passwordInput = document.getElementById('passwordInput');
+const passwordSubmit = document.getElementById('passwordSubmit');
+const passwordError = document.getElementById('passwordError');
+
+// Check password on submit
+function checkPassword() {
+    const enteredPassword = passwordInput.value;
+    if (enteredPassword === CORRECT_PASSWORD) {
+        passwordModal.classList.add('hidden');
+        passwordInput.value = '';
+        passwordError.textContent = '';
+    } else {
+        passwordError.textContent = 'Incorrect password. Please try again.';
+        passwordInput.value = '';
+        passwordInput.focus();
+    }
+}
+
+passwordSubmit.addEventListener('click', checkPassword);
+passwordInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        checkPassword();
+    }
+});
+
+// Focus password input on page load
+window.addEventListener('load', () => {
+    passwordInput.focus();
+});
+
+// Theme toggle functionality
+const themeToggle = document.getElementById('themeToggle');
+const themeIcon = document.querySelector('.theme-icon');
+
+// Load saved theme preference
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    themeIcon.textContent = '🌙';
+}
+
+// Toggle theme
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    const isLightMode = document.body.classList.contains('light-mode');
+    
+    // Update icon
+    themeIcon.textContent = isLightMode ? '🌙' : '☀️';
+    
+    // Save preference
+    localStorage.setItem('theme', isLightMode ? 'light' : 'dark');
+}
+
+themeToggle.addEventListener('click', toggleTheme);
+
 // Canvas and node management
 const nodeCanvas = document.getElementById('nodeCanvas');
 const connectionCanvas = document.getElementById('connectionCanvas');
@@ -599,9 +657,11 @@ document.addEventListener('mousemove', (e) => {
     // Update temporary connection while dragging
     if (isConnecting && connectionStart) {
         const container = nodeCanvas.getBoundingClientRect();
-        // Store in screen space (already accounts for zoom in drawing)
-        tempConnectionEnd.x = e.clientX - container.left;
-        tempConnectionEnd.y = e.clientY - container.top;
+        // Convert mouse position to screen space coordinates (matching getConnectionPoint output)
+        const mouseX = e.clientX - container.left;
+        const mouseY = e.clientY - container.top;
+        tempConnectionEnd.x = mouseX;
+        tempConnectionEnd.y = mouseY;
         drawConnections();
     }
 });
@@ -975,17 +1035,28 @@ async function generateImage(node) {
     }
 }
 
+// Helper function to get center of visible viewport in canvas coordinates
+function getViewportCenter() {
+    const container = document.querySelector('.canvas-container');
+    const centerX = (container.clientWidth / 2) / zoom - panX;
+    const centerY = (container.clientHeight / 2) / zoom - panY;
+    return { x: centerX, y: centerY };
+}
+
 // Event listeners
 document.getElementById('addImageNode').addEventListener('click', () => {
-    createImageNode(Math.random() * 300 + 50, Math.random() * 200 + 100);
+    const center = getViewportCenter();
+    createImageNode(center.x - 125, center.y - 75);
 });
 
 document.getElementById('addPromptNode').addEventListener('click', () => {
-    createPromptNode(Math.random() * 300 + 50, Math.random() * 200 + 100);
+    const center = getViewportCenter();
+    createPromptNode(center.x - 125, center.y - 75);
 });
 
 document.getElementById('addActionNode').addEventListener('click', () => {
-    createActionNode(Math.random() * 300 + 50, Math.random() * 200 + 100);
+    const center = getViewportCenter();
+    createActionNode(center.x - 125, center.y - 75);
 });
 
 document.getElementById('clearCanvas').addEventListener('click', clearCanvas);
@@ -1069,9 +1140,12 @@ document.addEventListener('mouseup', (e) => {
 
 // Click on connections to disconnect
 connectionCanvas.addEventListener('click', (e) => {
+    e.stopPropagation();
     const rect = connectionCanvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
+    
+    console.log('Canvas clicked at:', clickX, clickY);
     
     // Check if click is on any disconnect button
     for (let i = connections.length - 1; i >= 0; i--) {
@@ -1079,13 +1153,16 @@ connectionCanvas.addEventListener('click', (e) => {
         
         if (!conn.midpoint) continue;
         
-        // Check if click is within the disconnect button (radius 10)
+        // Check if click is within the disconnect button (increased hitbox for easier clicking)
         const distance = Math.sqrt(
             Math.pow(clickX - conn.midpoint.x, 2) + 
             Math.pow(clickY - conn.midpoint.y, 2)
         );
         
-        if (distance <= 12) {
+        console.log('Distance to connection', i, ':', distance, 'midpoint:', conn.midpoint);
+        
+        if (distance <= 25) {
+            console.log('Removing connection', i);
             // Found a click on disconnect button
             const fromNode = nodes.find(n => n.id === conn.from);
             const toNode = nodes.find(n => n.id === conn.to);
@@ -1094,11 +1171,13 @@ connectionCanvas.addEventListener('click', (e) => {
             connections.splice(i, 1);
             
             // Update prompt/action node if this was an image or prompt connection
-            if ((toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
+            if (toNode && (toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
                 // Check for image connection
-                const imageIndex = toNode.data.connectedImages.indexOf(fromNode);
-                if (imageIndex > -1) {
-                    toNode.data.connectedImages.splice(imageIndex, 1);
+                if (toNode.data.connectedImages) {
+                    const imageIndex = toNode.data.connectedImages.indexOf(fromNode);
+                    if (imageIndex > -1) {
+                        toNode.data.connectedImages.splice(imageIndex, 1);
+                    }
                 }
                 
                 // Check for prompt connection
@@ -1114,6 +1193,7 @@ connectionCanvas.addEventListener('click', (e) => {
             
             drawConnections();
             updateStatus('Connection removed', '#e74c3c');
+            e.preventDefault();
             return;
         }
     }
