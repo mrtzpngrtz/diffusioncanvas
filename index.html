@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffusion Canvas - Node-Based Image Prompting</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>Diffusion Canvas</h1>
+        <p>Node-based image prompting with Gemini Nano</p>
+    </div>
+
+    <div class="toolbar">
+        <button id="addImageNode" class="btn">Add Image Node</button>
+        <button id="addPromptNode" class="btn">Add Prompt Node</button>
+        <button id="addActionNode" class="btn">Add Action Node</button>
+        <button id="clearCanvas" class="btn btn-danger">Clear Canvas</button>
+        <div class="status" id="status">Ready</div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="connectionCanvas"></canvas>
+        <div id="nodeCanvas" class="node-canvas"></div>
+        
+        <div class="zoom-controls">
+            <button class="zoom-btn" id="zoomOut">-</button>
+            <span class="zoom-level" id="zoomLevel">100%</span>
+            <button class="zoom-btn" id="zoomIn">+</button>
+            <button class="zoom-btn" id="zoomReset">Reset</button>
+        </div>
+        
+        <div class="minimap">
+            <canvas class="minimap-canvas" id="minimapCanvas"></canvas>
+            <div class="minimap-viewport" id="minimapViewport"></div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <img id="lightboxImage" src="" alt="Full size image">
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" data-action="addImage">Add Image Node</div>
+        <div class="context-menu-item" data-action="addPrompt">Add Prompt Node</div>
+        <div class="context-menu-item" data-action="addAction">Add Action Node</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
