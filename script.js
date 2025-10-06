@@ -556,7 +556,8 @@ function updateGenerateButton(node) {
         hasContent = node.data.action.trim().length > 0;
     }
     
-    generateBtn.disabled = !(hasContent && hasImages);
+    // Enable button if there's content (with or without images)
+    generateBtn.disabled = !hasContent;
     
     // Update button text to show image count
     if (hasImages) {
@@ -916,11 +917,6 @@ async function generateImage(node) {
             }
         });
     }
-    
-    if (!imageNodes || imageNodes.length === 0) {
-        updateStatus('No images connected', '#e74c3c');
-        return;
-    }
 
     // Build combined prompt from connected prompts and own prompt
     let promptParts = [];
@@ -962,14 +958,10 @@ async function generateImage(node) {
     updateStatus('Generating image...', '#667eea');
 
     try {
-        // Collect all image data from connected nodes
+        // Collect all image data from connected nodes (optional now)
         const images = imageNodes.map(node => node.data.imageData).filter(data => data);
-        
-        if (images.length === 0) {
-            throw new Error('No valid image data found');
-        }
 
-        // Call the backend API with multiple images
+        // Call the backend API (with or without images)
         const response = await fetch('http://localhost:3000/api/generate', {
             method: 'POST',
             headers: {

@@ -37,7 +37,7 @@ app.post('/api/generate', async (req, res) => {
         let contents = [];
         
         if (images && images.length > 0) {
-            // Add the text prompt first
+            // Image-to-image generation with prompt
             contents.push({ text: `Based on these ${images.length} input image${images.length > 1 ? 's' : ''}, ${prompt}` });
             
             // Add all images to the contents
@@ -56,7 +56,7 @@ app.post('/api/generate', async (req, res) => {
                 });
             });
         } else {
-            // Text-only prompt
+            // Text-to-image generation (prompt only)
             contents = [{ text: prompt }];
         }
 
