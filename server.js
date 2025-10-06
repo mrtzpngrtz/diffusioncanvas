@@ -13,6 +13,11 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
+// Serve index.html at root
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Initialize Google GenAI client
 // The API key is automatically loaded from GOOGLE_API_KEY environment variable
 const ai = new GoogleGenAI({});
