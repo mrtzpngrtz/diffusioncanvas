@@ -1289,29 +1289,31 @@ connectionCanvas.addEventListener('click', (e) => {
             const fromNode = nodes.find(n => n.id === conn.from);
             const toNode = nodes.find(n => n.id === conn.to);
             
-            // Remove connection
-            connections.splice(i, 1);
-            
-            // Update prompt/action node if this was an image or prompt connection
+            // Clean up node data BEFORE removing connection
             if (toNode && (toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
-                // Check for image connection
-                if (toNode.data.connectedImages) {
-                    const imageIndex = toNode.data.connectedImages.indexOf(fromNode);
+                // Check for image/result node connection
+                if ((fromNode.type === 'image' || fromNode.type === 'result') && toNode.data.connectedImages) {
+                    const imageIndex = toNode.data.connectedImages.findIndex(node => node.id === fromNode.id);
                     if (imageIndex > -1) {
                         toNode.data.connectedImages.splice(imageIndex, 1);
+                        console.log('Removed image node from connectedImages, remaining:', toNode.data.connectedImages.length);
                     }
                 }
                 
                 // Check for prompt connection
-                if (toNode.data.connectedPrompts && fromNode.type === 'prompt') {
-                    const promptIndex = toNode.data.connectedPrompts.indexOf(fromNode);
+                if (fromNode.type === 'prompt' && toNode.data.connectedPrompts) {
+                    const promptIndex = toNode.data.connectedPrompts.findIndex(node => node.id === fromNode.id);
                     if (promptIndex > -1) {
                         toNode.data.connectedPrompts.splice(promptIndex, 1);
+                        console.log('Removed prompt node from connectedPrompts, remaining:', toNode.data.connectedPrompts.length);
                     }
                 }
                 
                 updateGenerateButton(toNode);
             }
+            
+            // Remove connection
+            connections.splice(i, 1);
             
             drawConnections();
             updateStatus('Connection removed', '#e74c3c');

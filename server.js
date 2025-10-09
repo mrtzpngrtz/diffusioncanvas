@@ -251,7 +251,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             return res.status(403).json({ error: 'Insufficient credits. Please contact an administrator.' });
         }
 
-        const { prompt, images } = req.body;
+        const { prompt, images, aspectRatio } = req.body;
 
         if (!prompt) {
             return res.status(400).json({ error: 'No prompt provided' });
@@ -259,6 +259,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
         console.log('Generating image with prompt:', prompt);
         console.log('Number of images:', images ? images.length : 0);
+        console.log('Aspect ratio:', aspectRatio || '16:9 (default)');
         
         // Build the contents array in the correct format
         let contents = [];
@@ -287,10 +288,15 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             contents = [{ text: prompt }];
         }
 
-        // Generate content using Gemini image generation model
+        // Generate content using Gemini image generation model with aspect ratio config
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
-            contents: contents
+            contents: contents,
+            config: {
+                imageConfig: {
+                    aspectRatio: aspectRatio || '16:9'
+                }
+            }
         });
 
         // Process response

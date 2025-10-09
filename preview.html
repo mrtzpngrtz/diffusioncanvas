@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffusion Canvas - Preview Mode</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Preview mode specific styles */
+        .preview-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            z-index: 100001;
+            font-size: 13px;
+            font-weight: 400;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .preview-banner strong {
+            font-weight: 600;
+        }
+        
+        body {
+            padding-top: 44px;
+        }
+        
+        .demo-watermark {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1001;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Preview Mode Banner -->
+    <div class="preview-banner">
+        <strong>Preview Mode</strong> - This is a demo interface. To use the full application, run the backend server.
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="header-text">
+                <h1>Diffusion Canvas Beta 1.0</h1>
+                <p>node based prompting for people who dont like chat windows for image editing</p>
+            </div>
+            <div class="header-right">
+                <div class="user-info-inline">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23667eea'/%3E%3Ctext x='16' y='21' text-anchor='middle' fill='white' font-family='Arial' font-size='14' font-weight='bold'%3EP%3C/text%3E%3C/svg%3E" alt="Preview User" class="user-photo">
+                    <span>Preview User</span>
+                    <span class="user-credits">100 credits</span>
+                </div>
+                <button class="theme-toggle" id="themeToggle">
+                    <span class="theme-icon">☀️</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <button class="btn" id="addImageNode">Add Image Node</button>
+        <button class="btn" id="addPromptNode">Add Prompt Node</button>
+        <button class="btn" id="addActionNode">Add Action Node</button>
+        <button class="btn btn-danger" id="clearCanvas">Clear Canvas</button>
+        <div class="status" id="status">Preview Mode - Ready</div>
+    </div>
+
+    <!-- Canvas Container -->
+    <div class="canvas-container">
+        <canvas id="connectionCanvas"></canvas>
+        <div class="node-canvas" id="nodeCanvas"></div>
+        
+        <!-- Zoom Controls -->
+        <div class="zoom-controls">
+            <button class="zoom-btn" id="zoomOut">−</button>
+            <span class="zoom-level" id="zoomLevel">100%</span>
+            <button class="zoom-btn" id="zoomIn">+</button>
+            <button class="zoom-btn" id="zoomReset">Reset</button>
+        </div>
+        
+        <!-- Minimap -->
+        <div class="minimap">
+            <canvas id="minimapCanvas"></canvas>
+            <div class="minimap-viewport" id="minimapViewport"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>barely made by <a href="https://www.moritzpongratz.com" target="_blank">www.moritzpongratz.com</a></p>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <img id="lightboxImage" src="" alt="Full size image">
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" data-action="addImage">Add Image Node</div>
+        <div class="context-menu-item" data-action="addPrompt">Add Prompt Node</div>
+        <div class="context-menu-item" data-action="addAction">Add Action Node</div>
+    </div>
+
+    <!-- Demo Watermark -->
+    <div class="demo-watermark">
+        Interface Preview - Backend Required for Generation
+    </div>
+
+    <script>
+        // Preview mode specific script
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.querySelector('.theme-icon');
+
+        // Load saved theme preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+            themeIcon.textContent = '🌙';
+        }
+
+        // Toggle theme
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLightMode = document.body.classList.contains('light-mode');
+            
+            // Update icon
+            themeIcon.textContent = isLightMode ? '🌙' : '☀️';
+            
+            // Save preference
+            localStorage.setItem('theme', isLightMode ? 'light' : 'dark');
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+
+        // Canvas and node management
+        const nodeCanvas = document.getElementById('nodeCanvas');
+        const connectionCanvas = document.getElementById('connectionCanvas');
+        const ctx = connectionCanvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const minimapViewport = document.getElementById('minimapViewport');
+
+        // Node and connection storage
+        let nodes = [];
+        let connections = [];
+        let nodeIdCounter = 0;
+
+        // Zoom and pan
+        let zoom = 1;
+        let panX = 0;
+        let panY = 0;
+
+        // Connection and dragging state
+        let isDragging = false;
+        let draggedNode = null;
+        let dragOffset = { x: 0, y: 0 };
+        let isConnecting = false;
+        let connectionStart = null;
+        let tempConnectionEnd = { x: 0, y: 0 };
+
+        // Resize connection canvas to match container
+        function resizeCanvas() {
+            const container = document.querySelector('.canvas-container');
+            connectionCanvas.width = container.clientWidth;
+            connectionCanvas.height = container.clientHeight;
+            drawConnections();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Update status message
+        function updateStatus(message, color = '#999') {
+            statusEl.textContent = message;
+            statusEl.style.color = color;
+        }
+
+        // Show alert for preview mode
+        function showPreviewAlert() {
+            alert('Preview Mode: This feature requires the backend server to be running.\n\nTo use the full application:\n1. Install dependencies: npm install\n2. Start the server: npm start\n3. Open http://localhost:3000');
+        }
+
+        // Create sample nodes on load
+        function createSampleNodes() {
+            // Create a sample image node
+            const imageNode = createImageNode(150, 150);
+            
+            // Create a sample prompt node
+            const promptNode = createPromptNode(500, 150);
+            promptNode.element.querySelector('textarea').value = 'A beautiful sunset over mountains';
+            promptNode.data.prompt = 'A beautiful sunset over mountains';
+            
+            // Create a sample action node
+            const actionNode = createActionNode(850, 150);
+            
+            updateStatus('Preview Mode - Sample nodes loaded');
+        }
+
+        // Simplified node creation for preview
+        function createImageNode(x, y) {
+            const nodeId = `node-${nodeIdCounter++}`;
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'node image-node';
+            nodeEl.id = nodeId;
+            nodeEl.style.left = `${x}px`;
+            nodeEl.style.top = `${y}px`;
+
+            nodeEl.innerHTML = `
+                <div class="node-header">
+                    <span class="node-title">Image Input</span>
+                    <button class="node-close">×</button>
+                </div>
+                <div class="node-content">
+                    <div class="drop-zone">
+                        <p>Drop image here or click to upload</p>
+                        <input type="file" accept="image/*" style="display: none;">
+                    </div>
+                </div>
+                <div class="connection-point output" data-node="${nodeId}"></div>
+            `;
+
+            const node = {
+                id: nodeId,
+                type: 'image',
+                element: nodeEl,
+                data: { image: null, imageData: null },
+                position: { x, y }
+            };
+
+            nodes.push(node);
+            nodeCanvas.appendChild(nodeEl);
+
+            nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
+            setupNodeDragging(nodeEl, node);
+            
+            return node;
+        }
+
+        function createPromptNode(x, y) {
+            const nodeId = `node-${nodeIdCounter++}`;
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'node prompt-node';
+            nodeEl.id = nodeId;
+            nodeEl.style.left = `${x}px`;
+            nodeEl.style.top = `${y}px`;
+
+            nodeEl.innerHTML = `
+                <div class="node-header">
+                    <span class="node-title">Prompt Input</span>
+                    <button class="node-close">×</button>
+                </div>
+                <div class="node-content">
+                    <textarea placeholder="Enter your prompt here..."></textarea>
+                    <select class="aspect-ratio-select">
+                        <option value="1:1">1:1 (1024x1024)</option>
+                        <option value="2:3">2:3 (832x1248)</option>
+                        <option value="3:2">3:2 (1248x832)</option>
+                        <option value="3:4">3:4 (864x1184)</option>
+                        <option value="4:3">4:3 (1184x864)</option>
+                        <option value="4:5">4:5 (896x1152)</option>
+                        <option value="5:4">5:4 (1152x896)</option>
+                        <option value="9:16">9:16 (768x1344)</option>
+                        <option value="16:9" selected>16:9 (1344x768)</option>
+                        <option value="21:9">21:9 (1536x672)</option>
+                    </select>
+                </div>
+                <div class="connection-point input" data-node="${nodeId}"></div>
+                <div class="connection-point output" data-node="${nodeId}"></div>
+                <div class="node-actions">
+                    <button class="node-btn generate-btn">Generate Image</button>
+                </div>
+            `;
+
+            const node = {
+                id: nodeId,
+                type: 'prompt',
+                element: nodeEl,
+                data: { prompt: '', aspectRatio: '16:9' },
+                position: { x, y }
+            };
+
+            nodes.push(node);
+            nodeCanvas.appendChild(nodeEl);
+
+            nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
+            nodeEl.querySelector('.generate-btn').addEventListener('click', showPreviewAlert);
+            setupNodeDragging(nodeEl, node);
+            
+            return node;
+        }
+
+        function createActionNode(x, y) {
+            const nodeId = `node-${nodeIdCounter++}`;
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'node action-node';
+            nodeEl.id = nodeId;
+            nodeEl.style.left = `${x}px`;
+            nodeEl.style.top = `${y}px`;
+
+            nodeEl.innerHTML = `
+                <div class="node-header">
+                    <span class="node-title">Action Preset</span>
+                    <button class="node-close">×</button>
+                </div>
+                <div class="node-content">
+                    <select class="action-select">
+                        <option value="">Select an action...</option>
+                        <option value="colorize this image">Colorize this image</option>
+                        <option value="make it a night scene">Make it a night scene</option>
+                        <option value="add vintage filter">Add vintage filter</option>
+                    </select>
+                </div>
+                <div class="connection-point input" data-node="${nodeId}"></div>
+                <div class="connection-point output" data-node="${nodeId}"></div>
+                <div class="node-actions">
+                    <button class="node-btn generate-btn">Generate Image</button>
+                </div>
+            `;
+
+            const node = {
+                id: nodeId,
+                type: 'action',
+                element: nodeEl,
+                data: { action: '' },
+                position: { x, y }
+            };
+
+            nodes.push(node);
+            nodeCanvas.appendChild(nodeEl);
+
+            nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
+            nodeEl.querySelector('.generate-btn').addEventListener('click', showPreviewAlert);
+            setupNodeDragging(nodeEl, node);
+            
+            return node;
+        }
+
+        function setupNodeDragging(nodeEl, node) {
+            nodeEl.addEventListener('mousedown', (e) => {
+                if (e.target.tagName === 'TEXTAREA' || 
+                    e.target.tagName === 'BUTTON' ||
+                    e.target.tagName === 'SELECT' ||
+                    e.target.tagName === 'INPUT') {
+                    return;
+                }
+
+                isDragging = true;
+                draggedNode = node;
+                
+                const container = nodeCanvas.getBoundingClientRect();
+                const mouseCanvasX = (e.clientX - container.left) / zoom - panX;
+                const mouseCanvasY = (e.clientY - container.top) / zoom - panY;
+                
+                dragOffset.x = mouseCanvasX - node.position.x;
+                dragOffset.y = mouseCanvasY - node.position.y;
+                nodeEl.style.zIndex = 1000;
+            });
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging && draggedNode) {
+                const container = nodeCanvas.getBoundingClientRect();
+                const mouseCanvasX = (e.clientX - container.left) / zoom - panX;
+                const mouseCanvasY = (e.clientY - container.top) / zoom - panY;
+                
+                draggedNode.position.x = mouseCanvasX - dragOffset.x;
+                draggedNode.position.y = mouseCanvasY - dragOffset.y;
+
+                draggedNode.element.style.left = `${draggedNode.position.x}px`;
+                draggedNode.element.style.top = `${draggedNode.position.y}px`;
+
+                drawConnections();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging && draggedNode) {
+                draggedNode.element.style.zIndex = '';
+            }
+            isDragging = false;
+            draggedNode = null;
+        });
+
+        function removeNode(nodeId) {
+            const nodeIndex = nodes.findIndex(n => n.id === nodeId);
+            if (nodeIndex === -1) return;
+
+            const node = nodes[nodeIndex];
+            node.element.remove();
+            nodes.splice(nodeIndex, 1);
+
+            drawConnections();
+            updateStatus('Node removed');
+        }
+
+        function clearCanvas() {
+            if (confirm('Are you sure you want to clear all nodes?')) {
+                nodes.forEach(node => node.element.remove());
+                nodes = [];
+                connections = [];
+                drawConnections();
+                updateStatus('Canvas cleared');
+            }
+        }
+
+        function drawConnections() {
+            ctx.clearRect(0, 0, connectionCanvas.width, connectionCanvas.height);
+        }
+
+        function applyZoom() {
+            const transform = `scale(${zoom}) translate(${panX}px, ${panY}px)`;
+            nodeCanvas.style.transform = transform;
+            nodeCanvas.style.transformOrigin = '0 0';
+            updateZoomLevel();
+            drawConnections();
+        }
+
+        function setZoom(newZoom) {
+            zoom = Math.max(0.1, Math.min(3, newZoom));
+            applyZoom();
+        }
+
+        function updateZoomLevel() {
+            document.getElementById('zoomLevel').textContent = `${Math.round(zoom * 100)}%`;
+        }
+
+        // Event listeners
+        document.getElementById('addImageNode').addEventListener('click', () => {
+            const center = { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 };
+            createImageNode(center.x, center.y);
+        });
+
+        document.getElementById('addPromptNode').addEventListener('click', () => {
+            const center = { x: 300 + Math.random() * 200, y: 100 + Math.random() * 200 };
+            createPromptNode(center.x, center.y);
+        });
+
+        document.getElementById('addActionNode').addEventListener('click', () => {
+            const center = { x: 500 + Math.random() * 200, y: 100 + Math.random() * 200 };
+            createActionNode(center.x, center.y);
+        });
+
+        document.getElementById('clearCanvas').addEventListener('click', clearCanvas);
+
+        document.getElementById('zoomIn').addEventListener('click', () => setZoom(zoom + 0.1));
+        document.getElementById('zoomOut').addEventListener('click', () => setZoom(zoom - 0.1));
+        document.getElementById('zoomReset').addEventListener('click', () => {
+            zoom = 1;
+            panX = 0;
+            panY = 0;
+            applyZoom();
+        });
+
+        // Initialize with sample nodes
+        window.addEventListener('load', () => {
+            createSampleNodes();
+            updateStatus('Preview Mode - Ready to explore interface');
+        });
+    </script>
+</body>
+</html>
