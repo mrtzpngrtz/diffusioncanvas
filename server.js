@@ -63,6 +63,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         passport.authenticate('google', { failureRedirect: '/' }),
         (req, res) => {
             res.redirect('/');
+        },
+        (err, req, res, next) => {
+            console.error('Google OAuth callback error:', err);
+            res.redirect('/?error=auth_failed');
         }
     );
     console.log('Google OAuth enabled');
@@ -80,6 +84,10 @@ if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
         passport.authenticate('facebook', { failureRedirect: '/' }),
         (req, res) => {
             res.redirect('/');
+        },
+        (err, req, res, next) => {
+            console.error('Facebook OAuth callback error:', err);
+            res.redirect('/?error=auth_failed');
         }
     );
     console.log('Facebook OAuth enabled');
@@ -97,6 +105,10 @@ if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
         passport.authenticate('linkedin', { failureRedirect: '/' }),
         (req, res) => {
             res.redirect('/');
+        },
+        (err, req, res, next) => {
+            console.error('LinkedIn OAuth callback error:', err);
+            res.redirect('/?error=auth_failed');
         }
     );
     console.log('LinkedIn OAuth enabled');

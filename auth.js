@@ -6,38 +6,43 @@ import { storage } from './storage.js';
 
 // Find or create user
 async function findOrCreateUser(profile, provider) {
-    const users = await storage.getUsers();
-    
-    // Look for existing user
-    let user = users.find(u => u.providerId === profile.id && u.provider === provider);
-    
-    if (!user) {
-        // Create new user
-        // First user is automatically admin
-        const isFirstUser = users.length === 0;
+    try {
+        const users = await storage.getUsers();
         
-        user = {
-            id: Date.now().toString(),
-            provider: provider,
-            providerId: profile.id,
-            email: profile.emails?.[0]?.value || '',
-            displayName: profile.displayName || '',
-            firstName: profile.name?.givenName || '',
-            lastName: profile.name?.familyName || '',
-            photo: profile.photos?.[0]?.value || '',
-            isAdmin: isFirstUser,
-            credits: 100,
-            createdAt: new Date().toISOString()
-        };
+        // Look for existing user
+        let user = users.find(u => u.providerId === profile.id && u.provider === provider);
         
-        users.push(user);
-        await storage.setUsers(users);
-        console.log('New user created:', user.email, isFirstUser ? '(Admin)' : '');
-    } else {
-        console.log('Existing user logged in:', user.email);
+        if (!user) {
+            // Create new user
+            // First user is automatically admin
+            const isFirstUser = users.length === 0;
+            
+            user = {
+                id: Date.now().toString(),
+                provider: provider,
+                providerId: profile.id,
+                email: profile.emails?.[0]?.value || '',
+                displayName: profile.displayName || '',
+                firstName: profile.name?.givenName || '',
+                lastName: profile.name?.familyName || '',
+                photo: profile.photos?.[0]?.value || '',
+                isAdmin: isFirstUser,
+                credits: 100,
+                createdAt: new Date().toISOString()
+            };
+            
+            users.push(user);
+            await storage.setUsers(users);
+            console.log('✓ New user created:', user.email, isFirstUser ? '(Admin)' : '');
+        } else {
+            console.log('✓ Existing user logged in:', user.email);
+        }
+        
+        return user;
+    } catch (error) {
+        console.error('❌ Error in findOrCreateUser:', error);
+        throw error;
     }
-    
-    return user;
 }
 
 // Initialize storage
