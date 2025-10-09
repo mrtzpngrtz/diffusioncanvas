@@ -34,7 +34,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(__dirname));
+app.use(express.static(__dirname)); 
 
 // Initialize Passport
 app.use(passport.initialize());
