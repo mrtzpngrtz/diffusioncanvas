@@ -1312,6 +1312,20 @@ connectionCanvas.addEventListener('click', (e) => {
                 updateGenerateButton(toNode);
             }
             
+            // Also clean up if fromNode is a prompt/action and toNode is a result
+            if (fromNode && (fromNode.type === 'prompt' || fromNode.type === 'action') && toNode && toNode.type === 'result') {
+                // Clear the resultNode reference from the prompt/action
+                if (fromNode.data.resultNode && fromNode.data.resultNode.id === toNode.id) {
+                    console.log('Clearing resultNode reference from prompt/action node');
+                    fromNode.data.resultNode = null;
+                }
+                // Also clear the sourcePromptNode reference from the result node
+                if (toNode.data.sourcePromptNode && toNode.data.sourcePromptNode.id === fromNode.id) {
+                    console.log('Clearing sourcePromptNode reference from result node');
+                    toNode.data.sourcePromptNode = null;
+                }
+            }
+            
             // Remove connection
             connections.splice(i, 1);
             
