@@ -29,7 +29,7 @@ if (hasVercelKV) {
     redis = new Redis({
         url: kvUrl,
         token: kvToken,
-    });
+    }); 
 } else if (hasUpstashRedis) {
     redis = new Redis({
         url: upstashUrl,
