@@ -289,6 +289,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         }
 
         // Generate content using Gemini image generation model with aspect ratio config
+        // Per official docs: https://ai.google.dev/gemini-api/docs/image-generation
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
             contents: contents,
