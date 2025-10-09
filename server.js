@@ -2,8 +2,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
-import RedisStore from 'connect-redis';
-import { createClient } from 'redis';
 import cookieParser from 'cookie-parser';
 import { GoogleGenAI } from '@google/genai';
 import path from 'path';
