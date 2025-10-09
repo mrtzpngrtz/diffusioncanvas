@@ -15,51 +15,18 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Initialize Redis client for sessions (if available)
-let redisClient = null;
-let sessionStore = null;
-
-const kvUrl = process.env.diffusioncanvas_KV_REST_API_URL;
-const redisUrl = process.env.REDIS_URL || process.env.diffusioncanvas_REDIS_URL;
-
-if (redisUrl) {
-    // Use standard Redis client for sessions
-    redisClient = createClient({
-        url: redisUrl,
-        socket: {
-            tls: true,
-            rejectUnauthorized: false
-        }
-    });
-    
-    redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-    redisClient.on('connect', () => console.log('✓ Redis session store connected'));
-    
-    await redisClient.connect();
-    sessionStore = new RedisStore({ client: redisClient });
-    console.log('✓ Using Redis for session storage');
-}
-
-// Session configuration for serverless
-const sessionConfig = {
+// Session configuration for serverless (without Redis for now - sessions are stateless)
+app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
-    resave: false,
+    resave: true,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    },
-    proxy: true // Trust proxy in production
-};
-
-// Add Redis store if available
-if (sessionStore) {
-    sessionConfig.store = sessionStore;
-}
-
-app.use(session(sessionConfig));
+    }
+}));
 
 app.use(cookieParser());
 app.use(cors({
