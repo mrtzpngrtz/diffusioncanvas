@@ -7,22 +7,24 @@ import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import passport from './auth.js';
+import { setAuthCookie, getAuthUser, clearAuthCookie } from './jwt-auth.js';
+import { storage } from './storage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Session configuration for serverless (without Redis for now - sessions are stateless)
+// Session configuration (still needed for OAuth flow)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
-    resave: true,
+    resave: false,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 5 * 60 * 1000 // 5 minutes (just for OAuth flow)
     }
 }));
 
@@ -38,20 +40,27 @@ app.use(express.static(__dirname));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Middleware to check if user is authenticated
-function isAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-        return next();
+// Middleware to check if user is authenticated (JWT-based)
+async function isAuthenticated(req, res, next) {
+    const user = getAuthUser(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Not authenticated' });
     }
-    res.status(401).json({ error: 'Not authenticated' });
+    // Refresh user data from storage to get latest credits
+    const users = await storage.getUsers();
+    const fullUser = users.find(u => u.id === user.id);
+    req.user = fullUser || user;
+    next();
 }
 
 // Middleware to check if user is admin
 function isAdmin(req, res, next) {
-    if (req.isAuthenticated() && req.user.isAdmin) {
-        return next();
+    const user = getAuthUser(req);
+    if (!user || !user.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
     }
-    res.status(403).json({ error: 'Admin access required' });
+    req.user = user;
+    next();
 }
 
 // Auth Routes
@@ -64,6 +73,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     app.get('/auth/google/callback',
         passport.authenticate('google', { failureRedirect: '/' }),
         (req, res) => {
+            // Set JWT cookie for persistent authentication
+            setAuthCookie(res, req.user);
             res.redirect('/');
         },
         (err, req, res, next) => {
@@ -130,11 +141,15 @@ app.get('/auth/logout', (req, res) => {
 
 // Get current user
 app.get('/api/user', (req, res) => {
-    if (req.isAuthenticated()) {
-        res.json({ user: req.user });
-    } else {
-        res.json({ user: null });
+    // Check JWT first, then session
+    const jwtUser = getAuthUser(req);
+    if (jwtUser) {
+        return res.json({ user: jwtUser });
     }
+    if (req.isAuthenticated()) {
+        return res.json({ user: req.user });
+    }
+    res.json({ user: null });
 });
 
 // Get available OAuth providers
