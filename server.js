@@ -173,7 +173,7 @@ app.get('/admin', (req, res) => {
 });
 
 // Admin API Routes
-import { storage } from './storage.js';
+// (storage already imported at top of file)
 
 // Get all users (admin only)
 app.get('/api/admin/users', isAdmin, async (req, res) => {
