@@ -4,41 +4,59 @@ A web-based node editor for interactive image prompting using Google's Gemini AP
 
 ## Features
 
+- **OAuth Authentication**: Secure login with Google, Facebook, or LinkedIn
 - **Node-Based Interface**: Drag-and-drop nodes to create visual workflows
 - **Image Upload**: Drop or select images to use as input
 - **Prompt Nodes**: Type prompts to guide image generation
 - **Visual Connections**: Connect nodes with visual bezier curves
 - **Result Nodes**: View generated images in separate nodes
 - **Responsive Design**: Beautiful gradient UI with smooth interactions
+- **User Sessions**: Persistent login sessions for 24 hours
+
+## Authentication
+
+The application now requires user authentication to access the image generation features. Users can sign in using:
+
+- **Google** - OAuth 2.0
+- **Facebook (Meta)** - OAuth
+- **LinkedIn** - OAuth 2.0
+
+For detailed setup instructions, see [OAUTH_SETUP.md](OAUTH_SETUP.md).
 
 ## How to Use
 
-1. **Open the Application**
-   - Simply open `index.html` in a modern web browser
+1. **Sign In**
+   - Visit the application at `http://localhost:3000`
+   - Choose your preferred OAuth provider (Google, Facebook, or LinkedIn)
+   - Authenticate and grant permissions
+   - You'll be redirected to the main application
 
-2. **Add an Image Node**
+2. **Start Creating**
+   - Once authenticated, you can access all features
+
+3. **Add an Image Node**
    - Click "Add Image Node" button
    - Click the drop zone or drag an image file into it
    - The image will appear in the node
 
-3. **Add a Prompt Node**
+4. **Add a Prompt Node**
    - Click "Add Prompt Node" button
    - Type your prompt in the textarea
 
-4. **Connect Nodes**
+5. **Connect Nodes**
    - Click and drag from the output point (right side) of the Image Node
    - Drop on the input point (left side) of the Prompt Node
    - A curved line will connect them
 
-5. **Generate Image**
+6. **Generate Image**
    - Once connected and prompt is entered, click "Generate Image"
    - A result node will appear with the generated image
 
-6. **Move Nodes**
+7. **Move Nodes**
    - Click and drag any node header to reposition
    - Connections update automatically
 
-7. **Delete Nodes**
+8. **Delete Nodes**
    - Click the × button on any node to remove it
 
 ## Node Types
@@ -55,6 +73,10 @@ This application uses Google's Gemini API for image generation through a Node.js
 
 1. **Node.js** (version 18 or higher)
 2. **Google API Key** - Get one from [Google AI Studio](https://makersuite.google.com/app/apikey)
+3. **OAuth Credentials** - See [OAUTH_SETUP.md](OAUTH_SETUP.md) for detailed setup instructions:
+   - Google OAuth Client ID & Secret
+   - Facebook App ID & Secret (optional)
+   - LinkedIn Client ID & Secret (optional)
 
 ### Installation
 
@@ -63,22 +85,18 @@ This application uses Google's Gemini API for image generation through a Node.js
 npm install
 ```
 
-2. Set your Google API Key as an environment variable:
-
-**Windows (Command Prompt):**
+2. Configure environment variables:
 ```bash
-set GOOGLE_API_KEY=your-api-key-here
+cp .env.example .env
 ```
 
-**Windows (PowerShell):**
-```bash
-$env:GOOGLE_API_KEY="your-api-key-here"
-```
+Then edit `.env` and add your credentials:
+- Google GenAI API Key
+- Session Secret (generate a random string)
+- OAuth credentials for Google (required)
+- OAuth credentials for Facebook and LinkedIn (optional)
 
-**macOS/Linux:**
-```bash
-export GOOGLE_API_KEY="your-api-key-here"
-```
+**See [OAUTH_SETUP.md](OAUTH_SETUP.md) for detailed instructions on obtaining OAuth credentials.**
 
 3. Start the server:
 ```bash

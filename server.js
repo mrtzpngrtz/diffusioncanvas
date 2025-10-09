@@ -1,21 +1,196 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
 import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import passport from './auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
+
+// Session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
+
+app.use(cookieParser());
+app.use(cors({
+    origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:3000',
+    credentials: true
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Middleware to check if user is authenticated
+function isAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.status(401).json({ error: 'Not authenticated' });
+}
+
+// Middleware to check if user is admin
+function isAdmin(req, res, next) {
+    if (req.isAuthenticated() && req.user.isAdmin) {
+        return next();
+    }
+    res.status(403).json({ error: 'Admin access required' });
+}
+
+// Auth Routes
+// Google OAuth (only if credentials are configured)
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    app.get('/auth/google',
+        passport.authenticate('google', { scope: ['profile', 'email'] })
+    );
+
+    app.get('/auth/google/callback',
+        passport.authenticate('google', { failureRedirect: '/' }),
+        (req, res) => {
+            res.redirect('/');
+        }
+    );
+    console.log('Google OAuth enabled');
+} else {
+    console.warn('Google OAuth not configured - set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env');
+}
+
+// Facebook OAuth (only if credentials are configured)
+if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+    app.get('/auth/facebook',
+        passport.authenticate('facebook', { scope: ['email'] })
+    );
+
+    app.get('/auth/facebook/callback',
+        passport.authenticate('facebook', { failureRedirect: '/' }),
+        (req, res) => {
+            res.redirect('/');
+        }
+    );
+    console.log('Facebook OAuth enabled');
+} else {
+    console.warn('Facebook OAuth not configured - set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in .env');
+}
+
+// LinkedIn OAuth (only if credentials are configured)
+if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
+    app.get('/auth/linkedin',
+        passport.authenticate('linkedin')
+    );
+
+    app.get('/auth/linkedin/callback',
+        passport.authenticate('linkedin', { failureRedirect: '/' }),
+        (req, res) => {
+            res.redirect('/');
+        }
+    );
+    console.log('LinkedIn OAuth enabled');
+} else {
+    console.warn('LinkedIn OAuth not configured - set LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET in .env');
+}
+
+// Logout
+app.get('/auth/logout', (req, res) => {
+    req.logout((err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Logout failed' });
+        }
+        res.redirect('/');
+    });
+});
+
+// Get current user
+app.get('/api/user', (req, res) => {
+    if (req.isAuthenticated()) {
+        res.json({ user: req.user });
+    } else {
+        res.json({ user: null });
+    }
+});
+
+// Get available OAuth providers
+app.get('/api/auth/providers', (req, res) => {
+    const providers = {
+        google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+        facebook: !!(process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET),
+        linkedin: !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)
+    };
+    res.json(providers);
+});
 
 // Serve index.html at root
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Serve admin panel
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// Admin API Routes
+import fs from 'fs/promises';
+
+// Get all users (admin only)
+app.get('/api/admin/users', isAdmin, async (req, res) => {
+    try {
+        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
+        const users = JSON.parse(data);
+        res.json(users);
+    } catch (error) {
+        console.error('Error loading users:', error);
+        res.status(500).json({ error: 'Failed to load users' });
+    }
+});
+
+// Delete user (admin only)
+app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        
+        // Prevent admin from deleting themselves
+        if (userId === req.user.id) {
+            return res.status(400).json({ error: 'Cannot delete your own account' });
+        }
+        
+        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
+        const users = JSON.parse(data);
+        
+        // Find and remove user
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex === -1) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Prevent deleting other admins
+        if (users[userIndex].isAdmin) {
+            return res.status(400).json({ error: 'Cannot delete admin users' });
+        }
+        
+        users.splice(userIndex, 1);
+        
+        await fs.writeFile(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+        
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ error: 'Failed to delete user' });
+    }
 });
 
 // Initialize Google GenAI client with explicit API key
@@ -23,8 +198,14 @@ const ai = new GoogleGenAI({
     apiKey: process.env.GOOGLE_API_KEY
 });
 
-app.post('/api/generate', async (req, res) => {
+// Protect the generate endpoint with authentication
+app.post('/api/generate', isAuthenticated, async (req, res) => {
     try {
+        // Check if user has enough credits
+        if (!req.user.credits || req.user.credits < 1) {
+            return res.status(403).json({ error: 'Insufficient credits. Please contact an administrator.' });
+        }
+
         const { prompt, images } = req.body;
 
         if (!prompt) {
@@ -103,12 +284,88 @@ app.post('/api/generate', async (req, res) => {
             }
         }
 
+        // Deduct one credit from user
+        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
+        const users = JSON.parse(data);
+        const userIndex = users.findIndex(u => u.id === req.user.id);
+        
+        if (userIndex !== -1) {
+            users[userIndex].credits = (users[userIndex].credits || 0) - 1;
+            await fs.writeFile(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+            
+            // Update session user object
+            req.user.credits = users[userIndex].credits;
+            
+            // Add credits info to response
+            result.creditsRemaining = users[userIndex].credits;
+        }
+
         res.json(result);
     } catch (error) {
         console.error('Error generating content:', error);
         res.status(500).json({ 
             error: error.message || 'Failed to generate content'
         });
+    }
+});
+
+// Delete own account (authenticated user)
+app.delete('/api/user/delete', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
+        const users = JSON.parse(data);
+        
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex === -1) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Remove user
+        users.splice(userIndex, 1);
+        
+        await fs.writeFile(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+        
+        // Logout the user
+        req.logout((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to logout after deletion' });
+            }
+            res.json({ message: 'Account deleted successfully' });
+        });
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        res.status(500).json({ error: 'Failed to delete account' });
+    }
+});
+
+// Update user credits (admin only)
+app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { credits } = req.body;
+        
+        if (typeof credits !== 'number' || credits < 0) {
+            return res.status(400).json({ error: 'Invalid credits value' });
+        }
+        
+        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
+        const users = JSON.parse(data);
+        
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex === -1) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        users[userIndex].credits = credits;
+        
+        await fs.writeFile(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+        
+        res.json({ message: 'Credits updated successfully', credits: credits });
+    } catch (error) {
+        console.error('Error updating credits:', error);
+        res.status(500).json({ error: 'Failed to update credits' });
     }
 });
 

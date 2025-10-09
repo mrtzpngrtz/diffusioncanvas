@@ -1,34 +1,137 @@
-// Password protection
-const CORRECT_PASSWORD = 'wtfsingularity';
-const passwordModal = document.getElementById('passwordModal');
-const passwordInput = document.getElementById('passwordInput');
-const passwordSubmit = document.getElementById('passwordSubmit');
-const passwordError = document.getElementById('passwordError');
+// Authentication handling
+const loginModal = document.getElementById('loginModal');
+const userInfo = document.getElementById('userInfo');
+const userPhoto = document.getElementById('userPhoto');
+const userName = document.getElementById('userName');
 
-// Check password on submit
-function checkPassword() {
-    const enteredPassword = passwordInput.value;
-    if (enteredPassword === CORRECT_PASSWORD) {
-        passwordModal.classList.add('hidden');
-        passwordInput.value = '';
-        passwordError.textContent = '';
-    } else {
-        passwordError.textContent = 'Incorrect password. Please try again.';
-        passwordInput.value = '';
-        passwordInput.focus();
+// Check which OAuth providers are available
+async function checkAvailableProviders() {
+    try {
+        const response = await fetch('/api/auth/providers');
+        const providers = await response.json();
+        
+        // Hide unavailable provider buttons
+        const googleBtn = document.querySelector('.google-btn');
+        const facebookBtn = document.querySelector('.facebook-btn');
+        const linkedinBtn = document.querySelector('.linkedin-btn');
+        
+        if (googleBtn && !providers.google) {
+            googleBtn.style.display = 'none';
+        }
+        if (facebookBtn && !providers.facebook) {
+            facebookBtn.style.display = 'none';
+        }
+        if (linkedinBtn && !providers.linkedin) {
+            linkedinBtn.style.display = 'none';
+        }
+        
+        // Show message if no providers are configured
+        const hasAnyProvider = providers.google || providers.facebook || providers.linkedin;
+        if (!hasAnyProvider) {
+            const oauthButtons = document.querySelector('.oauth-buttons');
+            if (oauthButtons) {
+                oauthButtons.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #e74c3c;">
+                        <p style="margin-bottom: 10px;">No OAuth providers configured</p>
+                        <p style="font-size: 12px; color: #888;">Please configure at least one OAuth provider in your .env file.</p>
+                        <p style="font-size: 12px; color: #888;">See OAUTH_SETUP.md for instructions.</p>
+                    </div>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to check available providers:', error);
     }
 }
 
-passwordSubmit.addEventListener('click', checkPassword);
-passwordInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        checkPassword();
+// Check authentication status on page load
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/user', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.user) {
+            // User is authenticated
+            loginModal.classList.add('hidden');
+            userInfo.style.display = 'flex';
+            userPhoto.src = data.user.photo || 'https://via.placeholder.com/32';
+            userName.textContent = data.user.displayName || data.user.email;
+            
+            // Show credits
+            const userCredits = document.getElementById('userCredits');
+            if (userCredits) {
+                const credits = data.user.credits || 0;
+                userCredits.textContent = `${credits} credit${credits !== 1 ? 's' : ''}`;
+            }
+            
+            // Show admin link if user is admin
+            const adminLink = document.getElementById('adminLink');
+            if (data.user.isAdmin && adminLink) {
+                adminLink.style.display = 'inline-block';
+            }
+        } else {
+            // User is not authenticated
+            loginModal.classList.remove('hidden');
+            userInfo.style.display = 'none';
+            // Check which providers are available
+            await checkAvailableProviders();
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        loginModal.classList.remove('hidden');
+        userInfo.style.display = 'none';
+        await checkAvailableProviders();
     }
-});
+}
 
-// Focus password input on page load
+// User menu functionality
+const userMenuBtn = document.getElementById('userMenuBtn');
+const userDropdown = document.getElementById('userDropdown');
+const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+
+if (userMenuBtn && userDropdown) {
+    userMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userDropdown.classList.toggle('active');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.user-info-wrapper')) {
+            userDropdown.classList.remove('active');
+        }
+    });
+}
+
+// Delete account functionality
+if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.')) {
+            try {
+                const response = await fetch('/api/user/delete', {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to delete account');
+                }
+
+                alert('Your account has been deleted successfully.');
+                window.location.href = '/auth/logout';
+            } catch (error) {
+                alert('Failed to delete account: ' + error.message);
+            }
+        }
+    });
+}
+
+// Check auth on page load
 window.addEventListener('load', () => {
-    passwordInput.focus();
+    checkAuth();
 });
 
 // Theme toggle functionality
@@ -1003,6 +1106,14 @@ async function generateImage(node) {
                 const resultNode = createResultNode(resultX, resultY, result.image, node);
                 node.data.resultNode = resultNode;
             }
+            // Update credits display if returned in response
+            if (result.creditsRemaining !== undefined) {
+                const userCredits = document.getElementById('userCredits');
+                if (userCredits) {
+                    userCredits.textContent = `${result.creditsRemaining} credit${result.creditsRemaining !== 1 ? 's' : ''}`;
+                }
+            }
+            
             updateStatus('Image generated successfully!', '#27ae60');
         } else if (result.text) {
             updateStatus(`Generated text: ${result.text}`, '#667eea');

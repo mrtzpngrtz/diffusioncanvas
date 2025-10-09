@@ -6,6 +6,9 @@ package-lock.json
 .env
 .env.local
 
+# User database
+users.json
+
 # Logs
 *.log
 npm-debug.log*

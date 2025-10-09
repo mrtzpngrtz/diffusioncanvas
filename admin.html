@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Diffusion Canvas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #404040;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 10px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            color: #8899ff;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #404040;
+        }
+
+        .stat-card h3 {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 500;
+        }
+
+        .users-section {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #404040;
+        }
+
+        .users-section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .users-table th {
+            background: #2a2a2a;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            border-bottom: 1px solid #404040;
+        }
+
+        .users-table td {
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+        }
+
+        .users-table tr:hover {
+            background: #2a2a2a;
+        }
+
+        .user-photo {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            background: #333;
+            color: #aaa;
+        }
+
+        .badge.admin {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .delete-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid #ff4444;
+            border-radius: 4px;
+            color: #ff4444;
+            cursor: pointer;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .delete-btn:hover:not(:disabled) {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .delete-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .error {
+            background: #3a0000;
+            border: 1px solid #ff4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #ff4444;
+        }
+
+        .no-users {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .credits-input {
+            width: 80px;
+            padding: 6px 8px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .credits-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .credits-input::-webkit-inner-spin-button,
+        .credits-input::-webkit-outer-spin-button {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Admin Panel</h1>
+            <p>User management for Diffusion Canvas</p>
+            <a href="/" class="back-link">← Back to Application</a>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Total Users</h3>
+                <div class="value" id="totalUsers">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Admin Users</h3>
+                <div class="value" id="adminUsers">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Regular Users</h3>
+                <div class="value" id="regularUsers">-</div>
+            </div>
+        </div>
+
+        <div class="users-section">
+            <h2>Registered Users</h2>
+            <div id="loading" class="loading">Loading users...</div>
+            <div id="noUsers" class="no-users" style="display: none;">No users registered yet</div>
+            <table class="users-table" id="usersTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Provider</th>
+                        <th>Role</th>
+                        <th>Credits</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let currentUserId = null;
+
+        // Check if user is authenticated and is admin
+        async function checkAdminAccess() {
+            try {
+                const response = await fetch('/api/user', {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (!data.user) {
+                    window.location.href = '/';
+                    return;
+                }
+
+                currentUserId = data.user.id;
+
+                if (!data.user.isAdmin) {
+                    showError('Access denied. Admin privileges required.');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                    return;
+                }
+
+                loadUsers();
+            } catch (error) {
+                showError('Failed to verify admin access');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            }
+        }
+
+        // Load all users
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load users');
+                }
+
+                const users = await response.json();
+                displayUsers(users);
+            } catch (error) {
+                showError('Failed to load users: ' + error.message);
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Display users in table
+        function displayUsers(users) {
+            document.getElementById('loading').style.display = 'none';
+
+            if (users.length === 0) {
+                document.getElementById('noUsers').style.display = 'block';
+                updateStats(users);
+                return;
+            }
+
+            document.getElementById('usersTable').style.display = 'table';
+            
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <img src="${user.photo || 'https://via.placeholder.com/32'}" 
+                             alt="${user.displayName}" 
+                             class="user-photo"
+                             onerror="this.src='https://via.placeholder.com/32'">
+                        ${user.displayName || 'Unknown User'}
+                    </td>
+                    <td>${user.email || '-'}</td>
+                    <td>${capitalizeFirst(user.provider)}</td>
+                    <td>
+                        <span class="badge ${user.isAdmin ? 'admin' : ''}">
+                            ${user.isAdmin ? 'Admin' : 'User'}
+                        </span>
+                    </td>
+                    <td>
+                        <input type="number" 
+                               class="credits-input" 
+                               value="${user.credits || 0}" 
+                               min="0"
+                               data-user-id="${user.id}"
+                               onchange="updateCredits('${user.id}', this.value)">
+                    </td>
+                    <td>${formatDate(user.createdAt)}</td>
+                    <td>
+                        <button class="delete-btn" 
+                                onclick="deleteUser('${user.id}', '${user.displayName}')"
+                                ${user.id === currentUserId || user.isAdmin ? 'disabled' : ''}>
+                            ${user.id === currentUserId ? 'You' : user.isAdmin ? 'Admin' : 'Delete'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateStats(users);
+        }
+
+        // Update statistics
+        function updateStats(users) {
+            const total = users.length;
+            const admins = users.filter(u => u.isAdmin).length;
+            const regular = total - admins;
+
+            document.getElementById('totalUsers').textContent = total;
+            document.getElementById('adminUsers').textContent = admins;
+            document.getElementById('regularUsers').textContent = regular;
+        }
+
+        // Update credits
+        async function updateCredits(userId, credits) {
+            const creditsNum = parseInt(credits);
+            if (isNaN(creditsNum) || creditsNum < 0) {
+                showError('Invalid credits value');
+                loadUsers(); // Reload to reset the input
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/credits`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ credits: creditsNum })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to update credits');
+                }
+
+                // Reload users to show updated data
+                loadUsers();
+            } catch (error) {
+                showError('Failed to update credits: ' + error.message);
+                loadUsers(); // Reload to reset the input
+            }
+        }
+
+        // Delete user
+        async function deleteUser(userId, userName) {
+            if (!confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to delete user');
+                }
+
+                // Reload users
+                loadUsers();
+            } catch (error) {
+                showError('Failed to delete user: ' + error.message);
+            }
+        }
+
+        // Helper functions
+        function capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Initialize
+        checkAdminAccess();
+    </script>
+</body>
+</html>
