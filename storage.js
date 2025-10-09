@@ -53,6 +53,13 @@ export const storage = {
     async init() {
         if (isVercel) {
             console.log('✓ Using Vercel KV for persistent storage');
+            // Verify KV is accessible
+            try {
+                await kv.get('_health_check');
+                console.log('✓ Vercel KV connection verified');
+            } catch (error) {
+                console.error('⚠️  Warning: Vercel KV connection test failed:', error.message);
+            }
         } else {
             console.log('✓ Using local file storage (users.json)');
             // Create file if it doesn't exist (only works in writable environments)
@@ -63,15 +70,17 @@ export const storage = {
                     await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2));
                 } catch (error) {
                     if (error.code === 'EROFS') {
-                        console.error('❌ CRITICAL ERROR: File system is read-only!');
-                        console.error('❌ You are deploying to Vercel without Vercel KV configured.');
+                        console.error('❌ WARNING: File system is read-only!');
+                        console.error('❌ Deploying to Vercel without Vercel KV configured.');
                         console.error('❌ Please set up Vercel KV for persistent storage:');
                         console.error('   1. Go to your Vercel dashboard');
                         console.error('   2. Select Storage → Create Database → KV');
                         console.error('   3. Connect it to your project');
-                        throw new Error('Vercel KV is required for deployment. File storage is not available on Vercel.');
+                        console.error('⚠️  Continuing without storage - authentication will fail!');
+                        // Don't throw - let the app start so users can see the error page
+                        return;
                     }
-                    throw error;
+                    console.error('File storage initialization error:', error);
                 }
             }
         }

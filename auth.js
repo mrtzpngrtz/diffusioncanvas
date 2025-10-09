@@ -45,8 +45,13 @@ async function findOrCreateUser(profile, provider) {
     }
 }
 
-// Initialize storage
-await storage.init();
+// Initialize storage (with error handling for serverless)
+try {
+    await storage.init();
+} catch (error) {
+    console.error('Storage initialization warning:', error.message);
+    console.log('Application will attempt to continue, but storage may not work correctly.');
+}
 
 // Passport serialization
 passport.serializeUser((user, done) => {
