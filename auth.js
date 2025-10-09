@@ -27,7 +27,7 @@ async function findOrCreateUser(profile, provider) {
                 lastName: profile.name?.familyName || '',
                 photo: profile.photos?.[0]?.value || '',
                 isAdmin: isFirstUser,
-                credits: 100,
+                credits: 5,
                 createdAt: new Date().toISOString()
             };
             
