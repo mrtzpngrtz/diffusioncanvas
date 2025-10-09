@@ -29,6 +29,7 @@ def generate_image():
         data = request.json
         prompt = data.get('prompt', '')
         input_image_data = data.get('image', '')
+        aspect_ratio = data.get('aspectRatio', '16:9')  # Default to 16:9
         
         if not prompt:
             return jsonify({'error': 'No prompt provided'}), 400
@@ -56,10 +57,15 @@ def generate_image():
         else:
             contents = [prompt]
         
-        # Generate image using Gemini 2.0 Flash Image model
+        # Generate image using Gemini 2.0 Flash Image model with aspect ratio config
         response = client.models.generate_content(
             model='gemini-2.0-flash-exp',
             contents=contents,
+            config=types.GenerateContentConfig(
+                image_generation_config=types.ImageGenerationConfig(
+                    aspect_ratio=aspect_ratio
+                )
+            )
         )
         
         # Process the response

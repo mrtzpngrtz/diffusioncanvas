@@ -456,6 +456,18 @@ function createPromptNode(x = 300, y = 100) {
         </div>
         <div class="node-content">
             <textarea placeholder="Enter your prompt here..."></textarea>
+            <select class="aspect-ratio-select">
+                <option value="1:1">1:1 (1024x1024)</option>
+                <option value="2:3">2:3 (832x1248)</option>
+                <option value="3:2">3:2 (1248x832)</option>
+                <option value="3:4">3:4 (864x1184)</option>
+                <option value="4:3">4:3 (1184x864)</option>
+                <option value="4:5">4:5 (896x1152)</option>
+                <option value="5:4">5:4 (1152x896)</option>
+                <option value="9:16">9:16 (768x1344)</option>
+                <option value="16:9" selected>16:9 (1344x768)</option>
+                <option value="21:9">21:9 (1536x672)</option>
+            </select>
         </div>
         <div class="connection-point input" data-node="${nodeId}"></div>
         <div class="connection-point output" data-node="${nodeId}"></div>
@@ -468,7 +480,7 @@ function createPromptNode(x = 300, y = 100) {
         id: nodeId,
         type: 'prompt',
         element: nodeEl,
-        data: { prompt: '', connectedImages: [] }, // Changed to array for multiple images
+        data: { prompt: '', aspectRatio: '16:9', connectedImages: [] }, // Changed to array for multiple images
         position: { x, y }
     };
 
@@ -491,6 +503,12 @@ function createPromptNode(x = 300, y = 100) {
                 generateImage(node);
             }, 1000);
         }
+    });
+
+    // Aspect ratio select handling
+    const aspectRatioSelect = nodeEl.querySelector('.aspect-ratio-select');
+    aspectRatioSelect.addEventListener('change', (e) => {
+        node.data.aspectRatio = e.target.value;
     });
 
     // Generate button
@@ -1072,7 +1090,8 @@ async function generateImage(node) {
             },
             body: JSON.stringify({
                 prompt: prompt,
-                images: images  // Send array of images
+                images: images,  // Send array of images
+                aspectRatio: node.data.aspectRatio || '16:9'  // Send aspect ratio
             })
         });
 
