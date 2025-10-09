@@ -2,42 +2,11 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
 import { Strategy as LinkedInStrategy } from 'passport-linkedin-oauth2';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const USERS_FILE = path.join(__dirname, 'users.json');
-
-// Initialize users file if it doesn't exist
-async function initUsersFile() {
-    try {
-        await fs.access(USERS_FILE);
-    } catch {
-        await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2));
-    }
-}
-
-// Load users from file
-async function loadUsers() {
-    try {
-        const data = await fs.readFile(USERS_FILE, 'utf-8');
-        return JSON.parse(data);
-    } catch {
-        return [];
-    }
-}
-
-// Save users to file
-async function saveUsers(users) {
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-}
+import { storage } from './storage.js';
 
 // Find or create user
 async function findOrCreateUser(profile, provider) {
-    const users = await loadUsers();
+    const users = await storage.getUsers();
     
     // Look for existing user
     let user = users.find(u => u.providerId === profile.id && u.provider === provider);
@@ -62,7 +31,7 @@ async function findOrCreateUser(profile, provider) {
         };
         
         users.push(user);
-        await saveUsers(users);
+        await storage.setUsers(users);
         console.log('New user created:', user.email, isFirstUser ? '(Admin)' : '');
     } else {
         console.log('Existing user logged in:', user.email);
@@ -71,8 +40,8 @@ async function findOrCreateUser(profile, provider) {
     return user;
 }
 
-// Initialize users file
-await initUsersFile();
+// Initialize storage
+await storage.init();
 
 // Passport serialization
 passport.serializeUser((user, done) => {
@@ -81,7 +50,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
     try {
-        const users = await loadUsers();
+        const users = await storage.getUsers();
         const user = users.find(u => u.id === id);
         done(null, user);
     } catch (error) {

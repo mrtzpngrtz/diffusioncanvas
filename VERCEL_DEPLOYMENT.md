@@ -3,8 +3,9 @@
 ## Prerequisites
 
 1. **Vercel Account**: Sign up at [vercel.com](https://vercel.com)
-2. **Vercel CLI** (optional): Install with `npm i -g vercel`
-3. **Environment Variables**: Prepare all your API keys and secrets
+2. **Vercel KV Database**: Free Redis-compatible storage (included with Vercel)
+3. **Vercel CLI** (optional): Install with `npm i -g vercel`
+4. **Environment Variables**: Prepare all your API keys and secrets
 
 ## Step 1: Prepare Environment Variables
 
@@ -13,6 +14,7 @@ You need to set these environment variables in Vercel:
 ### Required Variables:
 - `GOOGLE_API_KEY` - Your Google AI API key
 - `SESSION_SECRET` - Random secret string for sessions (generate with: `openssl rand -base64 32`)
+- **Vercel KV** - Automatically configured when you create a KV database (see Step 1.5)
 
 ### OAuth Variables (at least one required):
 
@@ -34,6 +36,22 @@ You need to set these environment variables in Vercel:
 ### Optional Variables:
 - `NODE_ENV` - Set to: `production`
 - `FRONTEND_URL` - Set to: `https://your-app.vercel.app`
+
+## Step 1.5: Create Vercel KV Database
+
+**IMPORTANT**: You must create a Vercel KV database for persistent user storage.
+
+1. **Go to Vercel Dashboard**: [vercel.com/dashboard](https://vercel.com/dashboard)
+2. **Navigate to Storage**: Click "Storage" tab
+3. **Create KV Database**:
+   - Click "Create Database"
+   - Select "KV" (Redis)
+   - Choose a name (e.g., "diffusion-canvas-users")
+   - Select region closest to your users
+   - Click "Create"
+4. **Connect to Project**: 
+   - Link the KV database to your project
+   - This automatically adds the required environment variables
 
 ## Step 2: Deploy to Vercel
 
@@ -112,33 +130,31 @@ After deployment, you'll get a URL like `https://your-app.vercel.app`
 
 ## Important Notes
 
-### File Storage
-- `users.json` will be reset on each deployment
-- Consider using a database (MongoDB, PostgreSQL) for production
-- Vercel deployments are stateless - file writes won't persist
+### Persistent Storage with Vercel KV
+- ✅ **User data persists** across deployments using Vercel KV (Redis)
+- ✅ **Free tier included** - 256MB storage, 100K requests/month
+- ✅ **Automatic scaling** - handles traffic spikes
+- ℹ️ **Local development** - Uses `users.json` file (auto-switches in production)
 
 ### Session Management
 - Sessions use in-memory storage (won't persist across deployments)
 - For production, consider using a session store like Redis
 
-### Recommendations for Production
+### Optional Enhancements
 
-1. **Use a Database**:
-   ```bash
-   npm install mongodb
-   # or
-   npm install pg
-   ```
-
-2. **Use a Session Store**:
+1. **Add Session Store** (for multi-region):
    ```bash
    npm install connect-redis redis
    ```
 
-3. **Add Error Logging**:
+2. **Add Error Logging**:
    ```bash
    npm install @vercel/analytics
    ```
+
+3. **Upgrade KV Plan** (if needed):
+   - Free: 256MB, 100K requests/month
+   - Pro: Unlimited storage, 10M requests/month
 
 ## Troubleshooting
 

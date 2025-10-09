@@ -144,13 +144,12 @@ app.get('/admin', (req, res) => {
 });
 
 // Admin API Routes
-import fs from 'fs/promises';
+import { storage } from './storage.js';
 
 // Get all users (admin only)
 app.get('/api/admin/users', isAdmin, async (req, res) => {
     try {
-        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
-        const users = JSON.parse(data);
+        const users = await storage.getUsers();
         res.json(users);
     } catch (error) {
         console.error('Error loading users:', error);
@@ -168,8 +167,7 @@ app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
             return res.status(400).json({ error: 'Cannot delete your own account' });
         }
         
-        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
-        const users = JSON.parse(data);
+        const users = await storage.getUsers();
         
         // Find and remove user
         const userIndex = users.findIndex(u => u.id === userId);
@@ -184,7 +182,7 @@ app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
         
         users.splice(userIndex, 1);
         
-        await fs.writeFile(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+        await storage.setUsers(users);
         
         res.json({ message: 'User deleted successfully' });
     } catch (error) {
@@ -285,13 +283,12 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         }
 
         // Deduct one credit from user
-        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
-        const users = JSON.parse(data);
+        const users = await storage.getUsers();
         const userIndex = users.findIndex(u => u.id === req.user.id);
         
         if (userIndex !== -1) {
             users[userIndex].credits = (users[userIndex].credits || 0) - 1;
-            await fs.writeFile(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+            await storage.setUsers(users);
             
             // Update session user object
             req.user.credits = users[userIndex].credits;
@@ -314,8 +311,7 @@ app.delete('/api/user/delete', isAuthenticated, async (req, res) => {
     try {
         const userId = req.user.id;
         
-        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
-        const users = JSON.parse(data);
+        const users = await storage.getUsers();
         
         const userIndex = users.findIndex(u => u.id === userId);
         if (userIndex === -1) {
@@ -325,7 +321,7 @@ app.delete('/api/user/delete', isAuthenticated, async (req, res) => {
         // Remove user
         users.splice(userIndex, 1);
         
-        await fs.writeFile(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+        await storage.setUsers(users);
         
         // Logout the user
         req.logout((err) => {
@@ -350,8 +346,7 @@ app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
             return res.status(400).json({ error: 'Invalid credits value' });
         }
         
-        const data = await fs.readFile(path.join(__dirname, 'users.json'), 'utf-8');
-        const users = JSON.parse(data);
+        const users = await storage.getUsers();
         
         const userIndex = users.findIndex(u => u.id === userId);
         if (userIndex === -1) {
@@ -360,7 +355,7 @@ app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
         
         users[userIndex].credits = credits;
         
-        await fs.writeFile(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+        await storage.setUsers(users);
         
         res.json({ message: 'Credits updated successfully', credits: credits });
     } catch (error) {
