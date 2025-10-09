@@ -9,8 +9,8 @@ const __dirname = path.dirname(__filename);
 const USERS_FILE = path.join(__dirname, 'users.json');
 const KV_USERS_KEY = 'diffusion_canvas_users';
 
-// Detect environment
-const isVercel = process.env.VERCEL === '1' || process.env.KV_REST_API_URL;
+// Detect environment - only use Vercel KV if credentials are available
+const isVercel = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 // Storage interface
 export const storage = {

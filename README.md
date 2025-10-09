@@ -162,6 +162,30 @@ diffusioncanvas/
 └── README.md       # This file
 ```
 
+## Deployment to Vercel
+
+The application can be deployed to Vercel with persistent storage support.
+
+### Local Development
+For local development, the application uses file-based storage (`users.json`). No additional configuration needed.
+
+### Vercel Production
+When deploying to Vercel, you need to set up Vercel KV for persistent user storage:
+
+1. **Add Vercel KV to your project**:
+   - Go to your Vercel dashboard
+   - Select Storage → Create Database → KV
+   - This will automatically add `KV_REST_API_URL` and `KV_REST_API_TOKEN` to your environment variables
+
+2. **Add OAuth callback URLs**:
+   - Update your OAuth provider callback URLs to use your Vercel domain
+   - Example: `https://your-app.vercel.app/auth/google/callback`
+
+The application automatically detects the environment:
+- **Local**: Uses file-based storage (`users.json`)
+- **Vercel with KV**: Uses Vercel KV for persistent storage
+- **Vercel without KV**: Falls back to file-based storage (data will reset on each deployment)
+
 ## Development
 
 For development with auto-restart on file changes:
