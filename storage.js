@@ -1,4 +1,5 @@
 import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,13 +10,46 @@ const __dirname = path.dirname(__filename);
 const USERS_FILE = path.join(__dirname, 'users.json');
 const KV_USERS_KEY = 'diffusion_canvas_users';
 
-// Detect environment - only use Vercel KV if credentials are available
-const isVercel = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+// Try Vercel KV first, then Upstash Redis, then local file
+// Check for both standard and prefixed environment variable names
+const kvUrl = process.env.KV_REST_API_URL || process.env.diffusioncanvas_KV_REST_API_URL;
+const kvToken = process.env.KV_REST_API_TOKEN || process.env.diffusioncanvas_KV_REST_API_TOKEN;
+const hasVercelKV = !!(kvUrl && kvToken);
+
+const upstashUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.diffusioncanvas_REDIS_URL;
+const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const hasUpstashRedis = !!(upstashUrl && upstashToken);
+
+const isVercel = hasVercelKV || hasUpstashRedis;
+
+// Initialize Upstash Redis if available (prefer KV over Redis)
+let redis = null;
+if (hasVercelKV) {
+    // Use Vercel KV/Upstash via REST API
+    redis = new Redis({
+        url: kvUrl,
+        token: kvToken,
+    });
+} else if (hasUpstashRedis) {
+    redis = new Redis({
+        url: upstashUrl,
+        token: upstashToken,
+    });
+}
 
 // Storage interface
 export const storage = {
     async getUsers() {
-        if (isVercel) {
+        if (redis) {
+            // Use Upstash Redis
+            try {
+                const users = await redis.get(KV_USERS_KEY);
+                return users || [];
+            } catch (error) {
+                console.error('Redis get error:', error);
+                return [];
+            }
+        } else if (hasVercelKV) {
             // Use Vercel KV
             try {
                 const users = await kv.get(KV_USERS_KEY);
@@ -36,7 +70,15 @@ export const storage = {
     },
 
     async setUsers(users) {
-        if (isVercel) {
+        if (redis) {
+            // Use Upstash Redis
+            try {
+                await redis.set(KV_USERS_KEY, JSON.stringify(users));
+            } catch (error) {
+                console.error('Redis set error:', error);
+                throw error;
+            }
+        } else if (hasVercelKV) {
             // Use Vercel KV
             try {
                 await kv.set(KV_USERS_KEY, users);
@@ -51,7 +93,16 @@ export const storage = {
     },
 
     async init() {
-        if (isVercel) {
+        if (redis) {
+            console.log('✓ Using Upstash Redis for persistent storage');
+            // Verify Redis is accessible
+            try {
+                await redis.ping();
+                console.log('✓ Upstash Redis connection verified');
+            } catch (error) {
+                console.error('⚠️  Warning: Upstash Redis connection test failed:', error.message);
+            }
+        } else if (hasVercelKV) {
             console.log('✓ Using Vercel KV for persistent storage');
             // Verify KV is accessible
             try {
