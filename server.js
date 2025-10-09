@@ -142,17 +142,32 @@ app.get('/auth/logout', (req, res) => {
     });
 });
 
-// Get current user
-app.get('/api/user', (req, res) => {
-    // Check JWT first, then session
-    const jwtUser = getAuthUser(req);
-    if (jwtUser) {
-        return res.json({ user: jwtUser });
+// Get current user (always fetch fresh data from database)
+app.get('/api/user', async (req, res) => {
+    try {
+        // Check JWT first, then session
+        const jwtUser = getAuthUser(req);
+        const sessionUser = req.isAuthenticated() ? req.user : null;
+        const authUser = jwtUser || sessionUser;
+        
+        if (!authUser) {
+            return res.json({ user: null });
+        }
+        
+        // Fetch fresh user data from database to get current credits
+        const users = await storage.getUsers();
+        const freshUser = users.find(u => u.id === authUser.id);
+        
+        if (freshUser) {
+            return res.json({ user: freshUser });
+        }
+        
+        // User not found in database (deleted?)
+        res.json({ user: null });
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ error: 'Failed to fetch user data' });
     }
-    if (req.isAuthenticated()) {
-        return res.json({ user: req.user });
-    }
-    res.json({ user: null });
 });
 
 // Get available OAuth providers
