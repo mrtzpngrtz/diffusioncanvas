@@ -60,19 +60,22 @@ KV_REST_API_URL=your-vercel-kv-rest-api-url
 KV_REST_API_TOKEN=your-vercel-kv-rest-api-token
 ```
 
-### 3. Set Up Vercel KV (For Persistent User Storage)
+### 3. Connect Vercel KV to Your Project
 
-Without Vercel KV, user data will reset on each deployment.
+You've already created the KV database. Now connect it:
 
-1. Go to your Vercel dashboard
-2. Select your project
-3. Go to Storage tab
-4. Click "Create Database"
-5. Select "KV"
-6. Click "Create"
-7. Connect it to your project
+1. In your Vercel dashboard, go to the Storage tab
+2. Click on your "diffusion-canvas-users" database
+3. Click the "Connect Project" button
+4. Select your project from the dropdown
+5. Click "Connect"
 
-This automatically adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` to your environment variables.
+This automatically adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` to your project's environment variables.
+
+**Verify the connection:**
+- Go to your project Settings → Environment Variables
+- You should see `KV_REST_API_URL` and `KV_REST_API_TOKEN` listed
+- If not, manually connect the database again
 
 ### 4. Update OAuth Provider Callback URLs
 

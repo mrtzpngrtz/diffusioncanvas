@@ -55,11 +55,24 @@ export const storage = {
             console.log('✓ Using Vercel KV for persistent storage');
         } else {
             console.log('✓ Using local file storage (users.json)');
-            // Create file if it doesn't exist
+            // Create file if it doesn't exist (only works in writable environments)
             try {
                 await fs.access(USERS_FILE);
             } catch {
-                await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2));
+                try {
+                    await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2));
+                } catch (error) {
+                    if (error.code === 'EROFS') {
+                        console.error('❌ CRITICAL ERROR: File system is read-only!');
+                        console.error('❌ You are deploying to Vercel without Vercel KV configured.');
+                        console.error('❌ Please set up Vercel KV for persistent storage:');
+                        console.error('   1. Go to your Vercel dashboard');
+                        console.error('   2. Select Storage → Create Database → KV');
+                        console.error('   3. Connect it to your project');
+                        throw new Error('Vercel KV is required for deployment. File storage is not available on Vercel.');
+                    }
+                    throw error;
+                }
             }
         }
     }
