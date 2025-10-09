@@ -131,6 +131,9 @@ if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
 
 // Logout
 app.get('/auth/logout', (req, res) => {
+    // Clear JWT cookie
+    clearAuthCookie(res);
+    
     req.logout((err) => {
         if (err) {
             return res.status(500).json({ error: 'Logout failed' });
@@ -352,7 +355,10 @@ app.delete('/api/user/delete', isAuthenticated, async (req, res) => {
         
         await storage.setUsers(users);
         
-        // Logout the user
+        // Clear JWT cookie
+        clearAuthCookie(res);
+        
+        // Logout the user from session
         req.logout((err) => {
             if (err) {
                 return res.status(500).json({ error: 'Failed to logout after deletion' });
