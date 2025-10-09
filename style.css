@@ -14,24 +14,6 @@ body {
     flex-direction: column;
 }
 
-.beta-disclaimer {
-    background: #1a1a1a;
-    border-bottom: 1px solid #667eea;
-    padding: 8px 20px;
-}
-
-.beta-disclaimer p {
-    color: #aaa;
-    font-size: 11px;
-    margin: 0;
-    text-align: center;
-}
-
-.beta-disclaimer strong {
-    color: #667eea;
-    font-weight: 600;
-}
-
 .header {
     background: #1a1a1a;
     padding: 12px 20px;
@@ -1085,6 +1067,26 @@ body.light-mode .password-container button:hover {
     border-color: #0A66C2;
 }
 
+.login-disclaimer {
+    margin-top: 24px;
+    padding: 16px;
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 6px;
+}
+
+.login-disclaimer p {
+    color: #aaa;
+    font-size: 11px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.login-disclaimer strong {
+    color: #667eea;
+    font-weight: 600;
+}
+
 .login-footer {
     color: #666;
     font-size: 11px;
@@ -1277,6 +1279,19 @@ body.light-mode .facebook-btn:hover {
 body.light-mode .linkedin-btn:hover {
     background: rgba(10, 102, 194, 0.05);
     border-color: #0A66C2;
+}
+
+body.light-mode .login-disclaimer {
+    background: rgba(102, 126, 234, 0.08);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+body.light-mode .login-disclaimer p {
+    color: #555;
+}
+
+body.light-mode .login-disclaimer strong {
+    color: #667eea;
 }
 
 body.light-mode .login-footer {
