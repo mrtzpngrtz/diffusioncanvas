@@ -3,29 +3,6 @@ import { storage } from '../storage.js';
 
 export default async function handler(req, res) {
     try {
-        // Check if bypass auth is enabled
-        if (process.env.BYPASS_AUTH === 'true') {
-            const users = await storage.getUsers();
-            let testUser = users.find(u => u.id === 'test-user-local');
-            
-            if (!testUser) {
-                // Create default test user
-                testUser = {
-                    id: 'test-user-local',
-                    email: 'test@local.dev',
-                    displayName: 'Test User (Local Dev)',
-                    provider: 'bypass',
-                    credits: 1000,
-                    isAdmin: true,
-                    createdAt: new Date().toISOString()
-                };
-                users.push(testUser);
-                await storage.setUsers(users);
-            }
-            
-            return res.json({ user: testUser });
-        }
-        
         // Check JWT authentication
         const jwtUser = getAuthUser(req);
         
