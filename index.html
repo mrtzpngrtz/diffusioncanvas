@@ -19,6 +19,7 @@
                     canvas <br>– <br>
                     beta 0.5 25/10/10<br>– <br>
                     <i></i>for people who like to use a.i. but hate to work with images in chat windows.
+
                 </h1>
             </div>
             
@@ -37,6 +38,7 @@
             <div class="login-disclaimer">
                 <p><strong>Beta Notice:</strong> This is experimental software. Your images are processed through the Vercel server and sent to Google's Gemini API for generation. Images are not stored permanently.</p>
             </div>
+       
         </div>
     </div>
     
@@ -114,6 +116,62 @@
         <div class="context-menu-item" data-action="addAction">+ Action Node</div>
     </div>
 
+    <!-- Cookie Notice (German) -->
+    <div class="cookie-notice" id="cookieNotice">
+        <div class="cookie-notice-content">
+            <div class="cookie-notice-text">
+                <h3>Cookie-Hinweis</h3>
+                <p>Diese Website verwendet technisch notwendige Cookies zur Authentifizierung und Sitzungsverwaltung. Ihre Bilddaten werden über unseren Vercel-Server an die Google Gemini API gesendet und nicht dauerhaft gespeichert. Durch die Nutzung dieser Website stimmen Sie der Verwendung dieser Cookies zu.</p>
+                <p class="cookie-notice-small">Weitere Informationen finden Sie in unserer <a href="#" id="privacyLink">Datenschutzerklärung</a>.</p>
+            </div>
+            <div class="cookie-notice-actions">
+                <button class="cookie-btn cookie-btn-accept" id="acceptCookies">Akzeptieren</button>
+                <button class="cookie-btn cookie-btn-decline" id="declineCookies">Ablehnen</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
+    <script>
+        // Cookie Notice Handler
+        (function() {
+            const cookieNotice = document.getElementById('cookieNotice');
+            const acceptBtn = document.getElementById('acceptCookies');
+            const declineBtn = document.getElementById('declineCookies');
+            const privacyLink = document.getElementById('privacyLink');
+            
+            // Check if user has already made a choice
+            const cookieConsent = localStorage.getItem('cookieConsent');
+            
+            if (!cookieConsent) {
+                // Show cookie notice after a brief delay
+                setTimeout(() => {
+                    cookieNotice.classList.add('active');
+                }, 500);
+            }
+            
+            // Accept cookies
+            acceptBtn.addEventListener('click', () => {
+                localStorage.setItem('cookieConsent', 'accepted');
+                localStorage.setItem('cookieConsentDate', new Date().toISOString());
+                cookieNotice.classList.remove('active');
+            });
+            
+            // Decline cookies
+            declineBtn.addEventListener('click', () => {
+                localStorage.setItem('cookieConsent', 'declined');
+                localStorage.setItem('cookieConsentDate', new Date().toISOString());
+                cookieNotice.classList.remove('active');
+                // Show message that functionality may be limited
+                alert('Ohne Cookies ist die volle Funktionalität dieser Website nicht verfügbar. Die Authentifizierung wird nicht funktionieren.');
+            });
+            
+            // Privacy link (placeholder)
+            privacyLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                alert('Datenschutzerklärung:\n\nDiese Beta-Anwendung verwendet:\n- Technisch notwendige Cookies für Authentifizierung\n- Google OAuth für Login\n- Google Gemini API für Bildgenerierung\n- Vercel Server für Backend-Operationen\n\nBilder werden nicht dauerhaft gespeichert.');
+            });
+        })();
+    </script>
 </body>
 </html>
