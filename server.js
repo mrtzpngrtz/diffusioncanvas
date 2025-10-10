@@ -42,32 +42,6 @@ app.use(passport.session());
 
 // Middleware to check if user is authenticated (JWT-based)
 async function isAuthenticated(req, res, next) {
-    // Check if bypass auth is enabled
-    if (process.env.BYPASS_AUTH === 'true') {
-        // Create/use a default test user
-        const users = await storage.getUsers();
-        let testUser = users.find(u => u.id === 'test-user-local');
-        
-        if (!testUser) {
-            // Create default test user with credits
-            testUser = {
-                id: 'test-user-local',
-                email: 'test@local.dev',
-                displayName: 'Test User (Local Dev)',
-                provider: 'bypass',
-                credits: 1000,
-                isAdmin: true,
-                createdAt: new Date().toISOString()
-            };
-            users.push(testUser);
-            await storage.setUsers(users);
-            console.log('✓ Created default test user for local development');
-        }
-        
-        req.user = testUser;
-        return next();
-    }
-    
     const user = getAuthUser(req);
     if (!user) {
         return res.status(401).json({ error: 'Not authenticated' });
@@ -81,17 +55,6 @@ async function isAuthenticated(req, res, next) {
 
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
-    // Check if bypass auth is enabled
-    if (process.env.BYPASS_AUTH === 'true') {
-        // Use the same test user
-        const users = await storage.getUsers();
-        const testUser = users.find(u => u.id === 'test-user-local');
-        if (testUser) {
-            req.user = testUser;
-            return next();
-        }
-    }
-    
     const user = getAuthUser(req);
     if (!user || !user.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -182,29 +145,6 @@ app.get('/auth/logout', (req, res) => {
 // Get current user (always fetch fresh data from database)
 app.get('/api/user', async (req, res) => {
     try {
-        // Check if bypass auth is enabled
-        if (process.env.BYPASS_AUTH === 'true') {
-            const users = await storage.getUsers();
-            let testUser = users.find(u => u.id === 'test-user-local');
-            
-            if (!testUser) {
-                // Create default test user
-                testUser = {
-                    id: 'test-user-local',
-                    email: 'test@local.dev',
-                    displayName: 'Test User (Local Dev)',
-                    provider: 'bypass',
-                    credits: 1000,
-                    isAdmin: true,
-                    createdAt: new Date().toISOString()
-                };
-                users.push(testUser);
-                await storage.setUsers(users);
-            }
-            
-            return res.json({ user: testUser });
-        }
-        
         // Check JWT first, then session
         const jwtUser = getAuthUser(req);
         const sessionUser = req.isAuthenticated() ? req.user : null;
@@ -517,16 +457,4 @@ app.listen(PORT, async () => {
     
     // Initialize storage
     await storage.init();
-    
-    // Check if bypass auth is enabled
-    if (process.env.BYPASS_AUTH === 'true') {
-        console.log('');
-        console.log('⚠️  ================================');
-        console.log('⚠️  BYPASS_AUTH MODE ENABLED');
-        console.log('⚠️  Authentication is disabled!');
-        console.log('⚠️  Using local test user');
-        console.log('⚠️  For development only!');
-        console.log('⚠️  ================================');
-        console.log('');
-    }
 });
