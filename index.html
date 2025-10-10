@@ -50,47 +50,52 @@
         </div>
     </div>
     
-    <div class="header">
-        <div class="header-content">
-            <div class="header-text">
-                <h1>Diffusion Canvas Beta 1.0</h1>
-                <p>node based prompting for people who dont like chat windows for image editing</p>
-            </div>
-            <div class="header-right">
-                <!-- User Info Display -->
-                <div class="user-info-inline" id="userInfo" style="display: none;">
-                    <img id="userPhoto" src="" alt="User" class="user-photo">
-                    <span id="userName"></span>
-                    <span id="userCredits" class="user-credits">0 credits</span>
-                    <a href="/admin" id="adminLink" class="admin-link" style="display: none;">Admin</a>
-                    <div class="user-info-wrapper">
-                        <button class="user-menu-btn" id="userMenuBtn">⋮</button>
-                        <div class="user-dropdown" id="userDropdown">
-                            <div class="user-dropdown-item" onclick="window.location.href='/auth/logout'">
-                                🚪 Logout
-                            </div>
-                            <div class="user-dropdown-item danger" id="deleteAccountBtn">
-                                🗑️ Delete Account
-                            </div>
+    <div class="canvas-container">
+        <!-- Title (Top Left) -->
+        <div class="canvas-title">
+            <div>diffusion canvas</div>
+            <div>beta 1.0</div>
+            <div class="canvas-credit">barely made by www.moritzpongratz.com</div>
+        </div>
+        
+        <!-- Toolbar (Vertically Centered Left) -->
+        <div class="toolbar-overlay">
+            <button id="addImageNode" class="btn">+ Image Node</button>
+            <button id="addPromptNode" class="btn">+ Prompt Node</button>
+            <button id="addActionNode" class="btn">+ Action Node</button>
+            <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 10px 0;"></div>
+            <button id="saveCanvas" class="btn">↓ Save Canvas</button>
+            <button id="loadCanvas" class="btn">↑ Load Canvas</button>
+            <button id="clearCanvas" class="btn btn-danger">Clear Canvas</button>
+        </div>
+        
+        <!-- Status (Bottom Center) -->
+        <div class="status" id="status">Ready</div>
+        
+        <!-- Top Right Controls -->
+        <div class="canvas-controls">
+            <div class="user-info-inline" id="userInfo" style="display: none;">
+                <img id="userPhoto" src="" alt="User" class="user-photo">
+                <span id="userName"></span>
+                <span id="userCredits" class="user-credits">0 credits</span>
+                <a href="/admin" id="adminLink" class="admin-link" style="display: none;">Admin</a>
+                <div class="user-info-wrapper">
+                    <button class="user-menu-btn" id="userMenuBtn">⋮</button>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="user-dropdown-item" onclick="window.location.href='/auth/logout'">
+                            🚪 Logout
+                        </div>
+                        <div class="user-dropdown-item danger" id="deleteAccountBtn">
+                            🗑️ Delete Account
                         </div>
                     </div>
                 </div>
-                <button class="theme-toggle" id="themeToggle" title="Toggle day/night mode">
-                    <span class="theme-icon">☀️</span>
-                </button>
             </div>
+            <button class="theme-toggle" id="themeToggle" title="Toggle day/night mode">
+                <span class="theme-icon">☀️</span>
+            </button>
         </div>
-    </div>
- 
-    <div class="toolbar">
-        <button id="addImageNode" class="btn">Add Image Node</button>
-        <button id="addPromptNode" class="btn">Add Prompt Node</button>
-        <button id="addActionNode" class="btn">Add Action Node</button>
-        <button id="clearCanvas" class="btn btn-danger">Clear Canvas</button>
-        <div class="status" id="status">Ready</div>
-    </div>
-
-    <div class="canvas-container">
+        
         <canvas id="connectionCanvas"></canvas>
         <div id="nodeCanvas" class="node-canvas"></div>
         
@@ -114,14 +119,10 @@
 
     <!-- Context Menu -->
     <div class="context-menu" id="contextMenu">
-        <div class="context-menu-item" data-action="addImage">Add Image Node</div>
-        <div class="context-menu-item" data-action="addPrompt">Add Prompt Node</div>
-        <div class="context-menu-item" data-action="addAction">Add Action Node</div>
+        <div class="context-menu-item" data-action="addImage">+ Image Node</div>
+        <div class="context-menu-item" data-action="addPrompt">+ Prompt Node</div>
+        <div class="context-menu-item" data-action="addAction">+ Action Node</div>
     </div>
-
-    <footer class="footer">
-        <p>barely made by <a href="https://www.moritzpongratz.com" target="_blank">www.moritzpongratz.com</a></p>
-    </footer>
 
     <script src="script.js"></script>
 </body>

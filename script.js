@@ -307,16 +307,13 @@ function handleImageFile(file, node) {
             img.style.width = `${node.data.imageWidth}px`;
             wrapper.appendChild(img);
             
-            const controls = document.createElement('div');
-            controls.className = 'image-controls';
-            controls.innerHTML = `
-                <button class="scale-btn" data-action="smaller">-</button>
-                <span class="scale-label">${node.data.imageWidth}px</span>
-                <button class="scale-btn" data-action="larger">+</button>
-            `;
-            
             content.appendChild(wrapper);
-            content.appendChild(controls);
+            
+            // Add small scale indicator
+            const scaleIndicator = document.createElement('div');
+            scaleIndicator.className = 'scale-indicator';
+            scaleIndicator.textContent = `${node.data.imageWidth}`;
+            content.appendChild(scaleIndicator);
             
             // Add action buttons (lightbox and download)
             const actionButtons = document.createElement('div');
@@ -338,24 +335,6 @@ function handleImageFile(file, node) {
             downloadBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 downloadImage(node.data.imageData, 'image.png');
-            });
-            
-            const smallerBtn = controls.querySelector('[data-action="smaller"]');
-            const largerBtn = controls.querySelector('[data-action="larger"]');
-            const scaleLabel = controls.querySelector('.scale-label');
-            
-            smallerBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                node.data.imageWidth = Math.max(100, node.data.imageWidth - 50);
-                img.style.width = `${node.data.imageWidth}px`;
-                scaleLabel.textContent = `${node.data.imageWidth}px`;
-            });
-            
-            largerBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                node.data.imageWidth = Math.min(800, node.data.imageWidth + 50);
-                img.style.width = `${node.data.imageWidth}px`;
-                scaleLabel.textContent = `${node.data.imageWidth}px`;
             });
             
             updateStatus('Image loaded successfully', '#888');
@@ -472,6 +451,7 @@ function createPromptNode(x = 300, y = 100) {
         <div class="connection-point input" data-node="${nodeId}"></div>
         <div class="connection-point output" data-node="${nodeId}"></div>
         <div class="node-actions">
+            <div class="model-indicator">Imagen 4.0</div>
             <button class="node-btn generate-btn" disabled>Generate Image</button>
         </div>
     `;
@@ -573,16 +553,13 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
     img.style.width = `${node.data.imageWidth}px`;
     wrapper.appendChild(img);
     
-    const controls = document.createElement('div');
-    controls.className = 'image-controls';
-    controls.innerHTML = `
-        <button class="scale-btn" data-action="smaller">-</button>
-        <span class="scale-label">${node.data.imageWidth}px</span>
-        <button class="scale-btn" data-action="larger">+</button>
-    `;
-    
     content.appendChild(wrapper);
-    content.appendChild(controls);
+    
+    // Add small scale indicator
+    const scaleIndicator = document.createElement('div');
+    scaleIndicator.className = 'scale-indicator';
+    scaleIndicator.textContent = `${node.data.imageWidth}`;
+    content.appendChild(scaleIndicator);
     
     // Add action buttons (lightbox and download)
     const actionButtons = document.createElement('div');
@@ -604,24 +581,6 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
     downloadBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         downloadImage(node.data.imageData, 'generated-result.png');
-    });
-    
-    const smallerBtn = controls.querySelector('[data-action="smaller"]');
-    const largerBtn = controls.querySelector('[data-action="larger"]');
-    const scaleLabel = controls.querySelector('.scale-label');
-    
-    smallerBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        node.data.imageWidth = Math.max(100, node.data.imageWidth - 50);
-        img.style.width = `${node.data.imageWidth}px`;
-        scaleLabel.textContent = `${node.data.imageWidth}px`;
-    });
-    
-    largerBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        node.data.imageWidth = Math.min(800, node.data.imageWidth + 50);
-        img.style.width = `${node.data.imageWidth}px`;
-        scaleLabel.textContent = `${node.data.imageWidth}px`;
     });
 
     // Close button
@@ -686,12 +645,34 @@ function updateGenerateButton(node) {
     } else {
         generateBtn.textContent = 'Generate Image';
     }
+    
+    // Update model indicator based on whether there are connected images
+    const modelIndicator = node.element.querySelector('.model-indicator');
+    if (modelIndicator) {
+        if (hasImages) {
+            modelIndicator.textContent = 'Gemini 2.5 Flash';
+        } else {
+            modelIndicator.textContent = 'Imagen 4.0';
+        }
+    }
+    
+    // Show/hide aspect ratio selector based on whether images are connected
+    const aspectRatioSelect = node.element.querySelector('.aspect-ratio-select');
+    if (aspectRatioSelect) {
+        if (hasImages) {
+            // Hide aspect ratio when using Gemini 2.5 Flash (image-to-image)
+            aspectRatioSelect.style.display = 'none';
+        } else {
+            // Show aspect ratio when using Imagen 4.0 (text-to-image)
+            aspectRatioSelect.style.display = 'block';
+        }
+    }
 }
 
 // Setup node resizing
 let isResizing = false;
 let resizedNode = null;
-let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
+let resizeStart = { x: 0, y: 0, width: 0, height: 0, imageWidth: 0 };
 
 function setupNodeResize(nodeEl, node, resizeHandle) {
     resizeHandle.addEventListener('mousedown', (e) => {
@@ -703,6 +684,8 @@ function setupNodeResize(nodeEl, node, resizeHandle) {
         resizeStart.y = e.clientY;
         resizeStart.width = nodeEl.offsetWidth;
         resizeStart.height = nodeEl.offsetHeight;
+        // Store the initial image width if it exists
+        resizeStart.imageWidth = node.data.imageWidth || 250;
     });
 }
 
@@ -712,7 +695,9 @@ function setupNodeDragging(nodeEl, node) {
         if (e.target.closest('.connection-point') || 
             e.target.tagName === 'TEXTAREA' || 
             e.target.tagName === 'BUTTON' ||
-            e.target.tagName === 'INPUT') {
+            e.target.tagName === 'INPUT' ||
+            e.target.tagName === 'IMG' ||
+            e.target.tagName === 'SELECT') {
             return;
         }
 
@@ -741,17 +726,19 @@ document.addEventListener('mousemove', (e) => {
         
         // Scale the image if it exists
         if (resizedNode.data.image && resizedNode.data.imageData) {
+            // Calculate scale factor based on node width change
             const scaleFactor = newWidth / resizeStart.width;
-            const newImageWidth = Math.round(250 * scaleFactor);
+            // Apply scale factor to the INITIAL image width (from when resize started)
+            const newImageWidth = Math.round(resizeStart.imageWidth * scaleFactor);
             
             resizedNode.data.imageWidth = newImageWidth;
             const img = resizedNode.data.image;
             img.style.width = `${newImageWidth}px`;
             
-            // Update the scale label if it exists
-            const scaleLabel = resizedNode.element.querySelector('.scale-label');
-            if (scaleLabel) {
-                scaleLabel.textContent = `${newImageWidth}px`;
+            // Update scale indicator if it exists
+            const scaleIndicator = resizedNode.element.querySelector('.scale-indicator');
+            if (scaleIndicator) {
+                scaleIndicator.textContent = `${newImageWidth}`;
             }
         }
         
@@ -778,10 +765,10 @@ document.addEventListener('mousemove', (e) => {
     
     // Update temporary connection while dragging
     if (isConnecting && connectionStart) {
-        const container = connectionCanvas.getBoundingClientRect();
-        // Mouse position in screen space (canvas coordinates)
-        const mouseX = e.clientX - container.left;
-        const mouseY = e.clientY - container.top;
+        const container = canvasContainer.getBoundingClientRect();
+        // Convert mouse position to canvas space (accounting for zoom/pan)
+        const mouseX = (e.clientX - container.left) / zoom - panX;
+        const mouseY = (e.clientY - container.top) / zoom - panY;
         tempConnectionEnd.x = mouseX;
         tempConnectionEnd.y = mouseY;
         drawConnections();
@@ -953,7 +940,7 @@ function drawConnections() {
         if (startNode) {
             const startPoint = getConnectionPoint(startNode, connectionStart.type);
             
-            ctx.beginPath();
+            ctx.save();
             ctx.strokeStyle = '#888';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
@@ -963,35 +950,33 @@ function drawConnections() {
             const cp2x = startPoint.x + (tempConnectionEnd.x - startPoint.x) / 2;
             const cp2y = tempConnectionEnd.y;
             
+            ctx.beginPath();
             ctx.moveTo(startPoint.x, startPoint.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, tempConnectionEnd.x, tempConnectionEnd.y);
             ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.restore();
         }
     }
 }
 
-// Get connection point coordinates in screen space (with zoom applied)
+// Get connection point coordinates in canvas space
 function getConnectionPoint(node, type) {
     // Get actual node dimensions
     const nodeWidth = node.element.offsetWidth;
     const nodeHeight = node.element.offsetHeight;
     
-    // Calculate position in node space
-    let x, y;
+    // Return position in canvas space (CSS transform will handle zoom/pan)
     if (type === 'output') {
-        x = node.position.x + nodeWidth;
-        y = node.position.y + nodeHeight / 2;
+        return {
+            x: node.position.x + nodeWidth,
+            y: node.position.y + nodeHeight / 2
+        };
     } else {
-        x = node.position.x;
-        y = node.position.y + nodeHeight / 2;
+        return {
+            x: node.position.x,
+            y: node.position.y + nodeHeight / 2
+        };
     }
-    
-    // Apply zoom transform to get screen position
-    return {
-        x: (x + panX) * zoom,
-        y: (y + panY) * zoom
-    };
 }
 
 // Remove node
@@ -1019,6 +1004,274 @@ function clearCanvas() {
         drawConnections();
         updateStatus('Canvas cleared');
     }
+}
+
+// Save canvas state to file
+function saveCanvas() {
+    try {
+        // Create a serializable version of the canvas state
+        const canvasState = {
+            version: '1.0',
+            timestamp: new Date().toISOString(),
+            zoom: zoom,
+            panX: panX,
+            panY: panY,
+            nodeIdCounter: nodeIdCounter,
+            nodes: nodes.map(node => ({
+                id: node.id,
+                type: node.type,
+                position: node.position,
+                data: {
+                    // For image nodes
+                    imageData: node.data.imageData,
+                    imageWidth: node.data.imageWidth,
+                    // For prompt nodes
+                    prompt: node.data.prompt,
+                    aspectRatio: node.data.aspectRatio,
+                    // For action nodes
+                    action: node.data.action,
+                    // Store IDs of connected nodes instead of references
+                    connectedImageIds: node.data.connectedImages ? 
+                        node.data.connectedImages.map(n => n.id) : [],
+                    connectedPromptIds: node.data.connectedPrompts ? 
+                        node.data.connectedPrompts.map(n => n.id) : [],
+                    resultNodeId: node.data.resultNode ? node.data.resultNode.id : null,
+                    sourcePromptNodeId: node.data.sourcePromptNode ? node.data.sourcePromptNode.id : null
+                }
+            })),
+            connections: connections.map(conn => ({
+                from: conn.from,
+                to: conn.to
+            }))
+        };
+
+        // Convert to JSON and create download
+        const json = JSON.stringify(canvasState, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `diffusion-canvas-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        updateStatus('Canvas saved successfully!', '#27ae60');
+    } catch (error) {
+        console.error('Save error:', error);
+        updateStatus('Failed to save canvas', '#e74c3c');
+        alert('Failed to save canvas: ' + error.message);
+    }
+}
+
+// Load canvas state from file
+function loadCanvas() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const canvasState = JSON.parse(text);
+
+            // Validate the file format
+            if (!canvasState.version || !canvasState.nodes) {
+                throw new Error('Invalid canvas file format');
+            }
+
+            // Confirm before loading
+            if (nodes.length > 0) {
+                if (!confirm('Loading will replace the current canvas. Continue?')) {
+                    return;
+                }
+            }
+
+            // Clear current canvas
+            nodes.forEach(node => node.element.remove());
+            nodes = [];
+            connections = [];
+
+            // Restore zoom and pan
+            zoom = canvasState.zoom || 1;
+            panX = canvasState.panX || 0;
+            panY = canvasState.panY || 0;
+            nodeIdCounter = canvasState.nodeIdCounter || 0;
+
+            // Create a map to store node ID to node object mapping
+            const nodeMap = new Map();
+
+            // Recreate all nodes
+            for (const nodeData of canvasState.nodes) {
+                let node;
+                
+                switch (nodeData.type) {
+                    case 'image':
+                        node = createImageNode(nodeData.position.x, nodeData.position.y);
+                        // Restore image if exists
+                        if (nodeData.data.imageData) {
+                            const img = document.createElement('img');
+                            img.src = nodeData.data.imageData;
+                            img.onload = () => {
+                                node.data.image = img;
+                                node.data.imageData = nodeData.data.imageData;
+                                node.data.imageWidth = nodeData.data.imageWidth || 250;
+                                
+                                const content = node.element.querySelector('.node-content');
+                                content.innerHTML = '';
+                                
+                                const wrapper = document.createElement('div');
+                                wrapper.className = 'image-wrapper';
+                                img.style.width = `${node.data.imageWidth}px`;
+                                wrapper.appendChild(img);
+                                content.appendChild(wrapper);
+                                
+                                // Add scale indicator
+                                const scaleIndicator = document.createElement('div');
+                                scaleIndicator.className = 'scale-indicator';
+                                scaleIndicator.textContent = `${node.data.imageWidth}`;
+                                content.appendChild(scaleIndicator);
+                                
+                                // Add action buttons
+                                const actionButtons = document.createElement('div');
+                                actionButtons.className = 'image-actions';
+                                actionButtons.innerHTML = `
+                                    <button class="icon-btn" title="View Full Size">⛶</button>
+                                    <button class="icon-btn" title="Download Image">↓</button>
+                                `;
+                                content.appendChild(actionButtons);
+                                
+                                const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
+                                const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+                                
+                                lightboxBtn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    openLightbox(node.data.imageData);
+                                });
+                                
+                                downloadBtn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    downloadImage(node.data.imageData, 'image.png');
+                                });
+                            };
+                        }
+                        break;
+                    
+                    case 'prompt':
+                        node = createPromptNode(nodeData.position.x, nodeData.position.y);
+                        // Restore prompt and aspect ratio
+                        if (nodeData.data.prompt) {
+                            const textarea = node.element.querySelector('textarea');
+                            textarea.value = nodeData.data.prompt;
+                            node.data.prompt = nodeData.data.prompt;
+                        }
+                        if (nodeData.data.aspectRatio) {
+                            const select = node.element.querySelector('.aspect-ratio-select');
+                            select.value = nodeData.data.aspectRatio;
+                            node.data.aspectRatio = nodeData.data.aspectRatio;
+                        }
+                        break;
+                    
+                    case 'action':
+                        node = createActionNode(nodeData.position.x, nodeData.position.y);
+                        // Restore action
+                        if (nodeData.data.action) {
+                            const select = node.element.querySelector('.action-select');
+                            select.value = nodeData.data.action;
+                            node.data.action = nodeData.data.action;
+                        }
+                        break;
+                    
+                    case 'result':
+                        node = createResultNode(nodeData.position.x, nodeData.position.y, nodeData.data.imageData);
+                        node.data.imageWidth = nodeData.data.imageWidth || 250;
+                        // Update image width
+                        const img = node.data.image;
+                        img.style.width = `${node.data.imageWidth}px`;
+                        const scaleIndicator = node.element.querySelector('.scale-indicator');
+                        if (scaleIndicator) {
+                            scaleIndicator.textContent = `${node.data.imageWidth}`;
+                        }
+                        break;
+                }
+
+                // Remove the node that was auto-created and replace with our data
+                const lastNode = nodes[nodes.length - 1];
+                if (lastNode && lastNode.id !== nodeData.id) {
+                    // Update the ID to match the saved state
+                    lastNode.element.id = nodeData.id;
+                    lastNode.id = nodeData.id;
+                    // Update connection point data attributes
+                    lastNode.element.querySelectorAll('.connection-point').forEach(point => {
+                        point.dataset.node = nodeData.id;
+                    });
+                }
+
+                nodeMap.set(nodeData.id, lastNode);
+            }
+
+            // Restore connections between nodes (rebuild references)
+            for (const nodeData of canvasState.nodes) {
+                const node = nodeMap.get(nodeData.id);
+                if (!node) continue;
+
+                // Restore connectedImages
+                if (nodeData.data.connectedImageIds) {
+                    node.data.connectedImages = nodeData.data.connectedImageIds
+                        .map(id => nodeMap.get(id))
+                        .filter(n => n);
+                }
+
+                // Restore connectedPrompts
+                if (nodeData.data.connectedPromptIds) {
+                    node.data.connectedPrompts = nodeData.data.connectedPromptIds
+                        .map(id => nodeMap.get(id))
+                        .filter(n => n);
+                }
+
+                // Restore resultNode reference
+                if (nodeData.data.resultNodeId) {
+                    node.data.resultNode = nodeMap.get(nodeData.data.resultNodeId);
+                }
+
+                // Restore sourcePromptNode reference
+                if (nodeData.data.sourcePromptNodeId) {
+                    node.data.sourcePromptNode = nodeMap.get(nodeData.data.sourcePromptNodeId);
+                }
+
+                // Update generate button state for prompt/action nodes
+                if (node.type === 'prompt' || node.type === 'action') {
+                    updateGenerateButton(node);
+                }
+            }
+
+            // Restore connections
+            connections = [];
+            for (const connData of canvasState.connections) {
+                connections.push({
+                    from: connData.from,
+                    to: connData.to
+                });
+            }
+
+            // Update UI
+            applyZoom();
+            drawConnections();
+            updateMinimap();
+            
+            updateStatus('Canvas loaded successfully!', '#27ae60');
+        } catch (error) {
+            console.error('Load error:', error);
+            updateStatus('Failed to load canvas', '#e74c3c');
+            alert('Failed to load canvas: ' + error.message);
+        }
+    });
+
+    fileInput.click();
 }
 
 // Generate image using Google GenAI API
@@ -1182,12 +1435,26 @@ document.getElementById('addActionNode').addEventListener('click', () => {
 });
 
 document.getElementById('clearCanvas').addEventListener('click', clearCanvas);
+document.getElementById('saveCanvas').addEventListener('click', saveCanvas);
+document.getElementById('loadCanvas').addEventListener('click', loadCanvas);
 
 // Zoom functions
 function applyZoom() {
     const transform = `scale(${zoom}) translate(${panX}px, ${panY}px)`;
     nodeCanvas.style.transform = transform;
     nodeCanvas.style.transformOrigin = '0 0';
+    
+    // Apply same transform to connection canvas so lines follow nodes
+    connectionCanvas.style.transform = transform;
+    connectionCanvas.style.transformOrigin = '0 0';
+    
+    // Apply zoom to background grid
+    const canvasContainer = document.querySelector('.canvas-container');
+    const baseSize1 = 100;
+    const baseSize2 = 20;
+    canvasContainer.style.backgroundSize = `${baseSize1 * zoom}px ${baseSize1 * zoom}px, ${baseSize2 * zoom}px ${baseSize2 * zoom}px`;
+    canvasContainer.style.backgroundPosition = `${panX * zoom}px ${panY * zoom}px`;
+    
     updateZoomLevel();
     drawConnections();
     updateMinimap();
@@ -1263,11 +1530,10 @@ document.addEventListener('mouseup', (e) => {
 // Click on connections to disconnect
 connectionCanvas.addEventListener('click', (e) => {
     e.stopPropagation();
-    const rect = connectionCanvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    
-    console.log('Canvas clicked at:', clickX, clickY);
+    const container = canvasContainer.getBoundingClientRect();
+    // Convert click position to canvas space
+    const clickX = (e.clientX - container.left) / zoom - panX;
+    const clickY = (e.clientY - container.top) / zoom - panY;
     
     // Check if click is on any disconnect button
     for (let i = connections.length - 1; i >= 0; i--) {
@@ -1275,15 +1541,13 @@ connectionCanvas.addEventListener('click', (e) => {
         
         if (!conn.midpoint) continue;
         
-        // Check if click is within the disconnect button (increased hitbox for easier clicking)
+        // Check if click is within the disconnect button (hitbox in canvas space)
         const distance = Math.sqrt(
             Math.pow(clickX - conn.midpoint.x, 2) + 
             Math.pow(clickY - conn.midpoint.y, 2)
         );
         
-        console.log('Distance to connection', i, ':', distance, 'midpoint:', conn.midpoint);
-        
-        if (distance <= 25) {
+        if (distance <= 15) {
             console.log('Removing connection', i);
             // Found a click on disconnect button
             const fromNode = nodes.find(n => n.id === conn.from);
@@ -1349,33 +1613,55 @@ document.getElementById('zoomReset').addEventListener('click', () => {
 
 // Minimap
 function updateMinimap() {
-    const scale = 0.1;
-    minimapCanvas.width = 200;
-    minimapCanvas.height = 150;
+    const scale = 0.15;
+    minimapCanvas.width = 300;
+    minimapCanvas.height = 225;
     
-    minimapCtx.fillStyle = '#2a2a2a';
-    minimapCtx.fillRect(0, 0, 200, 150);
+    minimapCtx.fillStyle = '#1a1a1a';
+    minimapCtx.fillRect(0, 0, 300, 225);
     
-    // Draw nodes on minimap
+    // Draw nodes on minimap with more detail
     nodes.forEach(node => {
         const x = node.position.x * scale;
         const y = node.position.y * scale;
+        const width = (node.element.offsetWidth || 280) * scale;
+        const height = (node.element.offsetHeight || 150) * scale;
         
-        minimapCtx.fillStyle = node.type === 'result' ? '#4a4a4a' : '#404040';
-        minimapCtx.fillRect(x, y, 25 * scale, 15 * scale);
+        // Different colors for different node types
+        if (node.type === 'image') {
+            minimapCtx.fillStyle = '#4a6fa5';
+        } else if (node.type === 'prompt') {
+            minimapCtx.fillStyle = '#6b4aa5';
+        } else if (node.type === 'action') {
+            minimapCtx.fillStyle = '#a54a6f';
+        } else if (node.type === 'result') {
+            minimapCtx.fillStyle = '#4aa56b';
+        }
+        
+        minimapCtx.fillRect(x, y, width, height);
+        
+        // Add border
+        minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        minimapCtx.lineWidth = 1;
+        minimapCtx.strokeRect(x, y, width, height);
     });
     
     // Draw connections on minimap
-    minimapCtx.strokeStyle = '#555';
-    minimapCtx.lineWidth = 1;
+    minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    minimapCtx.lineWidth = 1.5;
     connections.forEach(conn => {
         const fromNode = nodes.find(n => n.id === conn.from);
         const toNode = nodes.find(n => n.id === conn.to);
         if (!fromNode || !toNode) return;
         
+        const fromX = (fromNode.position.x + (fromNode.element.offsetWidth || 280)) * scale;
+        const fromY = (fromNode.position.y + (fromNode.element.offsetHeight || 150) / 2) * scale;
+        const toX = toNode.position.x * scale;
+        const toY = (toNode.position.y + (toNode.element.offsetHeight || 150) / 2) * scale;
+        
         minimapCtx.beginPath();
-        minimapCtx.moveTo(fromNode.position.x * scale, fromNode.position.y * scale);
-        minimapCtx.lineTo(toNode.position.x * scale, toNode.position.y * scale);
+        minimapCtx.moveTo(fromX, fromY);
+        minimapCtx.lineTo(toX, toY);
         minimapCtx.stroke();
     });
     
@@ -1509,6 +1795,48 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && contextMenu.classList.contains('active')) {
         contextMenu.classList.remove('active');
+    }
+});
+
+// Make toolbar draggable
+const toolbar = document.querySelector('.toolbar-overlay');
+let isToolbarDragging = false;
+let toolbarDragStart = { x: 0, y: 0 };
+// Position toolbar at top-left, below the title with more space
+let toolbarPosition = { x: 20, y: 180 }; // Initial position with more breathing room
+
+// Set initial position
+toolbar.style.left = `${toolbarPosition.x}px`;
+toolbar.style.top = `${toolbarPosition.y}px`;
+toolbar.style.transform = 'none'; // Remove the transform
+
+toolbar.addEventListener('mousedown', (e) => {
+    // Don't drag if clicking on a button
+    if (e.target.classList.contains('btn') || e.target.closest('.btn')) {
+        return;
+    }
+    
+    isToolbarDragging = true;
+    toolbarDragStart.x = e.clientX - toolbarPosition.x;
+    toolbarDragStart.y = e.clientY - toolbarPosition.y;
+    toolbar.style.cursor = 'grabbing';
+    e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (isToolbarDragging) {
+        toolbarPosition.x = e.clientX - toolbarDragStart.x;
+        toolbarPosition.y = e.clientY - toolbarDragStart.y;
+        
+        toolbar.style.left = `${toolbarPosition.x}px`;
+        toolbar.style.top = `${toolbarPosition.y}px`;
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    if (isToolbarDragging) {
+        isToolbarDragging = false;
+        toolbar.style.cursor = 'move';
     }
 });
 

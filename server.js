@@ -311,26 +311,32 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             return res.status(403).json({ error: 'Insufficient credits. Please contact an administrator.' });
         }
 
-        const { prompt, images, aspectRatio } = req.body;
+        const { prompt, images } = req.body;
+        let userAspectRatio = req.body.aspectRatio;
 
         if (!prompt) {
             return res.status(400).json({ error: 'No prompt provided' });
         }
 
         console.log('Generating image with prompt:', prompt);
-        console.log('Number of images:', images ? images.length : 0);
-        console.log('Aspect ratio:', aspectRatio || '16:9 (default)');
-        
-        // Build the contents array in the correct format
-        let contents = [];
-        
+        console.log('Number of input images:', images ? images.length : 0);
+
+        let result = {
+            text: null,
+            image: null
+        };
+
+        // Choose generation method based on whether input images are provided
         if (images && images.length > 0) {
-            // Image-to-image generation with prompt
+            // IMAGE-TO-IMAGE: Use Gemini 2.5 Flash (no aspect ratio control)
+            console.log('Using Gemini 2.5 Flash for image-to-image generation');
+            
+            // Build the contents array
+            let contents = [];
             contents.push({ text: `Based on these ${images.length} input image${images.length > 1 ? 's' : ''}, ${prompt}` });
             
             // Add all images to the contents
             images.forEach((image, index) => {
-                // Remove the data:image/... prefix if present
                 let imageData = image;
                 if (imageData.includes('base64,')) {
                     imageData = imageData.split('base64,')[1];
@@ -343,57 +349,74 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                     }
                 });
             });
-        } else {
-            // Text-to-image generation (prompt only)
-            contents = [{ text: prompt }];
-        }
 
-        // Generate content using Gemini image generation model with aspect ratio config
-        // Per official docs: https://ai.google.dev/gemini-api/docs/image-generation
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: contents,
-            config: {
-                imageConfig: {
-                    aspectRatio: aspectRatio || '16:9'
+            // Generate using Gemini 2.5 Flash
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash-image',
+                contents: contents
+            });
+
+            // Process response
+            if (!response || !response.candidates || !response.candidates[0]) {
+                console.error('Unexpected API response structure:', JSON.stringify(response, null, 2));
+                return res.status(500).json({ 
+                    error: 'Unexpected response from AI model.'
+                });
+            }
+
+            const candidate = response.candidates[0];
+            
+            if (!candidate.content || !candidate.content.parts) {
+                console.error('No content in response:', JSON.stringify(candidate, null, 2));
+                return res.status(500).json({ 
+                    error: 'No content returned from AI model.'
+                });
+            }
+
+            for (const part of candidate.content.parts) {
+                if (part.text) {
+                    result.text = part.text;
+                } else if (part.inlineData) {
+                    const imageData = part.inlineData.data;
+                    result.image = `data:image/png;base64,${imageData}`;
+                    console.log('Generated image (base64 length):', imageData.length);
                 }
             }
-        });
 
-        // Process response
-        const result = {
-            text: null,
-            image: null
-        };
+        } else {
+            // TEXT-TO-IMAGE: Use Imagen 4.0 with aspect ratio support
+            console.log('Using Imagen 4.0 for text-to-image generation');
+            
+            // Define the set of valid aspect ratios for Imagen
+            const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '16:9', '9:16', '4:3', '3:4']);
+            const aspectRatio = SUPPORTED_ASPECT_RATIOS.has(userAspectRatio) ? userAspectRatio : '1:1';
+            
+            console.log('Requested aspect ratio:', userAspectRatio);
+            console.log('Using aspect ratio:', aspectRatio);
 
-        // Check if response has the expected structure
-        if (!response || !response.candidates || !response.candidates[0]) {
-            console.error('Unexpected API response structure:', JSON.stringify(response, null, 2));
-            return res.status(500).json({ 
-                error: 'Unexpected response from AI model. The model may not support image generation or returned an invalid response.'
+            // Generate using Imagen 4.0
+            const response = await ai.models.generateImages({
+                model: 'imagen-4.0-generate-001',
+                prompt: prompt,
+                config: {
+                    numberOfImages: 1,
+                    aspectRatio: aspectRatio
+                }
             });
-        }
 
-        const candidate = response.candidates[0];
-        
-        // Check if candidate has content and parts
-        if (!candidate.content || !candidate.content.parts) {
-            console.error('No content in response:', JSON.stringify(candidate, null, 2));
-            return res.status(500).json({ 
-                error: 'No content returned from AI model. The model may not support this type of request.'
-            });
-        }
-
-        for (const part of candidate.content.parts) {
-            if (part.text) {
-                result.text = part.text;
-                console.log('Generated text:', part.text);
-            } else if (part.inlineData) {
-                // Convert to base64 data URL
-                const imageData = part.inlineData.data;
-                result.image = `data:image/png;base64,${imageData}`;
-                console.log('Generated image (base64 length):', imageData.length);
+            // Process response - Imagen returns generatedImages array
+            if (!response || !response.generatedImages || response.generatedImages.length === 0) {
+                console.error('No images generated:', JSON.stringify(response, null, 2));
+                return res.status(500).json({ 
+                    error: 'No images generated by the model.'
+                });
             }
+
+            // Get the first generated image
+            const generatedImage = response.generatedImages[0];
+            const imageBytes = generatedImage.image.imageBytes;
+            result.image = `data:image/png;base64,${imageBytes}`;
+            console.log('Generated image (base64 length):', imageBytes.length);
         }
 
         // Deduct one credit from user
