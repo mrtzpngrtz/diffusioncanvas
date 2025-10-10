@@ -178,6 +178,7 @@ body {
     pointer-events: auto;
     z-index: 1;
     transform-origin: 0 0;
+    background: transparent;
 }
 
 .node-canvas {

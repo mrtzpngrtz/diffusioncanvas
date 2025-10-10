@@ -877,6 +877,11 @@ function createConnection(fromNodeId, toNodeId, fromType, toType) {
 // Draw all connections
 function drawConnections() {
     ctx.clearRect(0, 0, connectionCanvas.width, connectionCanvas.height);
+    
+    // Save context and apply zoom/pan transformation
+    ctx.save();
+    ctx.translate(panX * zoom, panY * zoom);
+    ctx.scale(zoom, zoom);
 
     // Draw established connections
     connections.forEach((conn, index) => {
@@ -940,7 +945,6 @@ function drawConnections() {
         if (startNode) {
             const startPoint = getConnectionPoint(startNode, connectionStart.type);
             
-            ctx.save();
             ctx.strokeStyle = '#888';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
@@ -954,9 +958,12 @@ function drawConnections() {
             ctx.moveTo(startPoint.x, startPoint.y);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, tempConnectionEnd.x, tempConnectionEnd.y);
             ctx.stroke();
-            ctx.restore();
+            ctx.setLineDash([]);
         }
     }
+    
+    // Restore context
+    ctx.restore();
 }
 
 // Get connection point coordinates in canvas space
@@ -1444,9 +1451,8 @@ function applyZoom() {
     nodeCanvas.style.transform = transform;
     nodeCanvas.style.transformOrigin = '0 0';
     
-    // Apply same transform to connection canvas so lines follow nodes
-    connectionCanvas.style.transform = transform;
-    connectionCanvas.style.transformOrigin = '0 0';
+    // Don't apply CSS transform to connection canvas - we'll handle zoom/pan in the drawing context
+    connectionCanvas.style.transform = 'none';
     
     // Apply zoom to background grid
     const canvasContainer = document.querySelector('.canvas-container');
@@ -1613,17 +1619,57 @@ document.getElementById('zoomReset').addEventListener('click', () => {
 
 // Minimap
 function updateMinimap() {
-    const scale = 0.15;
     minimapCanvas.width = 300;
     minimapCanvas.height = 225;
     
     minimapCtx.fillStyle = '#1a1a1a';
     minimapCtx.fillRect(0, 0, 300, 225);
     
+    // If no nodes, use default scale
+    if (nodes.length === 0) {
+        minimapViewport.style.width = '0px';
+        minimapViewport.style.height = '0px';
+        return;
+    }
+    
+    // Calculate bounds of all nodes
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+    
+    nodes.forEach(node => {
+        const nodeWidth = node.element.offsetWidth || 280;
+        const nodeHeight = node.element.offsetHeight || 150;
+        
+        minX = Math.min(minX, node.position.x);
+        minY = Math.min(minY, node.position.y);
+        maxX = Math.max(maxX, node.position.x + nodeWidth);
+        maxY = Math.max(maxY, node.position.y + nodeHeight);
+    });
+    
+    // Add padding around the nodes
+    const padding = 100;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+    
+    // Calculate the bounds size
+    const boundsWidth = maxX - minX;
+    const boundsHeight = maxY - minY;
+    
+    // Calculate scale to fit all nodes in minimap
+    const scaleX = minimapCanvas.width / boundsWidth;
+    const scaleY = minimapCanvas.height / boundsHeight;
+    const scale = Math.min(scaleX, scaleY);
+    
+    // Calculate offset to center the content
+    const offsetX = (minimapCanvas.width - boundsWidth * scale) / 2;
+    const offsetY = (minimapCanvas.height - boundsHeight * scale) / 2;
+    
     // Draw nodes on minimap with more detail
     nodes.forEach(node => {
-        const x = node.position.x * scale;
-        const y = node.position.y * scale;
+        const x = (node.position.x - minX) * scale + offsetX;
+        const y = (node.position.y - minY) * scale + offsetY;
         const width = (node.element.offsetWidth || 280) * scale;
         const height = (node.element.offsetHeight || 150) * scale;
         
@@ -1654,10 +1700,10 @@ function updateMinimap() {
         const toNode = nodes.find(n => n.id === conn.to);
         if (!fromNode || !toNode) return;
         
-        const fromX = (fromNode.position.x + (fromNode.element.offsetWidth || 280)) * scale;
-        const fromY = (fromNode.position.y + (fromNode.element.offsetHeight || 150) / 2) * scale;
-        const toX = toNode.position.x * scale;
-        const toY = (toNode.position.y + (toNode.element.offsetHeight || 150) / 2) * scale;
+        const fromX = (fromNode.position.x + (fromNode.element.offsetWidth || 280) - minX) * scale + offsetX;
+        const fromY = (fromNode.position.y + (fromNode.element.offsetHeight || 150) / 2 - minY) * scale + offsetY;
+        const toX = (toNode.position.x - minX) * scale + offsetX;
+        const toY = (toNode.position.y + (toNode.element.offsetHeight || 150) / 2 - minY) * scale + offsetY;
         
         minimapCtx.beginPath();
         minimapCtx.moveTo(fromX, fromY);
@@ -1668,14 +1714,87 @@ function updateMinimap() {
     // Update viewport indicator
     const viewportWidth = (canvasContainer.clientWidth / zoom) * scale;
     const viewportHeight = (canvasContainer.clientHeight / zoom) * scale;
+    const viewportX = (-panX - minX) * scale + offsetX;
+    const viewportY = (-panY - minY) * scale + offsetY;
+    
     minimapViewport.style.width = `${viewportWidth}px`;
     minimapViewport.style.height = `${viewportHeight}px`;
-    minimapViewport.style.left = `${-panX * scale}px`;
-    minimapViewport.style.top = `${-panY * scale}px`;
+    minimapViewport.style.left = `${viewportX}px`;
+    minimapViewport.style.top = `${viewportY}px`;
+    
+    // Store these values for interactive minimap features
+    minimapViewport.dataset.scale = scale;
+    minimapViewport.dataset.minX = minX;
+    minimapViewport.dataset.minY = minY;
+    minimapViewport.dataset.offsetX = offsetX;
+    minimapViewport.dataset.offsetY = offsetY;
 }
 
 // Update minimap periodically
 setInterval(updateMinimap, 100);
+
+// Make minimap interactive - click to navigate
+minimapCanvas.addEventListener('click', (e) => {
+    if (nodes.length === 0) return;
+    
+    const rect = minimapCanvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // Get dynamically calculated values from dataset
+    const scale = parseFloat(minimapViewport.dataset.scale);
+    const minX = parseFloat(minimapViewport.dataset.minX);
+    const minY = parseFloat(minimapViewport.dataset.minY);
+    const offsetX = parseFloat(minimapViewport.dataset.offsetX);
+    const offsetY = parseFloat(minimapViewport.dataset.offsetY);
+    
+    // Convert minimap coordinates to canvas coordinates
+    const canvasX = (clickX - offsetX) / scale + minX;
+    const canvasY = (clickY - offsetY) / scale + minY;
+    
+    // Center the view on the clicked position
+    const container = document.querySelector('.canvas-container');
+    panX = -(canvasX - container.clientWidth / (2 * zoom));
+    panY = -(canvasY - container.clientHeight / (2 * zoom));
+    
+    applyZoom();
+});
+
+// Make minimap viewport draggable
+let isDraggingMinimap = false;
+let minimapDragStart = { x: 0, y: 0 };
+
+minimapViewport.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    isDraggingMinimap = true;
+    minimapDragStart.x = e.clientX;
+    minimapDragStart.y = e.clientY;
+    minimapViewport.style.cursor = 'grabbing';
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (isDraggingMinimap) {
+        // Get dynamically calculated scale from dataset
+        const scale = parseFloat(minimapViewport.dataset.scale);
+        const dx = (e.clientX - minimapDragStart.x) / scale;
+        const dy = (e.clientY - minimapDragStart.y) / scale;
+        
+        panX -= dx;
+        panY -= dy;
+        
+        minimapDragStart.x = e.clientX;
+        minimapDragStart.y = e.clientY;
+        
+        applyZoom();
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    if (isDraggingMinimap) {
+        isDraggingMinimap = false;
+        minimapViewport.style.cursor = '';
+    }
+});
 
 // Download image function
 function downloadImage(imageData, filename = 'generated-image.png') {
