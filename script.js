@@ -142,7 +142,7 @@ const themeIcon = document.querySelector('.theme-icon');
 const savedTheme = localStorage.getItem('theme');
 if (savedTheme === 'light') {
     document.body.classList.add('light-mode');
-    themeIcon.textContent = '🌙';
+    themeIcon.textContent = '●';
 }
 
 // Toggle theme
@@ -151,7 +151,7 @@ function toggleTheme() {
     const isLightMode = document.body.classList.contains('light-mode');
     
     // Update icon
-    themeIcon.textContent = isLightMode ? '🌙' : '☀️';
+    themeIcon.textContent = isLightMode ? '●' : '○';
     
     // Save preference
     localStorage.setItem('theme', isLightMode ? 'light' : 'dark');
