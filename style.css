@@ -18,10 +18,15 @@ body {
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 1px;
-    padding: 8px 12px;
+    padding: 10px 16px;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 18px;
+    font-size: 20px;
+    min-width: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .theme-toggle:hover {
