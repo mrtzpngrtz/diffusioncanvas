@@ -18,12 +18,12 @@ body {
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 1px;
-    padding: 10px 16px;
+    padding: 8px 12px;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 20px;
-    min-width: 48px;
-    min-height: 48px;
+    font-size: 18px;
+    height: 40px;
+    min-width: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1340,6 +1340,9 @@ body.light-mode .password-container button:hover {
     color: #fff;
     font-size: 11px;
     font-weight: 400;
+    height: 40px;
+    display: flex;
+    align-items: center;
 }
 
 .admin-link {
@@ -1353,6 +1356,9 @@ body.light-mode .password-container button:hover {
     font-family: 'Inter', sans-serif;
     cursor: pointer;
     transition: all 0.2s ease;
+    height: 40px;
+    display: flex;
+    align-items: center;
 }
 
 .admin-link:hover {
