@@ -118,33 +118,34 @@ body {
 
 .btn {
     padding: 12px 24px;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 1px;
-    background: rgba(255, 255, 255, 0.9);
-    color: #000;
+    background: #000;
+    color: #fff;
     cursor: pointer;
     font-size: 13px;
     font-family: 'Roboto Mono', monospace;
     font-weight: 400;
     transition: all 0.3s ease;
     white-space: nowrap;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn:hover {
-    background: #fff;
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .btn-danger {
     background: rgba(255, 80, 80, 0.1);
     color: #ff5050;
+    border-color: rgba(255, 80, 80, 0.3);
 }
 
 .btn-danger:hover {
     background: rgba(255, 80, 80, 0.15);
     color: #ff3030;
+    border-color: rgba(255, 80, 80, 0.5);
 }
 
 .status {
