@@ -291,6 +291,17 @@ function createImageNode(x = 100, y = 100) {
 
 // Handle image file upload
 function handleImageFile(file, node) {
+    const MAX_FILE_SIZE_MB = 3;
+    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+    
+    // Check file size before processing
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        updateStatus(`Error: Image is too large (${fileSizeMB} MB). Maximum size is ${MAX_FILE_SIZE_MB} MB.`, '#e74c3c');
+        alert(`Image file is too large!\n\nFile size: ${fileSizeMB} MB\nMaximum allowed: ${MAX_FILE_SIZE_MB} MB\n\nPlease use a smaller image file.`);
+        return;
+    }
+    
     const reader = new FileReader();
     reader.onload = (e) => {
         const img = document.createElement('img');
@@ -337,7 +348,7 @@ function handleImageFile(file, node) {
                 downloadImage(node.data.imageData, 'image.png');
             });
             
-            updateStatus('Image loaded successfully', '#888');
+            updateStatus('Image loaded successfully', '#27ae60');
         };
     };
     reader.readAsDataURL(file);
