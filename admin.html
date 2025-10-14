@@ -89,9 +89,33 @@
             border: 1px solid #404040;
         }
 
-        .users-section h2 {
-            font-size: 18px;
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 15px;
+        }
+
+        .section-header h2 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .add-user-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .add-user-btn:hover {
+            background: #7c8df5;
         }
 
         .users-table {
@@ -179,6 +203,15 @@
             color: #ff4444;
         }
 
+        .success {
+            background: #003a00;
+            border: 1px solid #44ff44;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #44ff44;
+        }
+
         .no-users {
             text-align: center;
             padding: 40px;
@@ -206,6 +239,153 @@
         .credits-input::-webkit-outer-spin-button {
             opacity: 1;
         }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group-checkbox input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        .form-group-checkbox label {
+            margin: 0;
+            cursor: pointer;
+            text-transform: none;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #7c8df5;
+        }
+
+        .btn-primary:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #888;
+            border: 1px solid #404040;
+        }
+
+        .btn-secondary:hover {
+            background: #2a2a2a;
+            color: #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -217,6 +397,7 @@
         </div>
 
         <div id="error" class="error" style="display: none;"></div>
+        <div id="success" class="success" style="display: none;"></div>
 
         <div class="stats">
             <div class="stat-card">
@@ -234,7 +415,10 @@
         </div>
 
         <div class="users-section">
-            <h2>Registered Users</h2>
+            <div class="section-header">
+                <h2>Registered Users</h2>
+                <button class="add-user-btn" id="addUserBtn">+ Add User</button>
+            </div>
             <div id="loading" class="loading">Loading users...</div>
             <div id="noUsers" class="no-users" style="display: none;">No users registered yet</div>
             <table class="users-table" id="usersTable" style="display: none;">
@@ -252,6 +436,36 @@
                 <tbody id="usersTableBody">
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal" id="addUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New User</h2>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <form id="addUserForm">
+                <div class="form-group">
+                    <label for="newUsername">Username *</label>
+                    <input type="text" id="newUsername" name="username" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Password * (min. 6 characters)</label>
+                    <input type="password" id="newPassword" name="password" required minlength="6" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <div class="form-group-checkbox">
+                        <input type="checkbox" id="newIsAdmin" name="isAdmin">
+                        <label for="newIsAdmin">Make this user an administrator</label>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="createUserBtn">Create User</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -326,13 +540,16 @@
 
             users.forEach(user => {
                 const tr = document.createElement('tr');
+                const displayName = user.username || user.displayName || 'Unknown User';
+                const photoUrl = user.photo || 'https://via.placeholder.com/32?text=' + displayName.charAt(0).toUpperCase();
+                
                 tr.innerHTML = `
                     <td>
-                        <img src="${user.photo || 'https://via.placeholder.com/32'}" 
-                             alt="${user.displayName}" 
+                        <img src="${photoUrl}" 
+                             alt="${displayName}" 
                              class="user-photo"
-                             onerror="this.src='https://via.placeholder.com/32'">
-                        ${user.displayName || 'Unknown User'}
+                             onerror="this.src='https://via.placeholder.com/32?text=${displayName.charAt(0).toUpperCase()}'">
+                        ${displayName}
                     </td>
                     <td>${user.email || '-'}</td>
                     <td>${capitalizeFirst(user.provider)}</td>
@@ -352,7 +569,7 @@
                     <td>${formatDate(user.createdAt)}</td>
                     <td>
                         <button class="delete-btn" 
-                                onclick="deleteUser('${user.id}', '${user.displayName}')"
+                                onclick="deleteUser('${user.id}', '${displayName}')"
                                 ${user.id === currentUserId || user.isAdmin ? 'disabled' : ''}>
                             ${user.id === currentUserId ? 'You' : user.isAdmin ? 'Admin' : 'Delete'}
                         </button>
@@ -380,7 +597,7 @@
             const creditsNum = parseInt(credits);
             if (isNaN(creditsNum) || creditsNum < 0) {
                 showError('Invalid credits value');
-                loadUsers(); // Reload to reset the input
+                loadUsers();
                 return;
             }
 
@@ -399,11 +616,10 @@
                     throw new Error(error.error || 'Failed to update credits');
                 }
 
-                // Reload users to show updated data
                 loadUsers();
             } catch (error) {
                 showError('Failed to update credits: ' + error.message);
-                loadUsers(); // Reload to reset the input
+                loadUsers();
             }
         }
 
@@ -424,12 +640,93 @@
                     throw new Error(error.error || 'Failed to delete user');
                 }
 
-                // Reload users
+                showSuccess('User deleted successfully');
                 loadUsers();
             } catch (error) {
                 showError('Failed to delete user: ' + error.message);
             }
         }
+
+        // Modal management
+        const modal = document.getElementById('addUserModal');
+        const addUserBtn = document.getElementById('addUserBtn');
+        const closeModalBtn = document.getElementById('closeModal');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const addUserForm = document.getElementById('addUserForm');
+
+        addUserBtn.addEventListener('click', () => {
+            modal.classList.add('active');
+            document.getElementById('newUsername').focus();
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+            addUserForm.reset();
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+            addUserForm.reset();
+        });
+
+        // Close modal on background click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+                addUserForm.reset();
+            }
+        });
+
+        // Add user form submission
+        addUserForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const createUserBtn = document.getElementById('createUserBtn');
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const isAdmin = document.getElementById('newIsAdmin').checked;
+
+            if (!username || !password) {
+                showError('Username and password are required');
+                return;
+            }
+
+            if (password.length < 6) {
+                showError('Password must be at least 6 characters long');
+                return;
+            }
+
+            // Disable button while creating
+            createUserBtn.disabled = true;
+            createUserBtn.textContent = 'Creating...';
+
+            try {
+                const response = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password, isAdmin })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to create user');
+                }
+
+                showSuccess(`User "${username}" created successfully`);
+                modal.classList.remove('active');
+                addUserForm.reset();
+                loadUsers();
+            } catch (error) {
+                showError('Failed to create user: ' + error.message);
+            } finally {
+                createUserBtn.disabled = false;
+                createUserBtn.textContent = 'Create User';
+            }
+        });
 
         // Helper functions
         function capitalizeFirst(str) {
@@ -447,6 +744,15 @@
             errorDiv.style.display = 'block';
             setTimeout(() => {
                 errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
             }, 5000);
         }
 

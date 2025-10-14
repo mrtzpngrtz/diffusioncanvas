@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import passport from './auth.js';
+import passport, { createLocalUser } from './auth.js';
 import { setAuthCookie, getAuthUser, clearAuthCookie } from './jwt-auth.js';
 import { storage } from './storage.js';
 
@@ -128,6 +128,33 @@ if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
 } else {
     console.warn('LinkedIn OAuth not configured - set LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET in .env');
 }
+
+// Local login
+app.post('/auth/local/login', (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) {
+            return res.status(500).json({ error: 'Authentication error' });
+        }
+        if (!user) {
+            return res.status(401).json({ error: info?.message || 'Invalid credentials' });
+        }
+        
+        req.login(user, (err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Login failed' });
+            }
+            
+            // Set JWT cookie for persistent authentication
+            setAuthCookie(res, user);
+            
+            return res.json({ 
+                success: true, 
+                user: user,
+                message: 'Login successful' 
+            });
+        });
+    })(req, res, next);
+});
 
 // Logout
 app.get('/auth/logout', (req, res) => {
@@ -441,6 +468,31 @@ app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error updating credits:', error);
         res.status(500).json({ error: 'Failed to update credits' });
+    }
+});
+
+// Create new local user (admin only)
+app.post('/api/admin/users', isAdmin, async (req, res) => {
+    try {
+        const { username, password, isAdmin } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password are required' });
+        }
+        
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+        }
+        
+        const user = await createLocalUser(username, password, isAdmin || false);
+        
+        res.json({ 
+            message: 'User created successfully', 
+            user: user 
+        });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(400).json({ error: error.message || 'Failed to create user' });
     }
 });
 
