@@ -2,16 +2,12 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/auth/(.*)",
-      "destination": "/server.js"
+      "source": "/",
+      "destination": "/index.html"
     },
     {
       "source": "/admin",
       "destination": "/admin.html"
-    },
-    {
-      "source": "/((?!api).*)",
-      "destination": "/server.js"
     }
   ]
 }
