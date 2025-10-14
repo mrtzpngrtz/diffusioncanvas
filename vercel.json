@@ -1,13 +1,35 @@
 {
   "version": 2,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/",
-      "destination": "/index.html"
+      "src": "server.js",
+      "use": "@vercel/node"
     },
     {
-      "source": "/admin",
-      "destination": "/admin.html"
+      "src": "script.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "style.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "admin.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*\\.(js|css|html))",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
     }
   ]
 }
