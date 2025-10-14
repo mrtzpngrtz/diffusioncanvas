@@ -1,55 +1,7 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "style.css",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "script.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "admin.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/style.css",
-      "dest": "/style.css"
-    },
-    {
-      "src": "/script.js",
-      "dest": "/script.js"
-    },
-    {
-      "src": "/admin.html",
-      "dest": "/admin.html"
-    },
-    {
-      "src": "/auth/google",
-      "dest": "/api/auth/google"
-    },
-    {
-      "src": "/auth/google/callback",
-      "dest": "/api/auth/google/callback"
-    },
-    {
-      "src": "/auth/logout",
-      "dest": "/api/auth/logout"
-    },
-    {
-      "src": "/",
-      "dest": "/index.html"
-    }
+  "rewrites": [
+    { "source": "/auth/google", "destination": "/api/auth/google" },
+    { "source": "/auth/google/callback", "destination": "/api/auth/google/callback" },
+    { "source": "/auth/logout", "destination": "/api/auth/logout" }
   ]
 }
