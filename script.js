@@ -93,7 +93,7 @@ async function checkAvailableProviders() {
 // Check authentication status on page load
 async function checkAuth() {
     try {
-        const response = await fetch('/api/user', {
+        const response = await fetch('/api/user/current', {
             credentials: 'include'
         });
         const data = await response.json();

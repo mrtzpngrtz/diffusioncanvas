@@ -305,7 +305,7 @@
         // Check if user is authenticated and is admin
         async function checkAdminAccess() {
             try {
-                const response = await fetch('/api/user', {
+                const response = await fetch('/api/user/current', {
                     credentials: 'include'
                 });
                 const data = await response.json();
