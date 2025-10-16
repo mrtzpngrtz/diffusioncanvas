@@ -830,7 +830,7 @@ document.addEventListener('mousemove', (e) => {
 });
 
 // Global mouse up handler
-document.addEventListener('mouseup', (e) => {
+document.addEventListener('mouseup', () => {
     if (isResizing) {
         isResizing = false;
         resizedNode = null;
@@ -842,29 +842,10 @@ document.addEventListener('mouseup', (e) => {
     isDragging = false;
     draggedNode = null;
     
-    // If ending a connection, show the context menu
-    if (isConnecting && connectionStart) {
-        const targetEl = e.target;
-        
-        // Check if the mouse is released over a valid connection point
-        const isOverConnectionPoint = targetEl.classList.contains('connection-point') &&
-                                      targetEl.dataset.node !== connectionStart.nodeId &&
-                                      ((connectionStart.type === 'output' && targetEl.classList.contains('input')) ||
-                                       (connectionStart.type === 'input' && targetEl.classList.contains('output')));
-
-        if (!isOverConnectionPoint) {
-            // If not over a valid point, show the context menu to create and connect a new node
-            const rect = canvasContainer.getBoundingClientRect();
-            contextMenuPosition.x = (e.clientX - rect.left) / zoom - panX;
-            contextMenuPosition.y = (e.clientY - rect.top) / zoom - panY;
-            
-            // Show context menu for creating a new node
-            showConnectionMenu(e.clientX, e.clientY);
-        }
-        
-        // The actual connection is made in setupConnectionPoint or showConnectionMenu
+    // Cancel connection if not dropped on a valid point
+    if (isConnecting) {
         isConnecting = false;
-        // Keep connectionStart until a choice is made, so we know where the line is coming from
+        connectionStart = null;
         drawConnections();
     }
 });
@@ -1654,6 +1635,34 @@ document.addEventListener('mouseup', (e) => {
     if (e.button === 1 && isMiddlePanning) {
         isMiddlePanning = false;
         canvasContainer.style.cursor = '';
+    }
+});
+
+// Mouse up on canvas to show connection menu
+connectionCanvas.addEventListener('mouseup', (e) => {
+    if (isConnecting && connectionStart) {
+        const targetEl = e.target;
+        
+        // Check if the mouse is released over a valid connection point
+        const isOverConnectionPoint = targetEl.classList.contains('connection-point') &&
+                                      targetEl.dataset.node !== connectionStart.nodeId &&
+                                      ((connectionStart.type === 'output' && targetEl.classList.contains('input')) ||
+                                       (connectionStart.type === 'input' && targetEl.classList.contains('output')));
+
+        if (!isOverConnectionPoint) {
+            // If not over a valid point, show the context menu to create and connect a new node
+            const rect = canvasContainer.getBoundingClientRect();
+            contextMenuPosition.x = (e.clientX - rect.left) / zoom - panX;
+            contextMenuPosition.y = (e.clientY - rect.top) / zoom - panY;
+            
+            // Show context menu for creating a new node
+            showConnectionMenu(e.clientX, e.clientY);
+        }
+        
+        // The actual connection is made in setupConnectionPoint or showConnectionMenu
+        isConnecting = false;
+        // Keep connectionStart until a choice is made, so we know where the line is coming from
+        drawConnections();
     }
 });
 
