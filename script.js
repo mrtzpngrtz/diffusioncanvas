@@ -745,7 +745,6 @@ function setupNodeDragging(nodeEl, node) {
             e.target.tagName === 'TEXTAREA' || 
             e.target.tagName === 'BUTTON' ||
             e.target.tagName === 'INPUT' ||
-            e.target.tagName === 'IMG' ||
             e.target.tagName === 'SELECT') {
             return;
         }
@@ -1033,6 +1032,57 @@ function getConnectionPoint(node, type) {
             y: node.position.y + nodeHeight / 2
         };
     }
+}
+
+// Clone node
+function cloneNode(nodeId) {
+    const originalNode = nodes.find(n => n.id === nodeId);
+    if (!originalNode) return;
+
+    const newPosition = {
+        x: originalNode.position.x + 30,
+        y: originalNode.position.y + 30
+    };
+
+    let newNode;
+    switch (originalNode.type) {
+        case 'image':
+            newNode = createImageNode(newPosition.x, newPosition.y);
+            if (originalNode.data.imageData) {
+                const file = dataURLtoFile(originalNode.data.imageData, 'cloned-image.png');
+                handleImageFile(file, newNode);
+            }
+            break;
+        case 'prompt':
+            newNode = createPromptNode(newPosition.x, newPosition.y);
+            newNode.data.prompt = originalNode.data.prompt;
+            newNode.element.querySelector('textarea').value = originalNode.data.prompt;
+            newNode.data.aspectRatio = originalNode.data.aspectRatio;
+            newNode.element.querySelector('.aspect-ratio-select').value = originalNode.data.aspectRatio;
+            break;
+        case 'action':
+            newNode = createActionNode(newPosition.x, newPosition.y);
+            newNode.data.action = originalNode.data.action;
+            newNode.element.querySelector('.action-select').value = originalNode.data.action;
+            break;
+        case 'result':
+            newNode = createResultNode(newPosition.x, newPosition.y, originalNode.data.imageData);
+            break;
+    }
+
+    if (newNode) {
+        updateStatus(`Node ${originalNode.id} cloned to ${newNode.id}`, '#27ae60');
+    }
+}
+
+// Helper to convert data URL to File object for cloning
+function dataURLtoFile(dataurl, filename) {
+    let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, {type:mime});
 }
 
 // Remove node
@@ -1920,15 +1970,22 @@ let contextMenuPosition = { x: 0, y: 0 };
 canvasContainer.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     
-    // Store the position for node creation
     const rect = canvasContainer.getBoundingClientRect();
     contextMenuPosition.x = (e.clientX - rect.left) / zoom - panX;
     contextMenuPosition.y = (e.clientY - rect.top) / zoom - panY;
     
-    // Position the menu at cursor
     contextMenu.style.left = `${e.clientX}px`;
     contextMenu.style.top = `${e.clientY}px`;
     contextMenu.classList.add('active');
+
+    const cloneItem = contextMenu.querySelector('[data-action="cloneNode"]');
+    const targetNodeEl = e.target.closest('.node');
+    if (targetNodeEl) {
+        cloneItem.style.display = 'block';
+        cloneItem.dataset.nodeId = targetNodeEl.id;
+    } else {
+        cloneItem.style.display = 'none';
+    }
 });
 
 // Handle context menu item clicks
@@ -1945,6 +2002,9 @@ contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
                 break;
             case 'addAction':
                 createActionNode(contextMenuPosition.x, contextMenuPosition.y);
+                break;
+            case 'cloneNode':
+                cloneNode(e.target.dataset.nodeId);
                 break;
         }
         
