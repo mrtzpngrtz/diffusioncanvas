@@ -1452,7 +1452,7 @@ async function generateImage(node) {
                 images: images,  // Send array of images
                 aspectRatio: node.data.aspectRatio || '16:9'  // Send aspect ratio
             })
-        });
+        }); 
 
         if (!response.ok) {
             const error = await response.json();
