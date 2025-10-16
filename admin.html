@@ -421,7 +421,7 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>
-                        <img src="${user.photo || 'https://via.placeholder.com/32'}" 
+                        <img src="${user.photo ? user.photo : 'https://via.placeholder.com/32'}" 
                              alt="${user.displayName}" 
                              class="user-photo"
                              onerror="this.src='https://via.placeholder.com/32'">

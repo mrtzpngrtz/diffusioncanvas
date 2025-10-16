@@ -90,7 +90,7 @@ async function checkAuth() {
             // User is authenticated
             loginModal.classList.add('hidden');
             userInfo.style.display = 'flex';
-            userPhoto.src = data.user.photo || 'https://via.placeholder.com/32';
+            userPhoto.src = data.user.photo ? data.user.photo : 'https://via.placeholder.com/32';
             userName.textContent = data.user.displayName || data.user.email;
             
             // Show credits
