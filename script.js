@@ -369,18 +369,25 @@ function handleImageFile(file, node) {
             actionButtons.className = 'image-actions';
             actionButtons.innerHTML = `
                 <button class="icon-btn" title="View Full Size">⛶</button>
+                <button class="icon-btn" title="Copy Image">📋</button>
                 <button class="icon-btn" title="Download Image">↓</button>
             `;
             content.appendChild(actionButtons);
             
             const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
-            const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+            const copyBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+            const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(3)');
             
             lightboxBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openLightbox(node.data.imageData);
             });
             
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyImageToClipboard(node.data.imageData);
+            });
+
             downloadBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 downloadImage(node.data.imageData, 'image.png');
@@ -615,18 +622,25 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
     actionButtons.className = 'image-actions';
     actionButtons.innerHTML = `
         <button class="icon-btn" title="View Full Size">⛶</button>
+        <button class="icon-btn" title="Copy Image">📋</button>
         <button class="icon-btn" title="Download Image">↓</button>
     `;
     content.appendChild(actionButtons);
     
     const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
-    const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+    const copyBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+    const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(3)');
     
     lightboxBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         openLightbox(node.data.imageData);
     });
     
+    copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyImageToClipboard(node.data.imageData);
+    });
+
     downloadBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         downloadImage(node.data.imageData, 'generated-result.png');
@@ -1197,16 +1211,23 @@ function loadCanvas() {
                                 actionButtons.className = 'image-actions';
                                 actionButtons.innerHTML = `
                                     <button class="icon-btn" title="View Full Size">⛶</button>
+                                    <button class="icon-btn" title="Copy Image">📋</button>
                                     <button class="icon-btn" title="Download Image">↓</button>
                                 `;
                                 content.appendChild(actionButtons);
                                 
                                 const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
-                                const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+                                const copyBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+                                const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(3)');
                                 
                                 lightboxBtn.addEventListener('click', (e) => {
                                     e.stopPropagation();
                                     openLightbox(node.data.imageData);
+                                });
+
+                                copyBtn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    copyImageToClipboard(node.data.imageData);
                                 });
                                 
                                 downloadBtn.addEventListener('click', (e) => {
@@ -1854,6 +1875,28 @@ function downloadImage(imageData, filename = 'generated-image.png') {
     link.click();
     document.body.removeChild(link);
     updateStatus('Image downloaded', '#27ae60');
+}
+
+// Copy image to clipboard
+async function copyImageToClipboard(imageData) {
+    try {
+        // Convert data URL to blob
+        const response = await fetch(imageData);
+        const blob = await response.blob();
+
+        // Use the Clipboard API to write the blob
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                [blob.type]: blob
+            })
+        ]);
+
+        updateStatus('Image copied to clipboard!', '#27ae60');
+    } catch (error) {
+        console.error('Failed to copy image:', error);
+        updateStatus('Failed to copy image to clipboard', '#e74c3c');
+        alert('Could not copy image to clipboard. Please check browser permissions and ensure you are using a secure context (HTTPS).');
+    }
 }
 
 // Lightbox functionality
