@@ -255,7 +255,10 @@ function createImageNode(x = 100, y = 100) {
     nodeEl.innerHTML = `
         <div class="node-header">
             <span class="node-title">Image Input</span>
-            <button class="node-close">×</button>
+            <div>
+                <button class="node-clone">⎘</button>
+                <button class="node-close">×</button>
+            </div>
         </div>
         <div class="node-content">
             <div class="drop-zone">
@@ -315,7 +318,8 @@ function createImageNode(x = 100, y = 100) {
         }
     });
 
-    // Close button
+    // Header buttons
+    nodeEl.querySelector('.node-clone').addEventListener('click', () => cloneNode(nodeId));
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
 
     // Connection point
@@ -405,7 +409,10 @@ function createActionNode(x = 300, y = 100) {
     nodeEl.innerHTML = `
         <div class="node-header">
             <span class="node-title">Action Preset</span>
-            <button class="node-close">×</button>
+            <div>
+                <button class="node-clone">⎘</button>
+                <button class="node-close">×</button>
+            </div>
         </div>
         <div class="node-content">
             <select class="action-select">
@@ -455,7 +462,8 @@ function createActionNode(x = 300, y = 100) {
     const generateBtn = nodeEl.querySelector('.generate-btn');
     generateBtn.addEventListener('click', () => generateImage(node));
 
-    // Close button
+    // Header buttons
+    nodeEl.querySelector('.node-clone').addEventListener('click', () => cloneNode(nodeId));
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
 
     // Connection points
@@ -481,7 +489,10 @@ function createPromptNode(x = 300, y = 100) {
     nodeEl.innerHTML = `
         <div class="node-header">
             <span class="node-title">Prompt Input</span>
-            <button class="node-close">×</button>
+            <div>
+                <button class="node-clone">⎘</button>
+                <button class="node-close">×</button>
+            </div>
         </div>
         <div class="node-content">
             <textarea placeholder="Enter your prompt here..."></textarea>
@@ -545,7 +556,8 @@ function createPromptNode(x = 300, y = 100) {
     const generateBtn = nodeEl.querySelector('.generate-btn');
     generateBtn.addEventListener('click', () => generateImage(node));
 
-    // Close button
+    // Header buttons
+    nodeEl.querySelector('.node-clone').addEventListener('click', () => cloneNode(nodeId));
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
 
     // Connection points
@@ -574,7 +586,10 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
     nodeEl.innerHTML = `
         <div class="node-header">
             <span class="node-title">Generated Result</span>
-            <button class="node-close">×</button>
+            <div>
+                <button class="node-clone">⎘</button>
+                <button class="node-close">×</button>
+            </div>
         </div>
         <div class="node-content"></div>
         <div class="connection-point input" data-node="${nodeId}"></div>
@@ -633,7 +648,8 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
         downloadImage(node.data.imageData, 'generated-result.png');
     });
 
-    // Close button
+    // Header buttons
+    nodeEl.querySelector('.node-clone').addEventListener('click', () => cloneNode(nodeId));
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
 
     // Connection points
@@ -1978,15 +1994,6 @@ canvasContainer.addEventListener('contextmenu', (e) => {
     contextMenu.style.left = `${e.clientX}px`;
     contextMenu.style.top = `${e.clientY}px`;
     contextMenu.classList.add('active');
-
-    const cloneItem = contextMenu.querySelector('[data-action="cloneNode"]');
-    const targetNodeEl = e.target.closest('.node');
-    if (targetNodeEl) {
-        cloneItem.style.display = 'block';
-        cloneItem.dataset.nodeId = targetNodeEl.id;
-    } else {
-        cloneItem.style.display = 'none';
-    }
 });
 
 // Handle context menu item clicks
@@ -2003,9 +2010,6 @@ contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
                 break;
             case 'addAction':
                 createActionNode(contextMenuPosition.x, contextMenuPosition.y);
-                break;
-            case 'cloneNode':
-                cloneNode(e.target.dataset.nodeId);
                 break;
         }
         
