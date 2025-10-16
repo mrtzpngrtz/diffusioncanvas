@@ -446,21 +446,15 @@ app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-// For local development
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, async () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-        console.log('Make sure GOOGLE_API_KEY environment variable is set');
-        
-        if (!process.env.GOOGLE_API_KEY) {
-            console.warn('WARNING: GOOGLE_API_KEY not set!');
-            console.warn('Set it with: export GOOGLE_API_KEY="your-api-key"');
-        }
-        
-        // Initialize storage
-        await storage.init();
-    });
-}
-
-// Export for Vercel serverless
-export default app;
+app.listen(PORT, async () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log('Make sure GOOGLE_API_KEY environment variable is set');
+    
+    if (!process.env.GOOGLE_API_KEY) {
+        console.warn('WARNING: GOOGLE_API_KEY not set!');
+        console.warn('Set it with: export GOOGLE_API_KEY="your-api-key"');
+    }
+    
+    // Initialize storage
+    await storage.init();
+});
