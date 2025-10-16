@@ -338,6 +338,7 @@
                         <th>Provider</th>
                         <th>Role</th>
                         <th>Credits</th>
+                        <th>Used Credits</th>
                         <th>Joined</th>
                         <th>Actions</th>
                     </tr>
@@ -442,6 +443,7 @@
                                data-user-id="${user.id}"
                                onchange="updateCredits('${user.id}', this.value)">
                     </td>
+                    <td>${user.usedCredits || 0}</td>
                     <td>${formatDate(user.createdAt)}</td>
                     <td>
                         <button class="delete-btn" 

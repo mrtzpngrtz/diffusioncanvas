@@ -119,11 +119,12 @@ export default async function handler(req, res) {
             result.image = `data:image/png;base64,${imageBytes}`;
         }
 
-        // Deduct one credit from user
+        // Deduct one credit and increment used credits
         const userIndex = users.findIndex(u => u.id === fullUser.id);
         
         if (userIndex !== -1) {
             users[userIndex].credits = (users[userIndex].credits || 0) - 1;
+            users[userIndex].usedCredits = (users[userIndex].usedCredits || 0) + 1;
             await storage.setUsers(users);
             
             result.creditsRemaining = users[userIndex].credits;
