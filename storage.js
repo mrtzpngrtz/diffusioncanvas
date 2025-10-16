@@ -40,11 +40,14 @@ if (hasVercelKV) {
 // Storage interface
 export const storage = {
     async getUsers() {
+        console.log('Attempting to get users...');
         if (redis) {
             // Use Upstash Redis
             try {
-                const users = await redis.get(KV_USERS_KEY);
-                return users || [];
+                const usersJSON = await redis.get(KV_USERS_KEY);
+                const users = usersJSON ? JSON.parse(usersJSON) : [];
+                console.log(`Successfully got ${users.length} users from Redis.`);
+                return users;
             } catch (error) {
                 console.error('Redis get error:', error);
                 return [];
@@ -70,10 +73,12 @@ export const storage = {
     },
 
     async setUsers(users) {
+        console.log(`Attempting to set ${users.length} users...`);
         if (redis) {
             // Use Upstash Redis
             try {
                 await redis.set(KV_USERS_KEY, JSON.stringify(users));
+                console.log('Successfully set users to Redis.');
             } catch (error) {
                 console.error('Redis set error:', error);
                 throw error;
