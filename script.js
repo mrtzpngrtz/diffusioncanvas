@@ -103,6 +103,12 @@ async function checkAuth() {
                 const credits = data.user.credits || 0;
                 userCredits.textContent = `${credits} credit${credits !== 1 ? 's' : ''}`;
             }
+
+            const userUsedCredits = document.getElementById('userUsedCredits');
+            if (userUsedCredits) {
+                const usedCredits = data.user.usedCredits || 0;
+                userUsedCredits.textContent = `${usedCredits} used`;
+            }
             
             // Show admin link if user is admin
             const adminLink = document.getElementById('adminLink');
