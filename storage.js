@@ -44,8 +44,15 @@ export const storage = {
         if (redis) {
             // Use Upstash Redis
             try {
-                const usersJSON = await redis.get(KV_USERS_KEY);
-                const users = usersJSON ? JSON.parse(usersJSON) : [];
+                const usersData = await redis.get(KV_USERS_KEY);
+                let users = [];
+                if (typeof usersData === 'string') {
+                    // If it's a string, parse it
+                    users = JSON.parse(usersData);
+                } else {
+                    // Otherwise, it's already an object (or null)
+                    users = usersData || [];
+                }
                 console.log(`Successfully got ${users.length} users from Redis.`);
                 return users;
             } catch (error) {
