@@ -1577,11 +1577,11 @@ function createDrawNode(x = 300, y = 100) {
             </div>
             <div class="draw-controls">
                 <div class="draw-tools">
-                    <button class="draw-tool-btn active" data-tool="draw">✏️</button>
-                    <button class="draw-tool-btn" data-tool="erase">🧹</button>
+                    <button class="draw-tool-btn active" data-tool="draw">draw</button>
+                    <button class="draw-tool-btn" data-tool="erase">erase</button>
                     <input type="color" class="draw-color-picker" value="#000000">
                     <input type="range" class="draw-size-slider" min="1" max="50" value="5">
-                    <button class="draw-tool-btn" data-tool="clear">Clear</button>
+                    <button class="draw-tool-btn" data-tool="clear">clear</button>
                 </div>
             </div>
         </div>
