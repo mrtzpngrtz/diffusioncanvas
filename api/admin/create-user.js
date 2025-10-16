@@ -33,6 +33,9 @@ export default async function handler(req, res) {
     }
 
     try {
+        // Initialize storage if needed
+        await storage.init().catch(err => console.error('Storage init warning:', err));
+        
         // Verify admin access
         const admin = await verifyAdmin(req);
         if (!admin) {
