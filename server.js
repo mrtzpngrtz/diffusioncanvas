@@ -249,6 +249,7 @@ app.post('/api/admin/users', isAdmin, async (req, res) => {
             email: email,
             password: hashedPassword,
             displayName: email,
+            photo: null,
             isAdmin: makeAdmin || isFirstUser,
             credits: 5,
             createdAt: new Date().toISOString()
