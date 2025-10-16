@@ -1337,6 +1337,19 @@ function loadCanvas() {
                         img.style.width = `${node.data.imageWidth}px`;
                         // The scale indicator is handled by createResultNode's onload
                         break;
+                    
+                    case 'draw':
+                        node = createDrawNode(nodeData.position.x, nodeData.position.y);
+                        // Restore the drawing if it exists
+                        if (nodeData.data.imageData) {
+                            const img = new Image();
+                            img.onload = () => {
+                                node.data.context.drawImage(img, 0, 0);
+                                updateDrawNodeImage(node);
+                            };
+                            img.src = nodeData.data.imageData;
+                        }
+                        break;
                 }
 
                 // Remove the node that was auto-created and replace with our data
