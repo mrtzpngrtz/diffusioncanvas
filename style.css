@@ -243,35 +243,6 @@ body {
     color: #fff;
 }
 
-.node-clone {
-    background: transparent;
-    color: #999;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 1px;
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-    font-size: 13px;
-    line-height: 1;
-    transition: all 0.2s ease;
-}
-
-.node-clone:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.25);
-    color: #fff;
-}
-
-.node-clone {
-    padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 1px;
-    color: #fff;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.2s ease;
-}
 
 .node-content {
     margin: 8px 0;
