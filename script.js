@@ -1912,8 +1912,8 @@ connectionCanvas.addEventListener('click', (e) => {
             
             // Clean up node data BEFORE removing connection
             if (toNode && (toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
-                // Check for image/result node connection
-                if ((fromNode.type === 'image' || fromNode.type === 'result') && toNode.data.connectedImages) {
+                // Check for image/result/draw node connection
+                if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw') && toNode.data.connectedImages) {
                     const imageIndex = toNode.data.connectedImages.findIndex(node => node.id === fromNode.id);
                     if (imageIndex > -1) {
                         toNode.data.connectedImages.splice(imageIndex, 1);
