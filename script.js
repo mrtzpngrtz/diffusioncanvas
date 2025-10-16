@@ -345,6 +345,7 @@ function handleImageFile(file, node) {
         const img = document.createElement('img');
         img.src = e.target.result;
         img.onload = () => {
+            img.addEventListener('dragstart', (e) => e.preventDefault());
             node.data.image = img;
             node.data.imageData = e.target.result;
             node.data.imageWidth = 250; // Default width in pixels
