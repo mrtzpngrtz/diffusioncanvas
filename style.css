@@ -461,6 +461,104 @@ body {
     color: #fff;
 }
 
+.draw-node {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #000;
+}
+
+.draw-node .node-title {
+    color: #fff;
+}
+
+.draw-canvas-wrapper {
+    position: relative;
+    background: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.draw-canvas {
+    display: block;
+    cursor: crosshair;
+    border-radius: 1px;
+}
+
+.draw-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.draw-tools {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.draw-tool-btn {
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s ease;
+}
+
+.draw-tool-btn.active {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.draw-tool-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.draw-color-picker {
+    width: 40px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+    cursor: pointer;
+    background: #000;
+}
+
+.draw-size-slider {
+    flex: 1;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+    padding: 0 8px;
+}
+
+.draw-size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.draw-size-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+}
+
 .loading {
     display: inline-block;
     width: 14px;
