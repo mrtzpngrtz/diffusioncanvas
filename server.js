@@ -7,6 +7,7 @@ import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import passport from './auth.js';
+import bcrypt from 'bcryptjs';
 import { setAuthCookie, getAuthUser, clearAuthCookie } from './jwt-auth.js';
 import { storage } from './storage.js';
 
