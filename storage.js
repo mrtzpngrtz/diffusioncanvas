@@ -1,5 +1,4 @@
 import { kv } from '@vercel/kv';
-import { Redis } from '@upstash/redis';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -10,66 +9,25 @@ const __dirname = path.dirname(__filename);
 const USERS_FILE = path.join(__dirname, 'users.json');
 const KV_USERS_KEY = 'diffusion_canvas_users';
 
-// Try Vercel KV first, then Upstash Redis, then local file
-// Check for both standard and prefixed environment variable names
-const kvUrl = process.env.KV_REST_API_URL || process.env.diffusioncanvas_KV_REST_API_URL;
-const kvToken = process.env.KV_REST_API_TOKEN || process.env.diffusioncanvas_KV_REST_API_TOKEN;
-const hasVercelKV = !!(kvUrl && kvToken);
-
-const upstashUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.diffusioncanvas_REDIS_URL;
-const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-const hasUpstashRedis = !!(upstashUrl && upstashToken);
-
-const isVercel = hasVercelKV || hasUpstashRedis;
-
-// Initialize Upstash Redis if available (prefer KV over Redis)
-let redis = null;
-if (hasVercelKV) {
-    // Use Vercel KV/Upstash via REST API
-    redis = new Redis({
-        url: kvUrl,
-        token: kvToken,
-    }); 
-} else if (hasUpstashRedis) {
-    redis = new Redis({
-        url: upstashUrl,
-        token: upstashToken,
-    });
-}
+// Check if Vercel KV environment variables are set
+const hasVercelKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 // Storage interface
 export const storage = {
     async getUsers() {
-        console.log('Attempting to get users...');
-        if (redis) {
-            // Use Upstash Redis
-            try {
-                const usersData = await redis.get(KV_USERS_KEY);
-                let users = [];
-                if (typeof usersData === 'string') {
-                    // If it's a string, parse it
-                    users = JSON.parse(usersData);
-                } else {
-                    // Otherwise, it's already an object (or null)
-                    users = usersData || [];
-                }
-                console.log(`Successfully got ${users.length} users from Redis.`);
-                return users;
-            } catch (error) {
-                console.error('Redis get error:', error);
-                return [];
-            }
-        } else if (hasVercelKV) {
+        if (hasVercelKV) {
             // Use Vercel KV
             try {
+                console.log('Attempting to get users from Vercel KV...');
                 const users = await kv.get(KV_USERS_KEY);
+                console.log(`Successfully got ${users ? users.length : 0} users from Vercel KV.`);
                 return users || [];
             } catch (error) {
-                console.error('KV get error:', error);
+                console.error('Vercel KV get error:', error);
                 return [];
             }
         } else {
-            // Use local file
+            // Use local file as a fallback
             try {
                 const data = await fs.readFile(USERS_FILE, 'utf-8');
                 return JSON.parse(data);
@@ -80,43 +38,25 @@ export const storage = {
     },
 
     async setUsers(users) {
-        console.log(`Attempting to set ${users.length} users...`);
-        if (redis) {
-            // Use Upstash Redis
-            try {
-                await redis.set(KV_USERS_KEY, JSON.stringify(users));
-                console.log('Successfully set users to Redis.');
-            } catch (error) {
-                console.error('Redis set error:', error);
-                throw error;
-            }
-        } else if (hasVercelKV) {
+        if (hasVercelKV) {
             // Use Vercel KV
             try {
+                console.log(`Attempting to set ${users.length} users to Vercel KV...`);
                 await kv.set(KV_USERS_KEY, users);
+                console.log('Successfully set users to Vercel KV.');
             } catch (error) {
-                console.error('KV set error:', error);
+                console.error('Vercel KV set error:', error);
                 throw error;
             }
         } else {
-            // Use local file
+            // Use local file as a fallback
             await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
         }
     },
 
     async init() {
-        if (redis) {
-            console.log('✓ Using Upstash Redis for persistent storage');
-            // Verify Redis is accessible
-            try {
-                await redis.ping();
-                console.log('✓ Upstash Redis connection verified');
-            } catch (error) {
-                console.error('⚠️  Warning: Upstash Redis connection test failed:', error.message);
-            }
-        } else if (hasVercelKV) {
+        if (hasVercelKV) {
             console.log('✓ Using Vercel KV for persistent storage');
-            // Verify KV is accessible
             try {
                 await kv.get('_health_check');
                 console.log('✓ Vercel KV connection verified');
@@ -125,24 +65,13 @@ export const storage = {
             }
         } else {
             console.log('✓ Using local file storage (users.json)');
-            // Create file if it doesn't exist (only works in writable environments)
+            // Create file if it doesn't exist
             try {
                 await fs.access(USERS_FILE);
             } catch {
                 try {
                     await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2));
                 } catch (error) {
-                    if (error.code === 'EROFS') {
-                        console.error('❌ WARNING: File system is read-only!');
-                        console.error('❌ Deploying to Vercel without Vercel KV configured.');
-                        console.error('❌ Please set up Vercel KV for persistent storage:');
-                        console.error('   1. Go to your Vercel dashboard');
-                        console.error('   2. Select Storage → Create Database → KV');
-                        console.error('   3. Connect it to your project');
-                        console.error('⚠️  Continuing without storage - authentication will fail!');
-                        // Don't throw - let the app start so users can see the error page
-                        return;
-                    }
                     console.error('File storage initialization error:', error);
                 }
             }
