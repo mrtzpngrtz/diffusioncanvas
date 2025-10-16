@@ -262,6 +262,17 @@ body {
     color: #fff;
 }
 
+.node-clone {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s ease;
+}
+
 .node-content {
     margin: 8px 0;
 }

@@ -255,10 +255,7 @@ function createImageNode(x = 100, y = 100) {
     nodeEl.innerHTML = `
         <div class="node-header">
             <span class="node-title">Image Input</span>
-            <div>
-                <button class="node-clone">⎘</button>
-                <button class="node-close">×</button>
-            </div>
+            <button class="node-close">×</button>
         </div>
         <div class="node-content">
             <div class="drop-zone">
@@ -318,8 +315,7 @@ function createImageNode(x = 100, y = 100) {
         }
     });
 
-    // Header buttons
-    nodeEl.querySelector('.node-clone').addEventListener('click', () => cloneNode(nodeId));
+    // Close button
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
 
     // Connection point
@@ -375,9 +371,11 @@ function handleImageFile(file, node) {
             actionButtons.innerHTML = `
                 <button class="icon-btn" title="View Full Size">⛶</button>
                 <button class="icon-btn" title="Download Image">↓</button>
+                <button class="icon-btn node-clone" title="Clone Node">⎘</button>
             `;
             content.appendChild(actionButtons);
             
+            actionButtons.querySelector('.node-clone').addEventListener('click', () => cloneNode(node.id));
             const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
             const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
             
@@ -409,10 +407,7 @@ function createActionNode(x = 300, y = 100) {
     nodeEl.innerHTML = `
         <div class="node-header">
             <span class="node-title">Action Preset</span>
-            <div>
-                <button class="node-clone">⎘</button>
-                <button class="node-close">×</button>
-            </div>
+            <button class="node-close">×</button>
         </div>
         <div class="node-content">
             <select class="action-select">
@@ -462,8 +457,7 @@ function createActionNode(x = 300, y = 100) {
     const generateBtn = nodeEl.querySelector('.generate-btn');
     generateBtn.addEventListener('click', () => generateImage(node));
 
-    // Header buttons
-    nodeEl.querySelector('.node-clone').addEventListener('click', () => cloneNode(nodeId));
+    // Close button
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
 
     // Connection points
@@ -489,10 +483,7 @@ function createPromptNode(x = 300, y = 100) {
     nodeEl.innerHTML = `
         <div class="node-header">
             <span class="node-title">Prompt Input</span>
-            <div>
-                <button class="node-clone">⎘</button>
-                <button class="node-close">×</button>
-            </div>
+            <button class="node-close">×</button>
         </div>
         <div class="node-content">
             <textarea placeholder="Enter your prompt here..."></textarea>
@@ -556,8 +547,7 @@ function createPromptNode(x = 300, y = 100) {
     const generateBtn = nodeEl.querySelector('.generate-btn');
     generateBtn.addEventListener('click', () => generateImage(node));
 
-    // Header buttons
-    nodeEl.querySelector('.node-clone').addEventListener('click', () => cloneNode(nodeId));
+    // Close button
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
 
     // Connection points
@@ -582,14 +572,12 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
 
     const img = document.createElement('img');
     img.src = imageUrl;
+    img.addEventListener('dragstart', (e) => e.preventDefault());
 
     nodeEl.innerHTML = `
         <div class="node-header">
             <span class="node-title">Generated Result</span>
-            <div>
-                <button class="node-clone">⎘</button>
-                <button class="node-close">×</button>
-            </div>
+            <button class="node-close">×</button>
         </div>
         <div class="node-content"></div>
         <div class="connection-point input" data-node="${nodeId}"></div>
@@ -632,9 +620,11 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
     actionButtons.innerHTML = `
         <button class="icon-btn" title="View Full Size">⛶</button>
         <button class="icon-btn" title="Download Image">↓</button>
+        <button class="icon-btn node-clone" title="Clone Node">⎘</button>
     `;
     content.appendChild(actionButtons);
     
+    actionButtons.querySelector('.node-clone').addEventListener('click', () => cloneNode(node.id));
     const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
     const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
     
@@ -648,8 +638,7 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
         downloadImage(node.data.imageData, 'generated-result.png');
     });
 
-    // Header buttons
-    nodeEl.querySelector('.node-clone').addEventListener('click', () => cloneNode(nodeId));
+    // Close button
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
 
     // Connection points
