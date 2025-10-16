@@ -4,6 +4,52 @@ const userInfo = document.getElementById('userInfo');
 const userPhoto = document.getElementById('userPhoto');
 const userName = document.getElementById('userName');
 
+// Handle local login form submission
+const localLoginForm = document.getElementById('localLoginForm');
+if (localLoginForm) {
+    localLoginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const loginError = document.getElementById('loginError');
+        const loginBtn = localLoginForm.querySelector('.login-btn');
+        
+        // Clear previous errors
+        loginError.textContent = '';
+        
+        // Disable button during request
+        const originalText = loginBtn.textContent;
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Logging in...';
+        
+        try {
+            const response = await fetch('/api/auth/local', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ username, password })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Login failed');
+            }
+            
+            // Login successful - reload page to update UI
+            window.location.reload();
+            
+        } catch (error) {
+            loginError.textContent = error.message;
+            loginBtn.disabled = false;
+            loginBtn.textContent = originalText;
+        }
+    });
+}
+
 // Check which OAuth providers are available
 async function checkAvailableProviders() {
     try {

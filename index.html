@@ -23,6 +23,34 @@
                 </h1>
             </div>
             
+            <!-- Username/Password Login Form -->
+            <div class="local-login-form">
+                <form id="localLoginForm">
+                    <div class="form-group">
+                        <input type="text" 
+                               id="username" 
+                               name="username" 
+                               placeholder="Username" 
+                               required
+                               autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <input type="password" 
+                               id="password" 
+                               name="password" 
+                               placeholder="Password" 
+                               required
+                               autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="login-btn">Login</button>
+                    <div id="loginError" class="login-error"></div>
+                </form>
+            </div>
+
+            <div class="login-divider">
+                <span>OR</span>
+            </div>
+            
             <div class="oauth-buttons">
                 <a href="/auth/google" class="oauth-btn google-btn">
                     <svg width="18" height="18" viewBox="0 0 18 18">

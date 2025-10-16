@@ -234,6 +234,50 @@
         </div>
 
         <div class="users-section">
+            <h2>Create New User</h2>
+            <div class="create-user-form" style="margin-bottom: 30px; padding: 20px; background: #252525; border-radius: 4px;">
+                <form id="createUserForm">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                        <input type="text" 
+                               id="newUsername" 
+                               placeholder="Username (required)" 
+                               required
+                               style="padding: 10px; background: #2a2a2a; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; font-family: 'Roboto Mono', monospace; font-size: 13px;">
+                        <input type="password" 
+                               id="newPassword" 
+                               placeholder="Password (min 6 chars)" 
+                               required
+                               minlength="6"
+                               style="padding: 10px; background: #2a2a2a; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; font-family: 'Roboto Mono', monospace; font-size: 13px;">
+                        <input type="email" 
+                               id="newEmail" 
+                               placeholder="Email (optional)"
+                               style="padding: 10px; background: #2a2a2a; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; font-family: 'Roboto Mono', monospace; font-size: 13px;">
+                        <input type="text" 
+                               id="newDisplayName" 
+                               placeholder="Display Name (optional)"
+                               style="padding: 10px; background: #2a2a2a; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; font-family: 'Roboto Mono', monospace; font-size: 13px;">
+                    </div>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <input type="number" 
+                               id="newCredits" 
+                               placeholder="Credits" 
+                               value="5"
+                               min="0"
+                               style="width: 100px; padding: 10px; background: #2a2a2a; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; font-family: 'Roboto Mono', monospace; font-size: 13px;">
+                        <label style="display: flex; align-items: center; gap: 8px; color: #e0e0e0; font-size: 13px; cursor: pointer;">
+                            <input type="checkbox" id="newIsAdmin" style="width: 16px; height: 16px;">
+                            <span>Admin User</span>
+                        </label>
+                        <button type="submit" 
+                                style="padding: 10px 20px; background: #667eea; border: none; border-radius: 4px; color: #fff; font-family: 'Roboto Mono', monospace; font-size: 13px; cursor: pointer; margin-left: auto; transition: background 0.2s;">
+                            Create User
+                        </button>
+                    </div>
+                    <div id="createUserError" style="color: #ff4444; font-size: 12px; margin-top: 10px; min-height: 18px;"></div>
+                </form>
+            </div>
+
             <h2>Registered Users</h2>
             <div id="loading" class="loading">Loading users...</div>
             <div id="noUsers" class="no-users" style="display: none;">No users registered yet</div>
@@ -448,6 +492,72 @@
             setTimeout(() => {
                 errorDiv.style.display = 'none';
             }, 5000);
+        }
+
+        // Handle create user form
+        const createUserForm = document.getElementById('createUserForm');
+        if (createUserForm) {
+            createUserForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const username = document.getElementById('newUsername').value.trim();
+                const password = document.getElementById('newPassword').value;
+                const email = document.getElementById('newEmail').value.trim();
+                const displayName = document.getElementById('newDisplayName').value.trim();
+                const credits = parseInt(document.getElementById('newCredits').value) || 5;
+                const isAdmin = document.getElementById('newIsAdmin').checked;
+                const errorDiv = document.getElementById('createUserError');
+                const submitBtn = createUserForm.querySelector('button[type="submit"]');
+                
+                // Clear previous errors
+                errorDiv.textContent = '';
+                
+                // Disable button during request
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Creating...';
+                
+                try {
+                    const response = await fetch('/api/admin/create-user', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            username,
+                            password,
+                            email: email || undefined,
+                            displayName: displayName || undefined,
+                            credits,
+                            isAdmin
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to create user');
+                    }
+                    
+                    // Success - clear form and reload users
+                    createUserForm.reset();
+                    document.getElementById('newCredits').value = '5'; // Reset to default
+                    loadUsers();
+                    
+                    // Show success message
+                    showError('User created successfully!');
+                    setTimeout(() => {
+                        document.getElementById('error').style.display = 'none';
+                    }, 3000);
+                    
+                } catch (error) {
+                    errorDiv.textContent = error.message;
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
         }
 
         // Initialize
