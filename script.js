@@ -842,30 +842,14 @@ document.addEventListener('mouseup', (e) => {
     isDragging = false;
     draggedNode = null;
     
-    // If ending a connection, show the context menu
+    // This is a fallback to cancel connection if mouse is released outside the window or on a non-canvas element
     if (isConnecting) {
-        const targetEl = e.target;
-        
-        // Check if the mouse is released over a valid connection point
-        const isOverConnectionPoint = targetEl.classList.contains('connection-point') &&
-                                      connectionStart && // Ensure connectionStart is not null
-                                      targetEl.dataset.node !== connectionStart.nodeId &&
-                                      ((connectionStart.type === 'output' && targetEl.classList.contains('input')) ||
-                                       (connectionStart.type === 'input' && targetEl.classList.contains('output')));
-
-        if (!isOverConnectionPoint) {
-            // If not over a valid point, show the context menu to create and connect a new node
-            const rect = canvasContainer.getBoundingClientRect();
-            contextMenuPosition.x = (e.clientX - rect.left) / zoom - panX;
-            contextMenuPosition.y = (e.clientY - rect.top) / zoom - panY;
-            
-            // Show context menu for creating a new node
-            showConnectionMenu(e.clientX, e.clientY);
+        const endPoint = document.elementFromPoint(e.clientX, e.clientY);
+        if (!endPoint || (endPoint.id !== 'connectionCanvas' && !endPoint.classList.contains('connection-point'))) {
+            isConnecting = false;
+            connectionStart = null;
+            drawConnections();
         }
-        
-        isConnecting = false;
-        // Keep connectionStart until a choice is made in the context menu, then it's nulled
-        drawConnections();
     }
 });
 
@@ -875,21 +859,39 @@ function setupConnectionPoint(pointEl, nodeId) {
         e.stopPropagation();
         isConnecting = true;
         connectionStart = { nodeId, type: pointEl.classList.contains('input') ? 'input' : 'output', element: pointEl };
-    });
+        
+        // Add a one-time mouseup listener to the whole canvas to handle this connection attempt
+        const connectionMouseUp = (upEvent) => {
+            if (isConnecting && connectionStart) {
+                const endPoint = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
+                const isOverConnectionPoint = endPoint && endPoint.classList.contains('connection-point') &&
+                                              endPoint.dataset.node !== connectionStart.nodeId &&
+                                              ((connectionStart.type === 'output' && endPoint.classList.contains('input')) ||
+                                               (connectionStart.type === 'input' && endPoint.classList.contains('output')));
 
-    pointEl.addEventListener('mouseup', (e) => {
-        e.stopPropagation();
-        if (isConnecting && connectionStart) {
-            const endType = pointEl.classList.contains('input') ? 'input' : 'output';
-            const endNodeId = pointEl.dataset.node;
-
-            // Can't connect to same node or same type
-            if (connectionStart.nodeId !== endNodeId && connectionStart.type !== endType) {
-                createConnection(connectionStart.nodeId, endNodeId, connectionStart.type, endType);
+                if (isOverConnectionPoint) {
+                    // If it's a valid connection point, create the connection
+                    const endType = endPoint.classList.contains('input') ? 'input' : 'output';
+                    const endNodeId = endPoint.dataset.node;
+                    createConnection(connectionStart.nodeId, endNodeId, connectionStart.type, endType);
+                    connectionStart = null;
+                } else {
+                    // Otherwise, show the context menu to create a new node
+                    const rect = canvasContainer.getBoundingClientRect();
+                    contextMenuPosition.x = (upEvent.clientX - rect.left) / zoom - panX;
+                    contextMenuPosition.y = (upEvent.clientY - rect.top) / zoom - panY;
+                    showConnectionMenu(upEvent.clientX, upEvent.clientY);
+                    // connectionStart is nulled by the context menu handler
+                }
+                
+                isConnecting = false;
+                drawConnections();
             }
-        }
-        isConnecting = false;
-        connectionStart = null;
+            // Clean up this specific listener
+            document.removeEventListener('mouseup', connectionMouseUp);
+        };
+        
+        document.addEventListener('mouseup', connectionMouseUp);
     });
 }
 
