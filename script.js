@@ -830,7 +830,7 @@ document.addEventListener('mousemove', (e) => {
 });
 
 // Global mouse up handler
-document.addEventListener('mouseup', () => {
+document.addEventListener('mouseup', (e) => {
     if (isResizing) {
         isResizing = false;
         resizedNode = null;
@@ -842,10 +842,29 @@ document.addEventListener('mouseup', () => {
     isDragging = false;
     draggedNode = null;
     
-    // Cancel connection if not dropped on a valid point
-    if (isConnecting) {
+    // If ending a connection, show the context menu
+    if (isConnecting && connectionStart) {
+        const targetEl = e.target;
+        
+        // Check if the mouse is released over a valid connection point
+        const isOverConnectionPoint = targetEl.classList.contains('connection-point') &&
+                                      targetEl.dataset.node !== connectionStart.nodeId &&
+                                      ((connectionStart.type === 'output' && targetEl.classList.contains('input')) ||
+                                       (connectionStart.type === 'input' && targetEl.classList.contains('output')));
+
+        if (!isOverConnectionPoint) {
+            // If not over a valid point, show the context menu to create and connect a new node
+            const rect = canvasContainer.getBoundingClientRect();
+            contextMenuPosition.x = (e.clientX - rect.left) / zoom - panX;
+            contextMenuPosition.y = (e.clientY - rect.top) / zoom - panY;
+            
+            // Show context menu for creating a new node
+            showConnectionMenu(e.clientX, e.clientY);
+        }
+        
+        // The actual connection is made in setupConnectionPoint or showConnectionMenu
         isConnecting = false;
-        connectionStart = null;
+        // Keep connectionStart until a choice is made, so we know where the line is coming from
         drawConnections();
     }
 });
@@ -1972,6 +1991,16 @@ canvasContainer.addEventListener('drop', (e) => {
 const contextMenu = document.getElementById('contextMenu');
 let contextMenuPosition = { x: 0, y: 0 };
 
+// Show context menu for creating a new node at the end of a connection
+function showConnectionMenu(x, y) {
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+    contextMenu.classList.add('active');
+    
+    // We are in "connection" mode, so we modify the context menu item behavior
+    contextMenu.dataset.isConnectionMenu = 'true';
+}
+
 // Show context menu on right-click
 canvasContainer.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -1983,26 +2012,45 @@ canvasContainer.addEventListener('contextmenu', (e) => {
     contextMenu.style.left = `${e.clientX}px`;
     contextMenu.style.top = `${e.clientY}px`;
     contextMenu.classList.add('active');
+    
+    // Not a connection menu
+    contextMenu.dataset.isConnectionMenu = 'false';
 });
 
 // Handle context menu item clicks
 contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
     item.addEventListener('click', (e) => {
         const action = e.target.dataset.action;
-        
+        let newNode;
+
         switch(action) {
             case 'addImage':
-                createImageNode(contextMenuPosition.x, contextMenuPosition.y);
+                newNode = createImageNode(contextMenuPosition.x, contextMenuPosition.y);
                 break;
             case 'addPrompt':
-                createPromptNode(contextMenuPosition.x, contextMenuPosition.y);
+                newNode = createPromptNode(contextMenuPosition.x, contextMenuPosition.y);
                 break;
             case 'addAction':
-                createActionNode(contextMenuPosition.x, contextMenuPosition.y);
+                newNode = createActionNode(contextMenuPosition.x, contextMenuPosition.y);
                 break;
         }
         
+        // If the menu was opened from a connection, create the connection
+        if (contextMenu.dataset.isConnectionMenu === 'true' && newNode && connectionStart) {
+            const fromNodeId = connectionStart.nodeId;
+            const toNodeId = newNode.id;
+            const fromType = connectionStart.type;
+            // The new node will be the opposite type of connection
+            const toType = fromType === 'output' ? 'input' : 'output';
+            
+            createConnection(fromNodeId, toNodeId, fromType, toType);
+        }
+
+        // Reset and hide menu
         contextMenu.classList.remove('active');
+        contextMenu.dataset.isConnectionMenu = 'false';
+        connectionStart = null; // End the connection process
+        drawConnections();
     });
 });
 
