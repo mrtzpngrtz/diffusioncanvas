@@ -348,7 +348,9 @@ function handleImageFile(file, node) {
             img.addEventListener('dragstart', (e) => e.preventDefault());
             node.data.image = img;
             node.data.imageData = e.target.result;
-            node.data.imageWidth = 250; // Default width in pixels
+            node.data.originalWidth = img.naturalWidth;
+            node.data.originalHeight = img.naturalHeight;
+            node.data.imageWidth = 250; // This is now display width
             const content = node.element.querySelector('.node-content');
             content.innerHTML = '';
             
@@ -362,7 +364,7 @@ function handleImageFile(file, node) {
             // Add small scale indicator
             const scaleIndicator = document.createElement('div');
             scaleIndicator.className = 'scale-indicator';
-            scaleIndicator.textContent = `${node.data.imageWidth}`;
+            scaleIndicator.textContent = `${node.data.originalWidth} x ${node.data.originalHeight}px`;
             content.appendChild(scaleIndicator);
             
             // Add action buttons (lightbox and download)
@@ -591,7 +593,7 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
         data: { 
             image: img, 
             imageData: imageUrl, 
-            imageWidth: 250,
+            imageWidth: 250, // display width
             sourcePromptNode: sourcePromptNode // Store reference to prompt node
         },
         position: { x, y }
@@ -611,8 +613,14 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
     // Add small scale indicator
     const scaleIndicator = document.createElement('div');
     scaleIndicator.className = 'scale-indicator';
-    scaleIndicator.textContent = `${node.data.imageWidth}`;
+    scaleIndicator.textContent = `Loading...`;
     content.appendChild(scaleIndicator);
+
+    img.onload = () => {
+        node.data.originalWidth = img.naturalWidth;
+        node.data.originalHeight = img.naturalHeight;
+        scaleIndicator.textContent = `${node.data.originalWidth} x ${node.data.originalHeight}px`;
+    };
     
     // Add action buttons (lightbox and download)
     const actionButtons = document.createElement('div');
@@ -740,7 +748,7 @@ function setupNodeResize(nodeEl, node, resizeHandle) {
         resizeStart.width = nodeEl.offsetWidth;
         resizeStart.height = nodeEl.offsetHeight;
         // Store the initial image width if it exists
-        resizeStart.imageWidth = node.data.imageWidth || 250;
+        resizeStart.imageWidth = node.data.imageWidth || 250; // This is display width
     });
 }
 
@@ -792,7 +800,7 @@ document.addEventListener('mousemove', (e) => {
             // Update scale indicator if it exists
             const scaleIndicator = resizedNode.element.querySelector('.scale-indicator');
             if (scaleIndicator) {
-                scaleIndicator.textContent = `${newImageWidth}`;
+                scaleIndicator.textContent = `${resizedNode.data.originalWidth} x ${resizedNode.data.originalHeight}px`;
             }
         }
         
@@ -1252,7 +1260,9 @@ function loadCanvas() {
                             img.onload = () => {
                                 node.data.image = img;
                                 node.data.imageData = nodeData.data.imageData;
-                                node.data.imageWidth = nodeData.data.imageWidth || 250;
+                                node.data.imageWidth = nodeData.data.imageWidth || 250; // display width
+                                node.data.originalWidth = img.naturalWidth;
+                                node.data.originalHeight = img.naturalHeight;
                                 
                                 const content = node.element.querySelector('.node-content');
                                 content.innerHTML = '';
@@ -1266,7 +1276,7 @@ function loadCanvas() {
                                 // Add scale indicator
                                 const scaleIndicator = document.createElement('div');
                                 scaleIndicator.className = 'scale-indicator';
-                                scaleIndicator.textContent = `${node.data.imageWidth}`;
+                                scaleIndicator.textContent = `${node.data.originalWidth} x ${node.data.originalHeight}px`;
                                 content.appendChild(scaleIndicator);
                                 
                                 // Add action buttons
@@ -1325,10 +1335,7 @@ function loadCanvas() {
                         // Update image width
                         const img = node.data.image;
                         img.style.width = `${node.data.imageWidth}px`;
-                        const scaleIndicator = node.element.querySelector('.scale-indicator');
-                        if (scaleIndicator) {
-                            scaleIndicator.textContent = `${node.data.imageWidth}`;
-                        }
+                        // The scale indicator is handled by createResultNode's onload
                         break;
                 }
 
