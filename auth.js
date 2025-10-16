@@ -2,6 +2,8 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
 import { Strategy as LinkedInStrategy } from 'passport-linkedin-oauth2';
+import { Strategy as LocalStrategy } from 'passport-local';
+import bcrypt from 'bcrypt';
 import { storage } from './storage.js';
 
 // Find or create user
@@ -117,5 +119,30 @@ if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
         }
     }));
 }
+
+// Local Username/Password Strategy
+passport.use(new LocalStrategy({
+    usernameField: 'email',
+    passwordField: 'password'
+}, async (email, password, done) => {
+    try {
+        const users = await storage.getUsers();
+        const user = users.find(u => u.email === email && u.provider === 'local');
+
+        if (!user) {
+            return done(null, false, { message: 'Incorrect email or password.' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return done(null, false, { message: 'Incorrect email or password.' });
+        }
+
+        console.log('✓ Local user logged in:', user.email);
+        return done(null, user);
+    } catch (error) {
+        return done(error);
+    }
+}));
 
 export default passport;

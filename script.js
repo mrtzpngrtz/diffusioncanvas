@@ -3,6 +3,40 @@ const loginModal = document.getElementById('loginModal');
 const userInfo = document.getElementById('userInfo');
 const userPhoto = document.getElementById('userPhoto');
 const userName = document.getElementById('userName');
+const localLoginForm = document.getElementById('localLoginForm');
+const loginError = document.getElementById('loginError');
+
+// Handle local login form submission
+if (localLoginForm) {
+    localLoginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.textContent = '';
+
+        const email = localLoginForm.email.value;
+        const password = localLoginForm.password.value;
+
+        try {
+            const response = await fetch('/auth/local/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Login failed');
+            }
+
+            // On successful login, re-check auth to update UI
+            await checkAuth();
+
+        } catch (error) {
+            loginError.textContent = error.message;
+        }
+    });
+}
 
 // Check which OAuth providers are available
 async function checkAvailableProviders() {

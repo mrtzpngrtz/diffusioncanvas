@@ -129,6 +129,25 @@ if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
     console.warn('LinkedIn OAuth not configured - set LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET in .env');
 }
 
+// Local Auth
+app.post('/auth/local/login', (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) {
+            return next(err);
+        }
+        if (!user) {
+            return res.status(401).json({ message: info.message });
+        }
+        req.logIn(user, (err) => {
+            if (err) {
+                return next(err);
+            }
+            setAuthCookie(res, user);
+            return res.json({ user });
+        });
+    })(req, res, next);
+});
+
 // Logout
 app.get('/auth/logout', (req, res) => {
     // Clear JWT cookie
@@ -201,6 +220,46 @@ app.get('/api/admin/users', isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error loading users:', error);
         res.status(500).json({ error: 'Failed to load users' });
+    }
+});
+
+// Add user (admin only)
+app.post('/api/admin/users', isAdmin, async (req, res) => {
+    try {
+        const { email, password, isAdmin: makeAdmin } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        const users = await storage.getUsers();
+
+        // Check if user already exists
+        if (users.some(u => u.email === email)) {
+            return res.status(400).json({ error: 'User with this email already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const isFirstUser = users.length === 0;
+
+        const newUser = {
+            id: Date.now().toString(),
+            provider: 'local',
+            email: email,
+            password: hashedPassword,
+            displayName: email,
+            isAdmin: makeAdmin || isFirstUser,
+            credits: 5,
+            createdAt: new Date().toISOString()
+        };
+
+        users.push(newUser);
+        await storage.setUsers(users);
+
+        res.status(201).json({ message: 'User created successfully', user: newUser });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(500).json({ error: 'Failed to create user' });
     }
 });
 

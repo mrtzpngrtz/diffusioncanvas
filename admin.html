@@ -206,6 +206,80 @@
         .credits-input::-webkit-outer-spin-button {
             opacity: 1;
         }
+
+        .add-user-section {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #404040;
+            margin-bottom: 20px;
+        }
+
+        .add-user-section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .add-user-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 10px;
+        }
+
+        .form-group-checkbox input {
+            width: 16px;
+            height: 16px;
+        }
+
+        .add-user-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 14px;
+            transition: background 0.2s ease;
+        }
+
+        .add-user-btn:hover {
+            background: #8899ff;
+        }
     </style>
 </head>
 <body>
@@ -217,6 +291,25 @@
         </div>
 
         <div id="error" class="error" style="display: none;"></div>
+
+        <div class="add-user-section">
+            <h2>Add New User</h2>
+            <form id="addUserForm" class="add-user-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <div class="form-group-checkbox">
+                    <input type="checkbox" id="isAdmin">
+                    <label for="isAdmin">Make Admin</label>
+                </div>
+                <button type="submit" class="add-user-btn">Add User</button>
+            </form>
+        </div>
 
         <div class="stats">
             <div class="stat-card">
@@ -452,6 +545,38 @@
 
         // Initialize
         checkAdminAccess();
+
+        // Add user form handler
+        const addUserForm = document.getElementById('addUserForm');
+        addUserForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const isAdmin = document.getElementById('isAdmin').checked;
+
+            try {
+                const response = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password, isAdmin })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to create user');
+                }
+
+                // Clear form and reload users
+                addUserForm.reset();
+                loadUsers();
+
+            } catch (error) {
+                showError('Failed to create user: ' + error.message);
+            }
+        });
     </script>
 </body>
 </html>
