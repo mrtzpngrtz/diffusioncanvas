@@ -59,6 +59,17 @@ body {
     opacity: 0.6;
 }
 
+.canvas-credit a {
+    color: #fff;
+    text-decoration: underline;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.canvas-credit a:hover {
+    opacity: 1;
+}
+
 /* Canvas Controls (Top Right) */
 .canvas-controls {
     position: absolute;
