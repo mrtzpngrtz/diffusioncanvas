@@ -1514,8 +1514,22 @@ async function generateImage(node) {
         }); 
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to generate image');
+            let errorMessage = 'Failed to generate image';
+            try {
+                const error = await response.json();
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                // If response is not JSON, try to get text
+                try {
+                    const text = await response.text();
+                    if (text) {
+                        errorMessage = text.substring(0, 200); // Limit error message length
+                    }
+                } catch (textError) {
+                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                }
+            }
+            throw new Error(errorMessage);
         }
 
         const result = await response.json();
@@ -2434,8 +2448,50 @@ function autoSaveCanvas() {
         }, 2000);
         
     } catch (error) {
-        console.error('Auto-save error:', error);
-        // Don't show error to user for auto-save failures
+        if (error.name === 'QuotaExceededError') {
+            console.warn('Auto-save disabled: Canvas too large for localStorage');
+            
+            // Show warning to user once
+            if (!localStorage.getItem('autoSaveWarningShown')) {
+                localStorage.setItem('autoSaveWarningShown', 'true');
+                
+                const warning = document.createElement('div');
+                warning.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: rgba(255, 152, 0, 0.95);
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 4px;
+                    font-size: 13px;
+                    z-index: 10000;
+                    max-width: 300px;
+                    line-height: 1.4;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                `;
+                warning.innerHTML = `
+                    <strong>⚠ Auto-save disabled</strong><br>
+                    Canvas too large for browser storage.<br>
+                    Use 💾 Save Canvas button instead.
+                `;
+                document.body.appendChild(warning);
+                
+                setTimeout(() => {
+                    if (warning.parentNode) {
+                        warning.remove();
+                    }
+                }, 8000);
+            }
+            
+            // Stop auto-save interval to prevent repeated errors
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+                autoSaveInterval = null;
+            }
+        } else {
+            console.error('Auto-save error:', error);
+        }
     }
 }
 
