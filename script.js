@@ -1358,15 +1358,22 @@ function loadCanvas() {
                     // Update the ID to match the saved state
                     lastNode.element.id = nodeData.id;
                     lastNode.id = nodeData.id;
-                    // Update connection point data attributes AND re-setup event listeners
+                    
+                    // Re-setup connection points with correct ID
                     lastNode.element.querySelectorAll('.connection-point').forEach(point => {
                         point.dataset.node = nodeData.id;
-                        // Remove old event listeners by cloning the element
                         const newPoint = point.cloneNode(true);
                         point.parentNode.replaceChild(newPoint, point);
-                        // Re-setup connection point with correct ID
                         setupConnectionPoint(newPoint, nodeData.id);
                     });
+                    
+                    // Re-setup close button with correct ID
+                    const closeBtn = lastNode.element.querySelector('.node-close');
+                    if (closeBtn) {
+                        const newCloseBtn = closeBtn.cloneNode(true);
+                        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+                        newCloseBtn.addEventListener('click', () => removeNode(nodeData.id));
+                    }
                 }
 
                 nodeMap.set(nodeData.id, lastNode);
