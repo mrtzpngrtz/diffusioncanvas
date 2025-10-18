@@ -678,17 +678,9 @@ function createResultNode(x, y, imageUrl, sourcePromptNode = null) {
 function updateGenerateButton(node) {
     const generateBtn = node.element.querySelector('.generate-btn');
     
-    // Count images from this node
+    // Only count images DIRECTLY connected to this node
+    // Don't count images from chained prompts to match what we actually send
     let totalImages = node.data.connectedImages.length;
-    
-    // Also count images from connected prompt nodes
-    if (node.data.connectedPrompts && node.data.connectedPrompts.length > 0) {
-        node.data.connectedPrompts.forEach(promptNode => {
-            if (promptNode.data.connectedImages) {
-                totalImages += promptNode.data.connectedImages.length;
-            }
-        });
-    }
     
     const hasImages = totalImages > 0;
     
@@ -1441,21 +1433,9 @@ function loadCanvas() {
 
 // Generate image using Google GenAI API
 async function generateImage(node) {
-    // Collect images from this node and from connected prompt nodes
+    // Only collect images DIRECTLY connected to this node
+    // Don't inherit images from chained prompts to avoid payload size issues
     let imageNodes = [...(node.data.connectedImages || [])];
-    
-    // Also collect images from connected prompt nodes
-    if (node.data.connectedPrompts && node.data.connectedPrompts.length > 0) {
-        node.data.connectedPrompts.forEach(promptNode => {
-            if (promptNode.data.connectedImages) {
-                promptNode.data.connectedImages.forEach(imgNode => {
-                    if (!imageNodes.includes(imgNode)) {
-                        imageNodes.push(imgNode);
-                    }
-                });
-            }
-        });
-    }
 
     // Build combined prompt from connected prompts and own prompt
     let promptParts = [];
@@ -1515,6 +1495,17 @@ async function generateImage(node) {
 
         if (!response.ok) {
             let errorMessage = 'Failed to generate image';
+            
+            // Special handling for 413 Payload Too Large
+            if (response.status === 413) {
+                errorMessage = 'Images are too large for the server to process.\n\n' +
+                    'Solutions:\n' +
+                    '• Use smaller images (< 1MB each)\n' +
+                    '• Reduce the number of connected images\n' +
+                    '• Resize images before uploading';
+                throw new Error(errorMessage);
+            }
+            
             try {
                 const error = await response.json();
                 errorMessage = error.error || errorMessage;
