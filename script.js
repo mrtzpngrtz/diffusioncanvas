@@ -2358,6 +2358,300 @@ document.addEventListener('mouseup', () => {
     }
 });
 
+// Auto-save functionality
+let autoSaveInterval;
+const AUTO_SAVE_DELAY = 5000; // Auto-save every 5 seconds
+
+function autoSaveCanvas() {
+    try {
+        // Create a serializable version of the canvas state (same as saveCanvas)
+        const canvasState = {
+            version: '1.0',
+            timestamp: new Date().toISOString(),
+            zoom: zoom,
+            panX: panX,
+            panY: panY,
+            nodeIdCounter: nodeIdCounter,
+            nodes: nodes.map(node => ({
+                id: node.id,
+                type: node.type,
+                position: node.position,
+                data: {
+                    // For image nodes
+                    imageData: node.data.imageData,
+                    imageWidth: node.data.imageWidth,
+                    // For prompt nodes
+                    prompt: node.data.prompt,
+                    aspectRatio: node.data.aspectRatio,
+                    // For action nodes
+                    action: node.data.action,
+                    // Store IDs of connected nodes instead of references
+                    connectedImageIds: node.data.connectedImages ? 
+                        node.data.connectedImages.map(n => n.id) : [],
+                    connectedPromptIds: node.data.connectedPrompts ? 
+                        node.data.connectedPrompts.map(n => n.id) : [],
+                    resultNodeId: node.data.resultNode ? node.data.resultNode.id : null,
+                    sourcePromptNodeId: node.data.sourcePromptNode ? node.data.sourcePromptNode.id : null
+                }
+            })),
+            connections: connections.map(conn => ({
+                from: conn.from,
+                to: conn.to
+            }))
+        };
+
+        // Save to localStorage
+        localStorage.setItem('diffusionCanvas_autoSave', JSON.stringify(canvasState));
+        
+        // Show brief auto-save indicator
+        const indicator = document.createElement('div');
+        indicator.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(39, 174, 96, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 10000;
+            animation: fadeInOut 2s ease-in-out;
+        `;
+        indicator.textContent = '✓ Auto-saved';
+        document.body.appendChild(indicator);
+        
+        setTimeout(() => {
+            if (indicator.parentNode) {
+                indicator.remove();
+            }
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Auto-save error:', error);
+        // Don't show error to user for auto-save failures
+    }
+}
+
+function restoreAutoSavedCanvas() {
+    try {
+        const savedState = localStorage.getItem('diffusionCanvas_autoSave');
+        if (!savedState) return false;
+
+        const canvasState = JSON.parse(savedState);
+        
+        // Validate the saved state
+        if (!canvasState.version || !canvasState.nodes) {
+            return false;
+        }
+
+        // Clear current canvas
+        nodes.forEach(node => node.element.remove());
+        nodes = [];
+        connections = [];
+
+        // Restore zoom and pan
+        zoom = canvasState.zoom || 1;
+        panX = canvasState.panX || 0;
+        panY = canvasState.panY || 0;
+        nodeIdCounter = canvasState.nodeIdCounter || 0;
+
+        // Create a map to store node ID to node object mapping
+        const nodeMap = new Map();
+
+        // Recreate all nodes
+        for (const nodeData of canvasState.nodes) {
+            let node;
+            
+            switch (nodeData.type) {
+                case 'image':
+                    node = createImageNode(nodeData.position.x, nodeData.position.y);
+                    // Restore image if exists
+                    if (nodeData.data.imageData) {
+                        const img = document.createElement('img');
+                        img.src = nodeData.data.imageData;
+                        img.onload = () => {
+                            node.data.image = img;
+                            node.data.imageData = nodeData.data.imageData;
+                            node.data.imageWidth = nodeData.data.imageWidth || 250;
+                            node.data.originalWidth = img.naturalWidth;
+                            node.data.originalHeight = img.naturalHeight;
+                            
+                            const content = node.element.querySelector('.node-content');
+                            content.innerHTML = '';
+                            
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'image-wrapper';
+                            img.style.width = `${node.data.imageWidth}px`;
+                            wrapper.appendChild(img);
+                            content.appendChild(wrapper);
+                            
+                            const scaleIndicator = document.createElement('div');
+                            scaleIndicator.className = 'scale-indicator';
+                            scaleIndicator.textContent = `${node.data.originalWidth} x ${node.data.originalHeight}px`;
+                            content.appendChild(scaleIndicator);
+                            
+                            const actionButtons = document.createElement('div');
+                            actionButtons.className = 'image-actions';
+                            actionButtons.innerHTML = `
+                                <button class="icon-btn" title="View Full Size">⛶</button>
+                                <button class="icon-btn" title="Download Image">↓</button>
+                            `;
+                            content.appendChild(actionButtons);
+                            
+                            const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
+                            const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+                            
+                            lightboxBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                openLightbox(node.data.imageData);
+                            });
+                            
+                            downloadBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                downloadImage(node.data.imageData, 'image.png');
+                            });
+                        };
+                    }
+                    break;
+                
+                case 'prompt':
+                    node = createPromptNode(nodeData.position.x, nodeData.position.y);
+                    if (nodeData.data.prompt) {
+                        const textarea = node.element.querySelector('textarea');
+                        textarea.value = nodeData.data.prompt;
+                        node.data.prompt = nodeData.data.prompt;
+                    }
+                    if (nodeData.data.aspectRatio) {
+                        const select = node.element.querySelector('.aspect-ratio-select');
+                        select.value = nodeData.data.aspectRatio;
+                        node.data.aspectRatio = nodeData.data.aspectRatio;
+                    }
+                    break;
+                
+                case 'action':
+                    node = createActionNode(nodeData.position.x, nodeData.position.y);
+                    if (nodeData.data.action) {
+                        const select = node.element.querySelector('.action-select');
+                        select.value = nodeData.data.action;
+                        node.data.action = nodeData.data.action;
+                    }
+                    break;
+                
+                case 'result':
+                    node = createResultNode(nodeData.position.x, nodeData.position.y, nodeData.data.imageData);
+                    node.data.imageWidth = nodeData.data.imageWidth || 250;
+                    const img = node.data.image;
+                    img.style.width = `${node.data.imageWidth}px`;
+                    break;
+                
+                case 'draw':
+                    node = createDrawNode(nodeData.position.x, nodeData.position.y);
+                    if (nodeData.data.imageData) {
+                        const img = new Image();
+                        img.onload = () => {
+                            node.data.context.drawImage(img, 0, 0);
+                            updateDrawNodeImage(node);
+                        };
+                        img.src = nodeData.data.imageData;
+                    }
+                    break;
+            }
+
+            const lastNode = nodes[nodes.length - 1];
+            if (lastNode && lastNode.id !== nodeData.id) {
+                lastNode.element.id = nodeData.id;
+                lastNode.id = nodeData.id;
+                lastNode.element.querySelectorAll('.connection-point').forEach(point => {
+                    point.dataset.node = nodeData.id;
+                    const newPoint = point.cloneNode(true);
+                    point.parentNode.replaceChild(newPoint, point);
+                    setupConnectionPoint(newPoint, nodeData.id);
+                });
+            }
+
+            nodeMap.set(nodeData.id, lastNode);
+        }
+
+        // Restore connections between nodes
+        for (const nodeData of canvasState.nodes) {
+            const node = nodeMap.get(nodeData.id);
+            if (!node) continue;
+
+            if (nodeData.data.connectedImageIds) {
+                node.data.connectedImages = nodeData.data.connectedImageIds
+                    .map(id => nodeMap.get(id))
+                    .filter(n => n);
+            }
+
+            if (nodeData.data.connectedPromptIds) {
+                node.data.connectedPrompts = nodeData.data.connectedPromptIds
+                    .map(id => nodeMap.get(id))
+                    .filter(n => n);
+            }
+
+            if (nodeData.data.resultNodeId) {
+                node.data.resultNode = nodeMap.get(nodeData.data.resultNodeId);
+            }
+
+            if (nodeData.data.sourcePromptNodeId) {
+                node.data.sourcePromptNode = nodeMap.get(nodeData.data.sourcePromptNodeId);
+            }
+
+            if (node.type === 'prompt' || node.type === 'action') {
+                updateGenerateButton(node);
+            }
+        }
+
+        connections = [];
+        for (const connData of canvasState.connections) {
+            connections.push({
+                from: connData.from,
+                to: connData.to
+            });
+        }
+
+        applyZoom();
+        drawConnections();
+        updateMinimap();
+        
+        updateStatus('Canvas restored from auto-save', '#667eea');
+        return true;
+        
+    } catch (error) {
+        console.error('Auto-restore error:', error);
+        return false;
+    }
+}
+
+function clearAutoSave() {
+    localStorage.removeItem('diffusionCanvas_autoSave');
+}
+
+// Start auto-save interval
+function startAutoSave() {
+    // Clear any existing interval
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+    }
+    
+    // Auto-save every 5 seconds
+    autoSaveInterval = setInterval(() => {
+        if (nodes.length > 0) {
+            autoSaveCanvas();
+        }
+    }, AUTO_SAVE_DELAY);
+}
+
+// Try to restore auto-saved canvas on load
+const restored = restoreAutoSavedCanvas();
+
+// Start auto-save
+startAutoSave();
+
 // Initialize with sample nodes
-updateStatus('Ready - Add nodes to get started');
+if (!restored) {
+    updateStatus('Ready - Add nodes to get started');
+} else {
+    updateStatus('Canvas restored from auto-save', '#667eea');
+}
 updateMinimap();
