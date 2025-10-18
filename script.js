@@ -1358,9 +1358,14 @@ function loadCanvas() {
                     // Update the ID to match the saved state
                     lastNode.element.id = nodeData.id;
                     lastNode.id = nodeData.id;
-                    // Update connection point data attributes
+                    // Update connection point data attributes AND re-setup event listeners
                     lastNode.element.querySelectorAll('.connection-point').forEach(point => {
                         point.dataset.node = nodeData.id;
+                        // Remove old event listeners by cloning the element
+                        const newPoint = point.cloneNode(true);
+                        point.parentNode.replaceChild(newPoint, point);
+                        // Re-setup connection point with correct ID
+                        setupConnectionPoint(newPoint, nodeData.id);
                     });
                 }
 
