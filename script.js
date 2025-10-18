@@ -2561,12 +2561,22 @@ function restoreAutoSavedCanvas() {
             if (lastNode && lastNode.id !== nodeData.id) {
                 lastNode.element.id = nodeData.id;
                 lastNode.id = nodeData.id;
+                
+                // Re-setup connection points with correct ID
                 lastNode.element.querySelectorAll('.connection-point').forEach(point => {
                     point.dataset.node = nodeData.id;
                     const newPoint = point.cloneNode(true);
                     point.parentNode.replaceChild(newPoint, point);
                     setupConnectionPoint(newPoint, nodeData.id);
                 });
+                
+                // Re-setup close button with correct ID
+                const closeBtn = lastNode.element.querySelector('.node-close');
+                if (closeBtn) {
+                    const newCloseBtn = closeBtn.cloneNode(true);
+                    closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+                    newCloseBtn.addEventListener('click', () => removeNode(nodeData.id));
+                }
             }
 
             nodeMap.set(nodeData.id, lastNode);
