@@ -1450,6 +1450,9 @@ function loadCanvas() {
             drawConnections();
             updateMinimap();
             
+            // Immediately auto-save the newly loaded canvas
+            autoSaveCanvas();
+            
             updateStatus('Canvas loaded successfully!', '#27ae60');
         } catch (error) {
             console.error('Load error:', error);

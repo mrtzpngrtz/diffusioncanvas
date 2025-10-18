@@ -376,6 +376,11 @@ body {
     cursor: pointer;
 }
 
+.action-node select option {
+    background: #000;
+    color: #fff;
+}
+
 .action-node select:focus {
     outline: none;
     border-color: rgba(255, 255, 255, 0.25);
