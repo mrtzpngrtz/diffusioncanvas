@@ -327,9 +327,38 @@ function createImageNode(x = 100, y = 100) {
     return node;
 }
 
+// Compress image to reduce payload size for API
+function compressImage(imageData, maxWidth = 1024) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            // Calculate new dimensions maintaining aspect ratio
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxWidth) {
+                height = (height * maxWidth) / width;
+                width = maxWidth;
+            }
+            
+            // Create canvas and compress
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Compress to JPEG with 0.7 quality (much smaller than PNG)
+            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(compressed);
+        };
+        img.src = imageData;
+    });
+}
+
 // Handle image file upload
 function handleImageFile(file, node) {
-    const MAX_FILE_SIZE_MB = 3;
+    const MAX_FILE_SIZE_MB = 10; // Increased since we'll compress later
     const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
     
     // Check file size before processing
@@ -1478,8 +1507,18 @@ async function generateImage(node) {
     updateStatus('Generating image...', '#667eea');
 
     try {
-        // Collect all image data from connected nodes (optional now)
-        const images = imageNodes.map(node => node.data.imageData).filter(data => data);
+        // Collect all image data from connected nodes and compress them
+        const images = [];
+        if (imageNodes.length > 0) {
+            updateStatus('Compressing images...', '#667eea');
+            for (const imageNode of imageNodes) {
+                if (imageNode.data.imageData) {
+                    const compressed = await compressImage(imageNode.data.imageData, 1024);
+                    images.push(compressed);
+                }
+            }
+            updateStatus('Generating image...', '#667eea');
+        }
 
         // Call the backend API (with or without images)
         const response = await fetch('/api/generate', {
