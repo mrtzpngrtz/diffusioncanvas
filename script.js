@@ -681,6 +681,7 @@ function updateGenerateButton(node) {
     // Only count images DIRECTLY connected to this node
     // Don't count images from chained prompts to match what we actually send
     let totalImages = node.data.connectedImages.length;
+    console.log(`updateGenerateButton for ${node.id}: ${totalImages} directly connected images`, node.data.connectedImages.map(n => n.id));
     
     const hasImages = totalImages > 0;
     
@@ -1944,20 +1945,17 @@ connectionCanvas.addEventListener('click', (e) => {
             if (toNode && (toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
                 // Check for image/result/draw node connection
                 if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw') && toNode.data.connectedImages) {
-                    const imageIndex = toNode.data.connectedImages.findIndex(node => node.id === fromNode.id);
-                    if (imageIndex > -1) {
-                        toNode.data.connectedImages.splice(imageIndex, 1);
-                        console.log('Removed image node from connectedImages, remaining:', toNode.data.connectedImages.length);
-                    }
+                    // Filter out the disconnected node
+                    const originalLength = toNode.data.connectedImages.length;
+                    toNode.data.connectedImages = toNode.data.connectedImages.filter(node => node.id !== fromNode.id);
+                    console.log(`Removed image node ${fromNode.id}, was ${originalLength}, now ${toNode.data.connectedImages.length}`);
                 }
                 
                 // Check for prompt connection
                 if (fromNode.type === 'prompt' && toNode.data.connectedPrompts) {
-                    const promptIndex = toNode.data.connectedPrompts.findIndex(node => node.id === fromNode.id);
-                    if (promptIndex > -1) {
-                        toNode.data.connectedPrompts.splice(promptIndex, 1);
-                        console.log('Removed prompt node from connectedPrompts, remaining:', toNode.data.connectedPrompts.length);
-                    }
+                    const originalLength = toNode.data.connectedPrompts.length;
+                    toNode.data.connectedPrompts = toNode.data.connectedPrompts.filter(node => node.id !== fromNode.id);
+                    console.log(`Removed prompt node ${fromNode.id}, was ${originalLength}, now ${toNode.data.connectedPrompts.length}`);
                 }
                 
                 updateGenerateButton(toNode);
