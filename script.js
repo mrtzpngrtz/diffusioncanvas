@@ -1278,6 +1278,9 @@ function loadCanvas() {
             // Create a map to store node ID to node object mapping
             const nodeMap = new Map();
 
+            // Track image loading promises
+            const imageLoadPromises = [];
+
             // Recreate all nodes
             for (const nodeData of canvasState.nodes) {
                 let node;
@@ -1287,52 +1290,58 @@ function loadCanvas() {
                         node = createImageNode(nodeData.position.x, nodeData.position.y);
                         // Restore image if exists
                         if (nodeData.data.imageData) {
-                            const img = document.createElement('img');
-                            img.src = nodeData.data.imageData;
-                            img.onload = () => {
-                                node.data.image = img;
-                                node.data.imageData = nodeData.data.imageData;
-                                node.data.imageWidth = nodeData.data.imageWidth || 250; // display width
-                                node.data.originalWidth = img.naturalWidth;
-                                node.data.originalHeight = img.naturalHeight;
-                                
-                                const content = node.element.querySelector('.node-content');
-                                content.innerHTML = '';
-                                
-                                const wrapper = document.createElement('div');
-                                wrapper.className = 'image-wrapper';
-                                img.style.width = `${node.data.imageWidth}px`;
-                                wrapper.appendChild(img);
-                                content.appendChild(wrapper);
-                                
-                                // Add scale indicator
-                                const scaleIndicator = document.createElement('div');
-                                scaleIndicator.className = 'scale-indicator';
-                                scaleIndicator.textContent = `${node.data.originalWidth} x ${node.data.originalHeight}px`;
-                                content.appendChild(scaleIndicator);
-                                
-                                // Add action buttons
-                                const actionButtons = document.createElement('div');
-                                actionButtons.className = 'image-actions';
-                                actionButtons.innerHTML = `
-                                    <button class="icon-btn" title="View Full Size">⛶</button>
-                                    <button class="icon-btn" title="Download Image">↓</button>
-                                `;
-                                content.appendChild(actionButtons);
-                                
-                                const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
-                                const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
-                                
-                                lightboxBtn.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    openLightbox(node.data.imageData);
-                                });
-                                
-                                downloadBtn.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    downloadImage(node.data.imageData, 'image.png');
-                                });
-                            };
+                            const imageLoadPromise = new Promise((resolve) => {
+                                const img = document.createElement('img');
+                                img.src = nodeData.data.imageData;
+                                img.onload = () => {
+                                    node.data.image = img;
+                                    node.data.imageData = nodeData.data.imageData;
+                                    node.data.imageWidth = nodeData.data.imageWidth || 250;
+                                    node.data.originalWidth = img.naturalWidth;
+                                    node.data.originalHeight = img.naturalHeight;
+                                    
+                                    const content = node.element.querySelector('.node-content');
+                                    content.innerHTML = '';
+                                    
+                                    const wrapper = document.createElement('div');
+                                    wrapper.className = 'image-wrapper';
+                                    img.style.width = `${node.data.imageWidth}px`;
+                                    wrapper.appendChild(img);
+                                    content.appendChild(wrapper);
+                                    
+                                    // Add scale indicator
+                                    const scaleIndicator = document.createElement('div');
+                                    scaleIndicator.className = 'scale-indicator';
+                                    scaleIndicator.textContent = `${node.data.originalWidth} x ${node.data.originalHeight}px`;
+                                    content.appendChild(scaleIndicator);
+                                    
+                                    // Add action buttons
+                                    const actionButtons = document.createElement('div');
+                                    actionButtons.className = 'image-actions';
+                                    actionButtons.innerHTML = `
+                                        <button class="icon-btn" title="View Full Size">⛶</button>
+                                        <button class="icon-btn" title="Download Image">↓</button>
+                                    `;
+                                    content.appendChild(actionButtons);
+                                    
+                                    const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
+                                    const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+                                    
+                                    lightboxBtn.addEventListener('click', (e) => {
+                                        e.stopPropagation();
+                                        openLightbox(node.data.imageData);
+                                    });
+                                    
+                                    downloadBtn.addEventListener('click', (e) => {
+                                        e.stopPropagation();
+                                        downloadImage(node.data.imageData, 'image.png');
+                                    });
+                                    
+                                    resolve();
+                                };
+                                img.onerror = () => resolve(); // Resolve even on error to not block
+                            });
+                            imageLoadPromises.push(imageLoadPromise);
                         }
                         break;
                     
@@ -1364,22 +1373,36 @@ function loadCanvas() {
                     case 'result':
                         node = createResultNode(nodeData.position.x, nodeData.position.y, nodeData.data.imageData);
                         node.data.imageWidth = nodeData.data.imageWidth || 250;
-                        // Update image width
-                        const img = node.data.image;
-                        img.style.width = `${node.data.imageWidth}px`;
-                        // The scale indicator is handled by createResultNode's onload
+                        // Update image width and track loading
+                        const resultImg = node.data.image;
+                        resultImg.style.width = `${node.data.imageWidth}px`;
+                        // Track result image loading
+                        const resultLoadPromise = new Promise((resolve) => {
+                            if (resultImg.complete) {
+                                resolve();
+                            } else {
+                                resultImg.onload = () => resolve();
+                                resultImg.onerror = () => resolve();
+                            }
+                        });
+                        imageLoadPromises.push(resultLoadPromise);
                         break;
                     
                     case 'draw':
                         node = createDrawNode(nodeData.position.x, nodeData.position.y);
                         // Restore the drawing if it exists
                         if (nodeData.data.imageData) {
-                            const img = new Image();
-                            img.onload = () => {
-                                node.data.context.drawImage(img, 0, 0);
-                                updateDrawNodeImage(node);
-                            };
-                            img.src = nodeData.data.imageData;
+                            const drawLoadPromise = new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    node.data.context.drawImage(img, 0, 0);
+                                    updateDrawNodeImage(node);
+                                    resolve();
+                                };
+                                img.onerror = () => resolve();
+                                img.src = nodeData.data.imageData;
+                            });
+                            imageLoadPromises.push(drawLoadPromise);
                         }
                         break;
                 }
@@ -1460,8 +1483,14 @@ function loadCanvas() {
             drawConnections();
             updateMinimap();
             
-            // Immediately auto-save the newly loaded canvas
-            autoSaveCanvas();
+            // Wait for all images to load before auto-saving
+            Promise.all(imageLoadPromises).then(() => {
+                // Small delay to ensure everything is settled
+                setTimeout(() => {
+                    autoSaveCanvas();
+                    updateStatus('Canvas loaded and auto-saved successfully!', '#27ae60');
+                }, 100);
+            });
             
             updateStatus('Canvas loaded successfully!', '#27ae60');
         } catch (error) {
