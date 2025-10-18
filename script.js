@@ -530,6 +530,9 @@ function createPromptNode(x = 300, y = 100) {
                 <option value="16:9" selected>16:9 (1344x768)</option>
                 <option value="21:9">21:9 (1536x672)</option>
             </select>
+            <div class="prompt-actions">
+                <button class="icon-btn node-clone" title="Clone Node">⎘</button>
+            </div>
         </div>
         <div class="connection-point input" data-node="${nodeId}"></div>
         <div class="connection-point output" data-node="${nodeId}"></div>
@@ -572,6 +575,13 @@ function createPromptNode(x = 300, y = 100) {
     const aspectRatioSelect = nodeEl.querySelector('.aspect-ratio-select');
     aspectRatioSelect.addEventListener('change', (e) => {
         node.data.aspectRatio = e.target.value;
+    });
+
+    // Clone button
+    const cloneBtn = nodeEl.querySelector('.node-clone');
+    cloneBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cloneNode(node.id);
     });
 
     // Generate button
