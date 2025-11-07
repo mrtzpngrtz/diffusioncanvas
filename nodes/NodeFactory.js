@@ -3,6 +3,7 @@ import { PromptNode } from './PromptNode.js';
 import { ActionNode } from './ActionNode.js';
 import { ResultNode } from './ResultNode.js';
 import { DrawNode } from './DrawNode.js';
+import { Veo3Node } from './Veo3Node.js';
 
 /**
  * NodeFactory - Central registry for all node types
@@ -21,7 +22,8 @@ export class NodeFactory {
             'prompt': new PromptNode(),
             'action': new ActionNode(),
             'result': new ResultNode(),
-            'draw': new DrawNode()
+            'draw': new DrawNode(),
+            'veo3': new Veo3Node()
         };
     }
 

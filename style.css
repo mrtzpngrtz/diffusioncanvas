@@ -1913,3 +1913,172 @@ body.light-mode .cookie-btn-decline:hover {
         transform: translateY(-10px);
     }
 }
+
+/* Veo 3.1 Video Node Styles */
+.veo3-node {
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    background: #000;
+    min-width: 320px;
+}
+
+.veo3-node .node-title {
+    color: #a78bfa;
+}
+
+.veo-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 12px 0;
+}
+
+.veo-label {
+    font-size: 11px;
+    color: #999;
+    margin-bottom: 4px;
+    font-weight: 400;
+}
+
+.duration-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #fff;
+    cursor: pointer;
+}
+
+.duration-select option {
+    background: #000;
+    color: #fff;
+}
+
+.reference-frames {
+    margin: 16px 0;
+    padding: 12px;
+    background: rgba(147, 51, 234, 0.05);
+    border: 1px solid rgba(147, 51, 234, 0.2);
+    border-radius: 1px;
+}
+
+.frame-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.info-icon {
+    font-size: 14px;
+    color: #a78bfa;
+}
+
+.info-text {
+    font-size: 11px;
+    color: #999;
+    font-style: italic;
+}
+
+.frame-indicators {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.frame-slot {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+    transition: all 0.2s ease;
+}
+
+.frame-slot.connected {
+    background: rgba(147, 51, 234, 0.1);
+    border-color: rgba(147, 51, 234, 0.3);
+}
+
+.frame-label {
+    font-size: 9px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+}
+
+.frame-status {
+    font-size: 20px;
+    color: #888;
+    transition: color 0.2s ease;
+}
+
+.prompt-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    justify-content: flex-end;
+}
+
+/* Light Mode - Veo3 Node */
+body.light-mode .veo3-node {
+    border-color: rgba(147, 51, 234, 0.3);
+    background: #ffffff;
+}
+
+body.light-mode .veo3-node .node-title {
+    color: #7c3aed;
+}
+
+body.light-mode .veo-label {
+    color: #666;
+}
+
+body.light-mode .duration-select {
+    background: #ffffff;
+    color: #2a2a2a;
+    border-color: #d0d0d0;
+}
+
+body.light-mode .duration-select option {
+    background: #ffffff;
+    color: #2a2a2a;
+}
+
+body.light-mode .reference-frames {
+    background: rgba(147, 51, 234, 0.03);
+    border-color: rgba(147, 51, 234, 0.15);
+}
+
+body.light-mode .info-icon {
+    color: #7c3aed;
+}
+
+body.light-mode .info-text {
+    color: #666;
+}
+
+body.light-mode .frame-slot {
+    background: #fafafa;
+    border-color: #e0e0e0;
+}
+
+body.light-mode .frame-slot.connected {
+    background: rgba(147, 51, 234, 0.08);
+    border-color: rgba(147, 51, 234, 0.25);
+}
+
+body.light-mode .frame-label {
+    color: #999;
+}
+
+body.light-mode .frame-status {
+    color: #999;
+}
