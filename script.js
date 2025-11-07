@@ -1988,11 +1988,9 @@ function createVeo3Node(x = 300, y = 100) {
         cloneNode(node.id);
     });
 
-    // Generate button (placeholder - backend needed)
+    // Generate button
     const generateBtn = nodeEl.querySelector('.generate-btn');
-    generateBtn.addEventListener('click', () => {
-        alert('Veo 3.1 video generation requires backend API integration.\n\nThis is a UI placeholder. To enable:\n1. Add Veo 3.1 API credentials\n2. Create /api/generate-video endpoint\n3. Implement video generation logic\n\nSee nodes/Veo3Node.js for details.');
-    });
+    generateBtn.addEventListener('click', () => generateVideo(node));
 
     // Close button
     nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
@@ -2049,6 +2047,171 @@ function updateVeo3FrameIndicators(node) {
             slot.classList.remove('connected');
         }
     });
+}
+
+// Generate video using Veo 3.1 API
+async function generateVideo(node) {
+    const prompt = node.data.prompt.trim();
+    
+    if (!prompt) {
+        updateStatus('No prompt provided', '#e74c3c');
+        return;
+    }
+
+    const generateBtn = node.element.querySelector('.generate-btn');
+    const originalText = generateBtn.textContent;
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<span class="loading"></span> Generating Video...';
+    updateStatus('Generating video with Veo 3.1...', '#9b59b6');
+
+    try {
+        // Prepare frame data if images are connected
+        const frames = {};
+        
+        if (node.data.frameAssignments.first && node.data.frameAssignments.first.data.imageData) {
+            updateStatus('Compressing first frame...', '#9b59b6');
+            frames.first = await compressImage(node.data.frameAssignments.first.data.imageData, 1024);
+        }
+        
+        if (node.data.frameAssignments.middle && node.data.frameAssignments.middle.data.imageData) {
+            updateStatus('Compressing middle frame...', '#9b59b6');
+            frames.middle = await compressImage(node.data.frameAssignments.middle.data.imageData, 1024);
+        }
+        
+        if (node.data.frameAssignments.last && node.data.frameAssignments.last.data.imageData) {
+            updateStatus('Compressing last frame...', '#9b59b6');
+            frames.last = await compressImage(node.data.frameAssignments.last.data.imageData, 1024);
+        }
+
+        updateStatus('Calling Veo 3.1 API...', '#9b59b6');
+
+        // Call the backend API
+        const response = await fetch('/api/generate-video', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                prompt: prompt,
+                duration: node.data.duration,
+                aspectRatio: node.data.aspectRatio,
+                frames: Object.keys(frames).length > 0 ? frames : null
+            })
+        });
+
+        if (!response.ok) {
+            let errorMessage = 'Failed to generate video';
+            
+            try {
+                const error = await response.json();
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+
+        // Create a video result node
+        const nodeRect = node.element.getBoundingClientRect();
+        const container = nodeCanvas.getBoundingClientRect();
+        const resultX = nodeRect.left - container.left + nodeRect.width + 50;
+        const resultY = nodeRect.top - container.top;
+
+        if (result.video) {
+            // Create video result node
+            createVideoResultNode(resultX, resultY, result.video, node, result.duration, result.aspectRatio);
+            
+            // Update credits display if returned in response
+            if (result.creditsRemaining !== undefined) {
+                const userCredits = document.getElementById('userCredits');
+                if (userCredits) {
+                    userCredits.textContent = `${result.creditsRemaining} credit${result.creditsRemaining !== 1 ? 's' : ''}`;
+                }
+            }
+            
+            updateStatus('Video generated successfully!', '#27ae60');
+        } else {
+            throw new Error('No video returned from API');
+        }
+
+    } catch (error) {
+        console.error('Video generation error:', error);
+        updateStatus(`Error: ${error.message}`, '#e74c3c');
+        alert(`Video generation failed: ${error.message}`);
+    } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = originalText;
+    }
+}
+
+// Create Video Result Node
+function createVideoResultNode(x, y, videoUrl, sourceVeoNode = null, duration = 8, aspectRatio = '16:9') {
+    const nodeId = `node-${nodeIdCounter++}`;
+    const nodeEl = document.createElement('div');
+    nodeEl.className = 'node result-node video-result-node';
+    nodeEl.id = nodeId;
+    nodeEl.style.left = `${x}px`;
+    nodeEl.style.top = `${y}px`;
+
+    nodeEl.innerHTML = `
+        <div class="node-header">
+            <span class="node-title">Video Result</span>
+            <button class="node-close">×</button>
+        </div>
+        <div class="node-content">
+            <div class="video-wrapper">
+                <video controls>
+                    <source src="${videoUrl}" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+            </div>
+            <div class="video-info">
+                <span>${duration}s · ${aspectRatio}</span>
+            </div>
+        </div>
+        <div class="connection-point input" data-node="${nodeId}"></div>
+        <div class="connection-point output" data-node="${nodeId}"></div>
+    `;
+
+    const node = {
+        id: nodeId,
+        type: 'video-result',
+        element: nodeEl,
+        data: { 
+            videoUrl: videoUrl,
+            duration: duration,
+            aspectRatio: aspectRatio,
+            sourceVeoNode: sourceVeoNode
+        },
+        position: { x, y }
+    };
+
+    nodes.push(node);
+    nodeCanvas.appendChild(nodeEl);
+
+    // Close button
+    nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
+
+    // Connection points
+    nodeEl.querySelectorAll('.connection-point').forEach(point => {
+        setupConnectionPoint(point, nodeId);
+    });
+
+    setupNodeDragging(nodeEl, node);
+
+    // If linked to a Veo node, auto-connect them
+    if (sourceVeoNode) {
+        connections.push({
+            from: sourceVeoNode.id,
+            to: nodeId
+        });
+        drawConnections();
+    }
+
+    return node;
 }
 
 // Helper function to get center of visible viewport in canvas coordinates
