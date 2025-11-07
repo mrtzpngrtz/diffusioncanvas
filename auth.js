@@ -72,10 +72,22 @@ passport.deserializeUser(async (id, done) => {
 
 // Google OAuth Strategy
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    // Dynamic callback URL for Vercel preview deployments
+    const getCallbackURL = () => {
+        if (process.env.GOOGLE_CALLBACK_URL) {
+            return process.env.GOOGLE_CALLBACK_URL;
+        }
+        // Use VERCEL_URL for preview deployments, otherwise localhost
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'http://localhost:3000';
+        return `${baseUrl}/auth/google/callback`;
+    };
+
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/callback'
+        callbackURL: getCallbackURL()
     }, async (accessToken, refreshToken, profile, done) => {
         try {
             const user = await findOrCreateUser(profile, 'google');
@@ -88,10 +100,20 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 // Facebook OAuth Strategy
 if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+    const getCallbackURL = () => {
+        if (process.env.FACEBOOK_CALLBACK_URL) {
+            return process.env.FACEBOOK_CALLBACK_URL;
+        }
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'http://localhost:3000';
+        return `${baseUrl}/auth/facebook/callback`;
+    };
+
     passport.use(new FacebookStrategy({
         clientID: process.env.FACEBOOK_APP_ID,
         clientSecret: process.env.FACEBOOK_APP_SECRET,
-        callbackURL: process.env.FACEBOOK_CALLBACK_URL || 'http://localhost:3000/auth/facebook/callback',
+        callbackURL: getCallbackURL(),
         profileFields: ['id', 'emails', 'name', 'displayName', 'photos']
     }, async (accessToken, refreshToken, profile, done) => {
         try {
@@ -105,10 +127,20 @@ if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
 
 // LinkedIn OAuth Strategy
 if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
+    const getCallbackURL = () => {
+        if (process.env.LINKEDIN_CALLBACK_URL) {
+            return process.env.LINKEDIN_CALLBACK_URL;
+        }
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'http://localhost:3000';
+        return `${baseUrl}/auth/linkedin/callback`;
+    };
+
     passport.use(new LinkedInStrategy({
         clientID: process.env.LINKEDIN_CLIENT_ID,
         clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
-        callbackURL: process.env.LINKEDIN_CALLBACK_URL || 'http://localhost:3000/auth/linkedin/callback',
+        callbackURL: getCallbackURL(),
         scope: ['r_emailaddress', 'r_liteprofile']
     }, async (accessToken, refreshToken, profile, done) => {
         try {
