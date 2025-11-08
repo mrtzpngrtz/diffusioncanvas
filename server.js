@@ -570,15 +570,12 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
         });
 
         // Build the request
+        // Note: Veo 3.1 parameters are still evolving - using basic structure for now
         const request = {
             contents: [{
                 role: 'user',
                 parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-                videoDuration: duration,
-                aspectRatio: aspectRatio
-            }
+            }]
         };
 
         // Add frame guidance if provided
