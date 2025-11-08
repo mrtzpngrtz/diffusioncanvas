@@ -1874,6 +1874,346 @@ function updateDrawNodeImage(node) {
     node.data.originalHeight = node.data.canvas.height;
 }
 
+// Create Veo 3.1 Video Node
+function createVeo3Node(x = 300, y = 100) {
+    const nodeId = `node-${nodeIdCounter++}`;
+    const nodeEl = document.createElement('div');
+    nodeEl.className = 'node veo3-node';
+    nodeEl.id = nodeId;
+    nodeEl.style.left = `${x}px`;
+    nodeEl.style.top = `${y}px`;
+
+    nodeEl.innerHTML = `
+        <div class="node-header">
+            <span class="node-title">Veo 3.1 Video</span>
+            <button class="node-close">×</button>
+        </div>
+        <div class="node-content">
+            <textarea placeholder="Describe the video you want to generate..."></textarea>
+            
+            <div class="veo-settings">
+                <label class="veo-label">Video Duration:</label>
+                <select class="duration-select">
+                    <option value="5">5 seconds</option>
+                    <option value="8" selected>8 seconds</option>
+                    <option value="10">10 seconds</option>
+                </select>
+                
+                <label class="veo-label">Aspect Ratio:</label>
+                <select class="aspect-ratio-select">
+                    <option value="16:9" selected>16:9 (Landscape)</option>
+                    <option value="9:16">9:16 (Portrait)</option>
+                    <option value="1:1">1:1 (Square)</option>
+                </select>
+            </div>
+            
+            <div class="reference-frames">
+                <div class="frame-info">
+                    <span class="info-icon">ℹ</span>
+                    <span class="info-text">Connect 1-3 images for frame guidance</span>
+                </div>
+                <div class="frame-indicators">
+                    <div class="frame-slot" data-frame="first">
+                        <span class="frame-label">First Frame</span>
+                        <span class="frame-status">○</span>
+                    </div>
+                    <div class="frame-slot" data-frame="middle">
+                        <span class="frame-label">Middle Frame</span>
+                        <span class="frame-status">○</span>
+                    </div>
+                    <div class="frame-slot" data-frame="last">
+                        <span class="frame-label">Last Frame</span>
+                        <span class="frame-status">○</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="prompt-actions">
+                <button class="icon-btn node-clone" title="Clone Node">⎘</button>
+            </div>
+        </div>
+        <div class="connection-point input" data-node="${nodeId}"></div>
+        <div class="connection-point output" data-node="${nodeId}"></div>
+        <div class="node-actions">
+            <div class="model-indicator">Veo 3.1</div>
+            <button class="node-btn generate-btn" disabled>Generate Video</button>
+        </div>
+    `;
+
+    const node = {
+        id: nodeId,
+        type: 'veo3',
+        element: nodeEl,
+        data: { 
+            prompt: '', 
+            duration: 8,
+            aspectRatio: '16:9',
+            connectedImages: [],
+            frameAssignments: {
+                first: null,
+                middle: null,
+                last: null
+            }
+        },
+        position: { x, y }
+    };
+
+    nodes.push(node);
+    nodeCanvas.appendChild(nodeEl);
+
+    // Textarea handling
+    const textarea = nodeEl.querySelector('textarea');
+    textarea.addEventListener('input', (e) => {
+        node.data.prompt = e.target.value;
+        const generateBtn = nodeEl.querySelector('.generate-btn');
+        generateBtn.disabled = e.target.value.trim().length === 0;
+    });
+
+    // Duration select
+    const durationSelect = nodeEl.querySelector('.duration-select');
+    durationSelect.addEventListener('change', (e) => {
+        node.data.duration = parseInt(e.target.value);
+    });
+
+    // Aspect ratio select
+    const aspectRatioSelect = nodeEl.querySelector('.aspect-ratio-select');
+    aspectRatioSelect.addEventListener('change', (e) => {
+        node.data.aspectRatio = e.target.value;
+    });
+
+    // Clone button
+    const cloneBtn = nodeEl.querySelector('.node-clone');
+    cloneBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cloneNode(node.id);
+    });
+
+    // Generate button
+    const generateBtn = nodeEl.querySelector('.generate-btn');
+    generateBtn.addEventListener('click', () => generateVideo(node));
+
+    // Close button
+    nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
+
+    // Connection points
+    nodeEl.querySelectorAll('.connection-point').forEach(point => {
+        setupConnectionPoint(point, nodeId);
+    });
+
+    setupNodeDragging(nodeEl, node);
+    updateStatus('Veo 3.1 video node created');
+
+    return node;
+}
+
+// Update frame indicators when images are connected to Veo3 node
+function updateVeo3FrameIndicators(node) {
+    if (node.type !== 'veo3') return;
+    
+    const images = node.data.connectedImages;
+    
+    // Reset assignments
+    node.data.frameAssignments = {
+        first: null,
+        middle: null,
+        last: null
+    };
+    
+    // Assign based on number of connected images
+    if (images.length === 1) {
+        node.data.frameAssignments.first = images[0];
+    } else if (images.length === 2) {
+        node.data.frameAssignments.first = images[0];
+        node.data.frameAssignments.last = images[1];
+    } else if (images.length >= 3) {
+        node.data.frameAssignments.first = images[0];
+        node.data.frameAssignments.middle = images[1];
+        node.data.frameAssignments.last = images[2];
+    }
+    
+    // Update visual indicators
+    const frameSlots = node.element.querySelectorAll('.frame-slot');
+    frameSlots.forEach(slot => {
+        const frameType = slot.dataset.frame;
+        const status = slot.querySelector('.frame-status');
+        
+        if (node.data.frameAssignments[frameType]) {
+            status.textContent = '●';
+            status.style.color = '#27ae60';
+            slot.classList.add('connected');
+        } else {
+            status.textContent = '○';
+            status.style.color = '#888';
+            slot.classList.remove('connected');
+        }
+    });
+}
+
+// Generate video using Veo 3.1 API
+async function generateVideo(node) {
+    const prompt = node.data.prompt.trim();
+    
+    if (!prompt) {
+        updateStatus('No prompt provided', '#e74c3c');
+        return;
+    }
+
+    const generateBtn = node.element.querySelector('.generate-btn');
+    const originalText = generateBtn.textContent;
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<span class="loading"></span> Generating Video...';
+    updateStatus('Generating video with Veo 3.1...', '#9b59b6');
+
+    try {
+        // Prepare frame data if images are connected
+        const frames = {};
+        
+        if (node.data.frameAssignments.first && node.data.frameAssignments.first.data.imageData) {
+            updateStatus('Compressing first frame...', '#9b59b6');
+            frames.first = await compressImage(node.data.frameAssignments.first.data.imageData, 1024);
+        }
+        
+        if (node.data.frameAssignments.middle && node.data.frameAssignments.middle.data.imageData) {
+            updateStatus('Compressing middle frame...', '#9b59b6');
+            frames.middle = await compressImage(node.data.frameAssignments.middle.data.imageData, 1024);
+        }
+        
+        if (node.data.frameAssignments.last && node.data.frameAssignments.last.data.imageData) {
+            updateStatus('Compressing last frame...', '#9b59b6');
+            frames.last = await compressImage(node.data.frameAssignments.last.data.imageData, 1024);
+        }
+
+        updateStatus('Calling Veo 3.1 API...', '#9b59b6');
+
+        // Call the backend API
+        const response = await fetch('/api/generate-video', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                prompt: prompt,
+                duration: node.data.duration,
+                aspectRatio: node.data.aspectRatio,
+                frames: Object.keys(frames).length > 0 ? frames : null
+            })
+        });
+
+        if (!response.ok) {
+            let errorMessage = 'Failed to generate video';
+            
+            try {
+                const error = await response.json();
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+
+        // Create a video result node
+        const nodeRect = node.element.getBoundingClientRect();
+        const container = nodeCanvas.getBoundingClientRect();
+        const resultX = nodeRect.left - container.left + nodeRect.width + 50;
+        const resultY = nodeRect.top - container.top;
+
+        if (result.video) {
+            // Create video result node
+            createVideoResultNode(resultX, resultY, result.video, node, result.duration, result.aspectRatio);
+            
+            // Update credits display if returned in response
+            if (result.creditsRemaining !== undefined) {
+                const userCredits = document.getElementById('userCredits');
+                if (userCredits) {
+                    userCredits.textContent = `${result.creditsRemaining} credit${result.creditsRemaining !== 1 ? 's' : ''}`;
+                }
+            }
+            
+            updateStatus('Video generated successfully!', '#27ae60');
+        } else {
+            throw new Error('No video returned from API');
+        }
+
+    } catch (error) {
+        console.error('Video generation error:', error);
+        updateStatus(`Error: ${error.message}`, '#e74c3c');
+        alert(`Video generation failed: ${error.message}`);
+    } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = originalText;
+    }
+}
+
+// Create Video Result Node
+function createVideoResultNode(x, y, videoUrl, sourceVeoNode = null, duration = 8, aspectRatio = '16:9') {
+    const nodeId = `node-${nodeIdCounter++}`;
+    const nodeEl = document.createElement('div');
+    nodeEl.className = 'node result-node video-result-node';
+    nodeEl.id = nodeId;
+    nodeEl.style.left = `${x}px`;
+    nodeEl.style.top = `${y}px`;
+
+    nodeEl.innerHTML = `
+        <div class="node-header">
+            <span class="node-title">Video Result</span>
+            <button class="node-close">×</button>
+        </div>
+        <div class="node-content">
+            <div class="video-wrapper">
+                <video controls>
+                    <source src="${videoUrl}" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+            </div>
+            <div class="video-info">
+                <span>${duration}s · ${aspectRatio}</span>
+            </div>
+        </div>
+        <div class="connection-point input" data-node="${nodeId}"></div>
+        <div class="connection-point output" data-node="${nodeId}"></div>
+    `;
+
+    const node = {
+        id: nodeId,
+        type: 'video-result',
+        element: nodeEl,
+        data: { 
+            videoUrl: videoUrl,
+            duration: duration,
+            aspectRatio: aspectRatio,
+            sourceVeoNode: sourceVeoNode
+        },
+        position: { x, y }
+    };
+
+    nodes.push(node);
+    nodeCanvas.appendChild(nodeEl);
+
+    // Close button
+    nodeEl.querySelector('.node-close').addEventListener('click', () => removeNode(nodeId));
+
+    // Connection points
+    nodeEl.querySelectorAll('.connection-point').forEach(point => {
+        setupConnectionPoint(point, nodeId);
+    });
+
+    setupNodeDragging(nodeEl, node);
+
+    // If linked to a Veo node, auto-connect them
+    if (sourceVeoNode) {
+        connections.push({
+            from: sourceVeoNode.id,
+            to: nodeId
+        });
+        drawConnections();
+    }
+
+    return node;
+}
+
 // Helper function to get center of visible viewport in canvas coordinates
 function getViewportCenter() {
     const container = document.querySelector('.canvas-container');
@@ -1901,6 +2241,11 @@ document.getElementById('addActionNode').addEventListener('click', () => {
 document.getElementById('addDrawNode').addEventListener('click', () => {
     const center = getViewportCenter();
     createDrawNode(center.x - 125, center.y - 75);
+});
+
+document.getElementById('addVeo3Node').addEventListener('click', () => {
+    const center = getViewportCenter();
+    createVeo3Node(center.x - 160, center.y - 100);
 });
 
 document.getElementById('clearCanvas').addEventListener('click', clearCanvas);
@@ -2371,6 +2716,9 @@ contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
                 break;
             case 'addDraw':
                 newNode = createDrawNode(contextMenuPosition.x, contextMenuPosition.y);
+                break;
+            case 'addVeo3':
+                newNode = createVeo3Node(contextMenuPosition.x, contextMenuPosition.y);
                 break;
         }
         
