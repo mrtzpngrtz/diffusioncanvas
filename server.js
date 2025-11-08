@@ -506,181 +506,24 @@ app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
 });
 
 // Video generation endpoint (Veo 3.1)
+// NOTE: Veo 3.1 requires Google Cloud Vertex AI, not the standard Gemini API
+// This is a placeholder that returns an error message
 app.post('/api/generate-video', isAuthenticated, async (req, res) => {
     try {
-        // Check if user has enough credits (video generation costs more - 3 credits)
-        const VIDEO_GENERATION_COST = 3;
-        if (!req.user.credits || req.user.credits < VIDEO_GENERATION_COST) {
-            return res.status(403).json({ 
-                error: `Insufficient credits. Video generation requires ${VIDEO_GENERATION_COST} credits. You have ${req.user.credits || 0}.` 
-            });
-        }
-
-        const { prompt, duration, aspectRatio, frames } = req.body;
-
-        if (!prompt) {
-            return res.status(400).json({ error: 'No prompt provided' });
-        }
-
-        console.log('Generating video with Veo 3.1:', {
-            prompt,
-            duration: duration || 8,
-            aspectRatio: aspectRatio || '16:9',
-            frameCount: frames ? Object.keys(frames).filter(k => frames[k]).length : 0
+        // Return error explaining Veo 3.1 requires different setup
+        return res.status(501).json({ 
+            error: 'Video generation with Veo 3.1 is not yet implemented. ' +
+                   'Veo 3.1 requires Google Cloud Vertex AI access, which uses a different API than the standard Gemini API. ' +
+                   'To enable this feature, you need to: ' +
+                   '1) Set up a Google Cloud project with Vertex AI enabled, ' +
+                   '2) Install @google-cloud/vertexai package, ' +
+                   '3) Configure service account credentials. ' +
+                   'For now, please use the image generation features instead.'
         });
-
-        // Build the request for Veo 3.1
-        const requestConfig = {
-            model: 'veo-3.1',
-            prompt: prompt,
-            config: {
-                duration: duration || 8,
-                aspectRatio: aspectRatio || '16:9'
-            }
-        };
-
-        // Add frame guidance if provided
-        if (frames) {
-            const frameGuidance = {};
-            
-            // Process first frame
-            if (frames.first) {
-                let imageData = frames.first;
-                if (imageData.includes('base64,')) {
-                    imageData = imageData.split('base64,')[1];
-                }
-                frameGuidance.firstFrame = {
-                    image: {
-                        imageBytes: imageData
-                    }
-                };
-            }
-            
-            // Process middle frame
-            if (frames.middle) {
-                let imageData = frames.middle;
-                if (imageData.includes('base64,')) {
-                    imageData = imageData.split('base64,')[1];
-                }
-                frameGuidance.middleFrame = {
-                    image: {
-                        imageBytes: imageData
-                    }
-                };
-            }
-            
-            // Process last frame
-            if (frames.last) {
-                let imageData = frames.last;
-                if (imageData.includes('base64,')) {
-                    imageData = imageData.split('base64,')[1];
-                }
-                frameGuidance.lastFrame = {
-                    image: {
-                        imageBytes: imageData
-                    }
-                };
-            }
-            
-            // Only add frameGuidance if at least one frame is provided
-            if (Object.keys(frameGuidance).length > 0) {
-                requestConfig.config.frameGuidance = frameGuidance;
-            }
-        }
-
-        // Generate video using Veo 3.1
-        console.log('Calling Veo 3.1 API...');
-        
-        // Get the model
-        const model = ai.getGenerativeModel({ model: 'veo-3.1' });
-        
-        // Build parts for the request
-        const parts = [
-            { text: prompt }
-        ];
-        
-        // Add frame guidance if provided
-        if (requestConfig.config.frameGuidance) {
-            if (requestConfig.config.frameGuidance.firstFrame) {
-                parts.push({
-                    inlineData: {
-                        data: requestConfig.config.frameGuidance.firstFrame.image.imageBytes,
-                        mimeType: 'image/jpeg'
-                    }
-                });
-            }
-            if (requestConfig.config.frameGuidance.middleFrame) {
-                parts.push({
-                    inlineData: {
-                        data: requestConfig.config.frameGuidance.middleFrame.image.imageBytes,
-                        mimeType: 'image/jpeg'
-                    }
-                });
-            }
-            if (requestConfig.config.frameGuidance.lastFrame) {
-                parts.push({
-                    inlineData: {
-                        data: requestConfig.config.frameGuidance.lastFrame.image.imageBytes,
-                        mimeType: 'image/jpeg'
-                    }
-                });
-            }
-        }
-        
-        // Generate content
-        const result = await model.generateContent({
-            contents: [{ role: 'user', parts }],
-            generationConfig: {
-                videoDuration: requestConfig.config.duration,
-                aspectRatio: requestConfig.config.aspectRatio
-            }
-        });
-        
-        const response = await result.response;
-
-        // Process response
-        if (!response || !response.candidates || response.candidates.length === 0) {
-            console.error('No video generated:', JSON.stringify(response, null, 2));
-            return res.status(500).json({ 
-                error: 'No video generated by the model.'
-            });
-        }
-
-        // Get the video URL or bytes from the response
-        const candidate = response.candidates[0];
-        const videoData = candidate.content?.parts?.[0]?.videoData || candidate.content?.parts?.[0]?.inlineData;
-        
-        if (!videoData) {
-            console.error('No video data in response:', JSON.stringify(response, null, 2));
-            return res.status(500).json({ 
-                error: 'No video data in API response.'
-            });
-        }
-        
-        // Deduct credits from user
-        const users = await storage.getUsers();
-        const userIndex = users.findIndex(u => u.id === req.user.id);
-        
-        if (userIndex !== -1) {
-            users[userIndex].credits = (users[userIndex].credits || 0) - VIDEO_GENERATION_COST;
-            await storage.setUsers(users);
-            
-            // Update session user object
-            req.user.credits = users[userIndex].credits;
-        }
-
-        // Return video data
-        res.json({
-            video: videoData.videoUrl || videoData.videoBytes,
-            creditsRemaining: users[userIndex].credits,
-            duration: duration || 8,
-            aspectRatio: aspectRatio || '16:9'
-        });
-
     } catch (error) {
-        console.error('Error generating video:', error);
+        console.error('Error in video generation endpoint:', error);
         res.status(500).json({ 
-            error: error.message || 'Failed to generate video'
+            error: error.message || 'Failed to process video generation request'
         });
     }
 });

@@ -1,11 +1,34 @@
-import { GoogleGenAI } from '@google/genai';
+import { VertexAI } from '@google-cloud/vertexai';
 import { getAuthUser } from '../jwt-auth.js';
 import { storage } from '../storage.js';
 
-// Initialize Google GenAI client
-const ai = new GoogleGenAI({
-    apiKey: process.env.GOOGLE_API_KEY
-});
+// Initialize Vertex AI
+// Credentials should be set in environment variables:
+// - GOOGLE_CLOUD_PROJECT_ID (your project ID)
+// - GOOGLE_APPLICATION_CREDENTIALS_JSON (your service account JSON as a string)
+let vertexAI;
+try {
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
+    
+    if (!projectId) {
+        console.error('Missing GOOGLE_CLOUD_PROJECT_ID environment variable');
+    }
+    
+    // Parse service account credentials from environment
+    const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON 
+        ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+        : undefined;
+    
+    vertexAI = new VertexAI({
+        project: projectId,
+        location: 'us-central1', // Veo 3.1 is available in us-central1
+        googleAuthOptions: credentials ? {
+            credentials: credentials
+        } : undefined
+    });
+} catch (error) {
+    console.error('Error initializing Vertex AI:', error);
+}
 
 export default async function handler(req, res) {
     // Only allow POST requests
@@ -14,6 +37,15 @@ export default async function handler(req, res) {
     }
 
     try {
+        // Check if Vertex AI is initialized
+        if (!vertexAI) {
+            return res.status(501).json({ 
+                error: 'Veo 3.1 video generation requires Vertex AI setup',
+                details: 'Please ensure GOOGLE_CLOUD_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS_JSON are set in your Vercel environment variables.',
+                documentation: 'https://cloud.google.com/vertex-ai/docs/start/client-libraries'
+            });
+        }
+
         // Check authentication
         const user = getAuthUser(req);
         if (!user) {
@@ -27,133 +59,95 @@ export default async function handler(req, res) {
             return res.status(401).json({ error: 'User not found' });
         }
 
-        // Check if user has enough credits (video generation costs more - let's say 3 credits)
-        const VIDEO_GENERATION_COST = 3;
+        // Check if user has enough credits (video generation costs more - 5 credits)
+        const VIDEO_GENERATION_COST = 5;
         if (!fullUser.credits || fullUser.credits < VIDEO_GENERATION_COST) {
             return res.status(403).json({ 
                 error: `Insufficient credits. Video generation requires ${VIDEO_GENERATION_COST} credits. You have ${fullUser.credits || 0}.` 
             });
         }
 
-        const { prompt, duration, aspectRatio, frames } = req.body;
+        const { prompt, duration = 8, aspectRatio = '16:9', frames } = req.body;
 
         if (!prompt) {
             return res.status(400).json({ error: 'No prompt provided' });
         }
 
-        console.log('Generating video with Veo 3.1:', {
+        console.log('Generating video with Veo 3.1 via Vertex AI:', {
             prompt,
-            duration: duration || 8,
-            aspectRatio: aspectRatio || '16:9',
-            frameCount: frames ? Object.keys(frames).filter(k => frames[k]).length : 0
+            duration,
+            aspectRatio,
+            hasFrames: frames ? Object.keys(frames).filter(k => frames[k]).length > 0 : false
         });
 
-        // Build the request for Veo 3.1
-        const requestConfig = {
+        // Get the generative model for Veo
+        const generativeVisionModel = vertexAI.getGenerativeModel({
             model: 'veo-3.1',
-            prompt: prompt,
-            config: {
-                duration: duration || 8, // Default 8 seconds
-                aspectRatio: aspectRatio || '16:9'
+        });
+
+        // Build the request
+        const request = {
+            contents: [{
+                role: 'user',
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                videoDuration: duration,
+                aspectRatio: aspectRatio
             }
         };
 
         // Add frame guidance if provided
         if (frames) {
-            const frameGuidance = {};
+            const frameParts = [];
             
-            // Process first frame
             if (frames.first) {
                 let imageData = frames.first;
                 if (imageData.includes('base64,')) {
                     imageData = imageData.split('base64,')[1];
                 }
-                frameGuidance.firstFrame = {
-                    image: {
-                        imageBytes: imageData
+                frameParts.push({
+                    inlineData: {
+                        data: imageData,
+                        mimeType: 'image/jpeg'
                     }
-                };
+                });
             }
             
-            // Process middle frame
             if (frames.middle) {
                 let imageData = frames.middle;
                 if (imageData.includes('base64,')) {
                     imageData = imageData.split('base64,')[1];
                 }
-                frameGuidance.middleFrame = {
-                    image: {
-                        imageBytes: imageData
+                frameParts.push({
+                    inlineData: {
+                        data: imageData,
+                        mimeType: 'image/jpeg'
                     }
-                };
+                });
             }
             
-            // Process last frame
             if (frames.last) {
                 let imageData = frames.last;
                 if (imageData.includes('base64,')) {
                     imageData = imageData.split('base64,')[1];
                 }
-                frameGuidance.lastFrame = {
-                    image: {
-                        imageBytes: imageData
+                frameParts.push({
+                    inlineData: {
+                        data: imageData,
+                        mimeType: 'image/jpeg'
                     }
-                };
+                });
             }
             
-            // Only add frameGuidance if at least one frame is provided
-            if (Object.keys(frameGuidance).length > 0) {
-                requestConfig.config.frameGuidance = frameGuidance;
+            if (frameParts.length > 0) {
+                request.contents[0].parts.push(...frameParts);
             }
         }
 
-        // Generate video using Veo 3.1
-        console.log('Calling Veo 3.1 API...');
-        
-        // Get the model
-        const model = ai.getGenerativeModel({ model: 'veo-3.1' });
-        
-        // Build parts for the request
-        const parts = [
-            { text: prompt }
-        ];
-        
-        // Add frame guidance if provided
-        if (requestConfig.config.frameGuidance) {
-            if (requestConfig.config.frameGuidance.firstFrame) {
-                parts.push({
-                    inlineData: {
-                        data: requestConfig.config.frameGuidance.firstFrame.image.imageBytes,
-                        mimeType: 'image/jpeg'
-                    }
-                });
-            }
-            if (requestConfig.config.frameGuidance.middleFrame) {
-                parts.push({
-                    inlineData: {
-                        data: requestConfig.config.frameGuidance.middleFrame.image.imageBytes,
-                        mimeType: 'image/jpeg'
-                    }
-                });
-            }
-            if (requestConfig.config.frameGuidance.lastFrame) {
-                parts.push({
-                    inlineData: {
-                        data: requestConfig.config.frameGuidance.lastFrame.image.imageBytes,
-                        mimeType: 'image/jpeg'
-                    }
-                });
-            }
-        }
-        
-        // Generate content
-        const result = await model.generateContent({
-            contents: [{ role: 'user', parts }],
-            generationConfig: {
-                videoDuration: requestConfig.config.duration,
-                aspectRatio: requestConfig.config.aspectRatio
-            }
-        });
+        // Generate video
+        console.log('Calling Vertex AI Veo 3.1 API...');
+        const result = await generativeVisionModel.generateContent(request);
         
         const response = await result.response;
 
@@ -165,11 +159,11 @@ export default async function handler(req, res) {
             });
         }
 
-        // Get the video URL or bytes from the response
+        // Get the video data from the response
         const candidate = response.candidates[0];
-        const videoData = candidate.content?.parts?.[0]?.videoData || candidate.content?.parts?.[0]?.inlineData;
+        const videoData = candidate.content?.parts?.[0];
         
-        if (!videoData) {
+        if (!videoData || (!videoData.videoData && !videoData.fileData)) {
             console.error('No video data in response:', JSON.stringify(response, null, 2));
             return res.status(500).json({ 
                 error: 'No video data in API response.'
@@ -184,15 +178,30 @@ export default async function handler(req, res) {
         }
 
         // Return video data
+        // Vertex AI returns video as fileData with a URI or as direct video bytes
+        const videoUrl = videoData.fileData?.fileUri || videoData.videoData?.videoUri;
+        const videoBytes = videoData.inlineData?.data || videoData.videoData?.videoBytes;
+
         res.json({
-            video: videoData.videoUrl || videoData.videoBytes,
+            video: videoUrl || videoBytes,
+            videoUrl: videoUrl,
             creditsRemaining: users[userIndex].credits,
-            duration: duration || 8,
-            aspectRatio: aspectRatio || '16:9'
+            duration: duration,
+            aspectRatio: aspectRatio
         });
 
     } catch (error) {
         console.error('Error generating video:', error);
+        
+        // Check if it's an authentication error
+        if (error.message?.includes('credentials') || error.message?.includes('authentication')) {
+            return res.status(501).json({ 
+                error: 'Vertex AI authentication failed',
+                details: 'Please check your GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable.',
+                originalError: error.message
+            });
+        }
+        
         res.status(500).json({ 
             error: error.message || 'Failed to generate video'
         });
