@@ -505,28 +505,6 @@ app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
     }
 });
 
-// Video generation endpoint (Veo 3.1)
-// NOTE: Veo 3.1 requires Google Cloud Vertex AI, not the standard Gemini API
-// This is a placeholder that returns an error message
-app.post('/api/generate-video', isAuthenticated, async (req, res) => {
-    try {
-        // Return error explaining Veo 3.1 requires different setup
-        return res.status(501).json({ 
-            error: 'Video generation with Veo 3.1 is not yet implemented. ' +
-                   'Veo 3.1 requires Google Cloud Vertex AI access, which uses a different API than the standard Gemini API. ' +
-                   'To enable this feature, you need to: ' +
-                   '1) Set up a Google Cloud project with Vertex AI enabled, ' +
-                   '2) Install @google-cloud/vertexai package, ' +
-                   '3) Configure service account credentials. ' +
-                   'For now, please use the image generation features instead.'
-        });
-    } catch (error) {
-        console.error('Error in video generation endpoint:', error);
-        res.status(500).json({ 
-            error: error.message || 'Failed to process video generation request'
-        });
-    }
-});
 
 const PORT = process.env.PORT || 3000;
 
