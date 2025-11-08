@@ -82,7 +82,7 @@ export default async function handler(req, res) {
 
         // Get the generative model for Veo
         const generativeVisionModel = vertexAI.getGenerativeModel({
-            model: 'veo-3.1',
+            model: 'veo-3.0-fast-generate-001',
         });
 
         // Build the request
