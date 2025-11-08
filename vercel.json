@@ -18,15 +18,7 @@
       "use": "@vercel/static"
     },
     {
-      "src": "auth.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "jwt-auth.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "storage.js",
+      "src": "user_placeholder.png",
       "use": "@vercel/static"
     }
   ],
