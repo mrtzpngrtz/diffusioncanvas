@@ -4,6 +4,7 @@ import cors from 'cors';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import { GoogleGenAI } from '@google/genai';
+import { VertexAI } from '@google-cloud/vertexai';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import passport from './auth.js';
@@ -505,6 +506,191 @@ app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
     }
 });
 
+// Initialize Vertex AI for video generation
+let vertexAI;
+try {
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
+    
+    if (projectId) {
+        const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON 
+            ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+            : undefined;
+        
+        vertexAI = new VertexAI({
+            project: projectId,
+            location: 'us-central1',
+            googleAuthOptions: credentials ? {
+                credentials: credentials
+            } : undefined
+        });
+        console.log('Vertex AI initialized for video generation');
+    } else {
+        console.warn('GOOGLE_CLOUD_PROJECT_ID not set - video generation will be unavailable');
+    }
+} catch (error) {
+    console.error('Error initializing Vertex AI:', error);
+}
+
+// Video generation endpoint (Veo 3.1)
+app.post('/api/generate-video', isAuthenticated, async (req, res) => {
+    try {
+        // Check if Vertex AI is initialized
+        if (!vertexAI) {
+            return res.status(501).json({ 
+                error: 'Veo 3.1 video generation requires Vertex AI setup',
+                details: 'Please ensure GOOGLE_CLOUD_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS_JSON are set in your Vercel environment variables.',
+                documentation: 'https://cloud.google.com/vertex-ai/docs/start/client-libraries'
+            });
+        }
+
+        // Check if user has enough credits (video generation costs more - 5 credits)
+        const VIDEO_GENERATION_COST = 5;
+        if (!req.user.credits || req.user.credits < VIDEO_GENERATION_COST) {
+            return res.status(403).json({ 
+                error: `Insufficient credits. Video generation requires ${VIDEO_GENERATION_COST} credits. You have ${req.user.credits || 0}.` 
+            });
+        }
+
+        const { prompt, duration = 8, aspectRatio = '16:9', frames } = req.body;
+
+        if (!prompt) {
+            return res.status(400).json({ error: 'No prompt provided' });
+        }
+
+        console.log('Generating video with Veo 3.1 via Vertex AI:', {
+            prompt,
+            duration,
+            aspectRatio,
+            hasFrames: frames ? Object.keys(frames).filter(k => frames[k]).length > 0 : false
+        });
+
+        // Get the generative model for Veo
+        const generativeVisionModel = vertexAI.getGenerativeModel({
+            model: 'veo-3.1',
+        });
+
+        // Build the request
+        const request = {
+            contents: [{
+                role: 'user',
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                videoDuration: duration,
+                aspectRatio: aspectRatio
+            }
+        };
+
+        // Add frame guidance if provided
+        if (frames) {
+            const frameParts = [];
+            
+            if (frames.first) {
+                let imageData = frames.first;
+                if (imageData.includes('base64,')) {
+                    imageData = imageData.split('base64,')[1];
+                }
+                frameParts.push({
+                    inlineData: {
+                        data: imageData,
+                        mimeType: 'image/jpeg'
+                    }
+                });
+            }
+            
+            if (frames.middle) {
+                let imageData = frames.middle;
+                if (imageData.includes('base64,')) {
+                    imageData = imageData.split('base64,')[1];
+                }
+                frameParts.push({
+                    inlineData: {
+                        data: imageData,
+                        mimeType: 'image/jpeg'
+                    }
+                });
+            }
+            
+            if (frames.last) {
+                let imageData = frames.last;
+                if (imageData.includes('base64,')) {
+                    imageData = imageData.split('base64,')[1];
+                }
+                frameParts.push({
+                    inlineData: {
+                        data: imageData,
+                        mimeType: 'image/jpeg'
+                    }
+                });
+            }
+            
+            if (frameParts.length > 0) {
+                request.contents[0].parts.push(...frameParts);
+            }
+        }
+
+        // Generate video
+        console.log('Calling Vertex AI Veo 3.1 API...');
+        const result = await generativeVisionModel.generateContent(request);
+        
+        const response = await result.response;
+
+        // Process response
+        if (!response || !response.candidates || response.candidates.length === 0) {
+            console.error('No video generated:', JSON.stringify(response, null, 2));
+            return res.status(500).json({ 
+                error: 'No video generated by the model.'
+            });
+        }
+
+        // Get the video data from the response
+        const candidate = response.candidates[0];
+        const videoData = candidate.content?.parts?.[0];
+        
+        if (!videoData || (!videoData.videoData && !videoData.fileData)) {
+            console.error('No video data in response:', JSON.stringify(response, null, 2));
+            return res.status(500).json({ 
+                error: 'No video data in API response.'
+            });
+        }
+        
+        // Deduct credits from user
+        const users = await storage.getUsers();
+        const userIndex = users.findIndex(u => u.id === req.user.id);
+        if (userIndex !== -1) {
+            users[userIndex].credits = (users[userIndex].credits || 0) - VIDEO_GENERATION_COST;
+            await storage.setUsers(users);
+            req.user.credits = users[userIndex].credits;
+        }
+
+        // Return video data
+        const videoUrl = videoData.fileData?.fileUri || videoData.videoData?.videoUri;
+        const videoBytes = videoData.inlineData?.data || videoData.videoData?.videoBytes;
+
+        res.json({
+            video: videoUrl || videoBytes,
+            videoUrl: videoUrl,
+            creditsRemaining: req.user.credits,
+            duration: duration,
+            aspectRatio: aspectRatio
+        });
+
+    } catch (error) {
+        console.error('Error generating video:', error);
+        
+        if (error.message?.includes('credentials') || error.message?.includes('authentication')) {
+            return res.status(501).json({ 
+                error: 'Vertex AI authentication failed',
+                details: 'Please check your GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable.',
+                originalError: error.message
+            });
+        }
+        
+        res.status(500).json({ 
+            error: error.message || 'Failed to generate video'
+        });
+    }
+});
 
 const PORT = process.env.PORT || 3000;
 

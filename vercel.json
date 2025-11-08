@@ -28,10 +28,6 @@
       "dest": "/$1"
     },
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "server.js"
     }
