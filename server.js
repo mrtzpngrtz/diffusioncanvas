@@ -564,9 +564,9 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
             hasFrames: frames ? Object.keys(frames).filter(k => frames[k]).length > 0 : false
         });
 
-        // Get the generative model for Veo
+        // Get the generative model for Veo (using fast model for better quota availability)
         const generativeVisionModel = vertexAI.getGenerativeModel({
-            model: 'veo-3.0-generate-001',
+            model: 'veo-3.0-fast-generate-001',
         });
 
         // Build the request
