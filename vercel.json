@@ -2,12 +2,8 @@
   "version": 2,
   "builds": [
     {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "admin.html",
-      "use": "@vercel/static"
+      "src": "server.js",
+      "use": "@vercel/node"
     },
     {
       "src": "script.js",
@@ -18,47 +14,22 @@
       "use": "@vercel/static"
     },
     {
-      "src": "user_placeholder.png",
+      "src": "admin.html",
       "use": "@vercel/static"
     },
     {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/((?!api/|admin.html|index.html|script.js|style.css|user_placeholder.png).*)",
-      "destination": "/index.html"
+      "src": "index.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico))",
+      "src": "/(.*\\.(js|css|html))",
       "dest": "/$1"
     },
     {
-      "src": "/admin",
-      "dest": "/admin.html"
-    },
-    {
-      "src": "/",
-      "dest": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        }
-      ]
+      "src": "/(.*)",
+      "dest": "server.js"
     }
   ]
 }
