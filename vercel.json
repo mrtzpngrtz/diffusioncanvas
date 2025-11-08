@@ -24,12 +24,12 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
       "src": "/(.*\\.(js|css|html|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
     },
     {
       "src": "/admin",
