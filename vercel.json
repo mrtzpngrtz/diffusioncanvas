@@ -20,13 +20,19 @@
     {
       "src": "user_placeholder.png",
       "use": "@vercel/static"
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/|admin.html|index.html|script.js|style.css|user_placeholder.png).*)",
+      "destination": "/index.html"
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
     {
       "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico))",
       "dest": "/$1"
