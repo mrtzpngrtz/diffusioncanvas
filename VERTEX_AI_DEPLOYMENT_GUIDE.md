@@ -44,7 +44,29 @@ Once deployed:
 4. Optionally connect 1-3 images for frame guidance
 5. Click "Generate Video"
 
-## 📋 Technical Details
+## ⚠️ IMPORTANT: Veo 3.1 Model Status
+
+**Current Issue:** The model `veo-3.1` returns a "404 Not Found" error, which means:
+
+1. **Veo 3.1 may not be publicly available yet** - It might be in private preview
+2. **The model name might be different** - Google may use a different identifier
+3. **Special access might be required** - You may need to apply for early access
+
+### Possible Solutions
+
+#### Option 1: Check Veo Model Availability
+Visit [Google Cloud Vertex AI Models](https://console.cloud.google.com/vertex-ai/publishers/google/model-garden) and search for available video generation models.
+
+#### Option 2: Request Access to Veo
+If Veo is in private preview, you may need to:
+1. Fill out an access request form
+2. Join a waitlist
+3. Contact Google Cloud sales
+
+#### Option 3: Use Alternative Model (Imagen Video)
+Check if `imagen-video` or similar models are available in your region.
+
+## 📋 Technical Details (When Model is Available)
 
 ### Video Generation Costs
 - **5 credits** per video generation
@@ -56,13 +78,13 @@ Once deployed:
 - **Frame Guidance**: Optional 1-3 reference images (first, middle, last frames)
 
 ### API Endpoint
-- **Vercel**: `/api/generate-video.js` (serverless function)
-- **Local**: Falls through to server.js (but not implemented there)
+- Implemented in `server.js` at `/api/generate-video`
+- Uses Vertex AI with service account credentials
 
 ### Authentication
 - Uses Vertex AI with service account credentials
 - Credentials loaded from `GOOGLE_APPLICATION_CREDENTIALS_JSON` environment variable
-- Model: `veo-3.1` in `us-central1` region
+- Model: `veo-3.1` in `us-central1` region (when available)
 
 ## 🔍 Troubleshooting
 

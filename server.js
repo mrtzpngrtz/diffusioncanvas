@@ -566,7 +566,7 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
 
         // Get the generative model for Veo
         const generativeVisionModel = vertexAI.getGenerativeModel({
-            model: 'veo-3.1',
+            model: 'veo-3.0-generate-001',
         });
 
         // Build the request
