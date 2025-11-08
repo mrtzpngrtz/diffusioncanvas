@@ -32,25 +32,6 @@ export default async function handler(req, res) {
             await storage.setUsers(users);
             
             return res.json({ message: 'User deleted successfully' });
-        } else if (req.method === 'PATCH') {
-            // Update credits
-            const { credits } = req.body;
-        
-            if (typeof credits !== 'number' || credits < 0) {
-                return res.status(400).json({ error: 'Invalid credits value' });
-            }
-            
-            const users = await storage.getUsers();
-            const userIndex = users.findIndex(u => u.id === userId);
-            
-            if (userIndex === -1) {
-                return res.status(404).json({ error: 'User not found' });
-            }
-            
-            users[userIndex].credits = credits;
-            await storage.setUsers(users);
-            
-            return res.json({ message: 'Credits updated successfully', credits: credits });
         }
 
         return res.status(405).json({ error: 'Method not allowed' });
