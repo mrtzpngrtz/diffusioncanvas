@@ -147,6 +147,19 @@ body {
     transform: translateY(-2px);
 }
 
+.btn:disabled {
+    background: rgba(255, 255, 255, 0.02);
+    color: #666;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.05);
+    opacity: 0.5;
+}
+
+.btn:disabled:hover {
+    transform: none;
+    background: rgba(255, 255, 255, 0.02);
+}
+
 .btn-danger {
     background: rgba(255, 80, 80, 0.1);
     color: #ff5050;
@@ -784,6 +797,15 @@ body {
     background: rgba(255, 255, 255, 0.05);
 }
 
+.context-menu-item.disabled {
+    color: #666;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.context-menu-item.disabled:hover {
+    background: transparent;
+}
 
 .password-modal {
     position: fixed;
