@@ -10,6 +10,7 @@ export class ImageNode extends NodeBase {
 
         nodeEl.innerHTML = `
             ${this.createNodeHeader('Image Input')}
+            <button class="clear-button" style="display: none;">Clear</button>
             <div class="node-content">
                 <div class="drop-zone">
                     <p>Drop image here or click to upload</p>
@@ -63,6 +64,27 @@ export class ImageNode extends NodeBase {
         nodeEl.querySelector('.node-close').addEventListener('click', () => 
             callbacks.removeNode(nodeId)
         );
+
+        // Clear button
+        const clearButton = nodeEl.querySelector('.clear-button');
+        clearButton.addEventListener('click', () => {
+            node.data.image = null;
+            node.data.imageData = null;
+            const dropZone = nodeEl.querySelector('.drop-zone');
+            dropZone.innerHTML = `
+                <p>Drop image here or click to upload</p>
+                <input type="file" accept="image/*" style="display: none;">
+            `;
+            const fileInput = dropZone.querySelector('input[type="file"]');
+            dropZone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    callbacks.handleImageFile(file, node);
+                }
+            });
+            clearButton.style.display = 'none';
+        });
 
         // Connection point
         this.setupConnectionPoint(

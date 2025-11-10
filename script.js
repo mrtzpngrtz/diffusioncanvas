@@ -420,6 +420,11 @@ function handleImageFile(file, node) {
                 downloadImage(node.data.imageData, 'image.png');
             });
             
+            const clearButton = node.element.querySelector('.clear-button');
+            if (clearButton) {
+                clearButton.style.display = 'inline-block';
+            }
+            
             updateStatus('Image loaded successfully', '#27ae60');
         };
     };
