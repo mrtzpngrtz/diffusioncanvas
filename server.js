@@ -335,7 +335,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             
             // Build the contents array
             let contents = [];
-            contents.push({ text: `Based on these ${images.length} input image${images.length > 1 ? 's' : ''}, ${prompt}` });
+            contents.push({ text: ` ${prompt}` });
             
             // Add all images to the contents
             images.forEach((image, index) => {
