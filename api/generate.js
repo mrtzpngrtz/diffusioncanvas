@@ -53,7 +53,7 @@ export default async function handler(req, res) {
             console.log('Using Gemini 2.5 Flash for image-to-image generation');
             
             let contents = [];
-            contents.push({ text: `Based on these ${images.length} input image${images.length > 1 ? 's' : ''}, ${prompt}` });
+            contents.push({ text: `${prompt}` });
             
             // Add all images to the contents
             images.forEach((image) => {
