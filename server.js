@@ -313,7 +313,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             return res.status(403).json({ error: 'Insufficient credits. Please contact an administrator.' });
         }
 
-        const { prompt, images } = req.body;
+        const { prompt, images, model } = req.body;
         let userAspectRatio = req.body.aspectRatio;
 
         if (!prompt) {
@@ -322,70 +322,25 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
         console.log('Generating image with prompt:', prompt);
         console.log('Number of input images:', images ? images.length : 0);
+        
+        // Determine which model to use
+        let selectedModel = model;
+        if (!selectedModel) {
+            // Fallback logic if no model specified
+            if (images && images.length > 0) {
+                selectedModel = 'gemini-2.5-flash-image';
+            } else {
+                selectedModel = 'imagen-4.0-generate-001';
+            }
+        }
+        console.log('Using model:', selectedModel);
 
         let result = {
             text: null,
             image: null
         };
 
-        // Choose generation method based on whether input images are provided
-        if (images && images.length > 0) {
-            // IMAGE-TO-IMAGE: Use Gemini 2.5 Flash (no aspect ratio control)
-            console.log('Using Gemini 2.5 Flash for image-to-image generation');
-            
-            // Build the contents array
-            let contents = [];
-            contents.push({ text: ` ${prompt}` });
-            
-            // Add all images to the contents
-            images.forEach((image, index) => {
-                let imageData = image;
-                if (imageData.includes('base64,')) {
-                    imageData = imageData.split('base64,')[1];
-                }
-                
-                contents.push({
-                    inlineData: {
-                        mimeType: 'image/png',
-                        data: imageData
-                    }
-                });
-            });
-
-            // Generate using Gemini 2.5 Flash
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
-                contents: contents
-            });
-
-            // Process response
-            if (!response || !response.candidates || !response.candidates[0]) {
-                console.error('Unexpected API response structure:', JSON.stringify(response, null, 2));
-                return res.status(500).json({ 
-                    error: 'Unexpected response from AI model.'
-                });
-            }
-
-            const candidate = response.candidates[0];
-            
-            if (!candidate.content || !candidate.content.parts) {
-                console.error('No content in response:', JSON.stringify(candidate, null, 2));
-                return res.status(500).json({ 
-                    error: 'No content returned from AI model.'
-                });
-            }
-
-            for (const part of candidate.content.parts) {
-                if (part.text) {
-                    result.text = part.text;
-                } else if (part.inlineData) {
-                    const imageData = part.inlineData.data;
-                    result.image = `data:image/png;base64,${imageData}`;
-                    console.log('Generated image (base64 length):', imageData.length);
-                }
-            }
-
-        } else {
+        if (selectedModel === 'imagen-4.0-generate-001') {
             // TEXT-TO-IMAGE: Use Imagen 4.0 with aspect ratio support
             console.log('Using Imagen 4.0 for text-to-image generation');
             
@@ -419,6 +374,65 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             const imageBytes = generatedImage.image.imageBytes;
             result.image = `data:image/png;base64,${imageBytes}`;
             console.log('Generated image (base64 length):', imageBytes.length);
+
+        } else {
+            // GENERIC / GEMINI MODELS: Use generateContent (supports multimodal)
+            // This handles 'gemini-2.5-flash-image', 'gemini-3.0-pro-image-preview', etc.
+            console.log(`Using ${selectedModel} for generation`);
+            
+            // Build the contents array
+            let contents = [];
+            contents.push({ text: ` ${prompt}` });
+            
+            // Add all images to the contents if present
+            if (images && images.length > 0) {
+                images.forEach((image, index) => {
+                    let imageData = image;
+                    if (imageData.includes('base64,')) {
+                        imageData = imageData.split('base64,')[1];
+                    }
+                    
+                    contents.push({
+                        inlineData: {
+                            mimeType: 'image/png',
+                            data: imageData
+                        }
+                    });
+                });
+            }
+
+            // Generate using Gemini model
+            const response = await ai.models.generateContent({
+                model: selectedModel,
+                contents: contents
+            });
+
+            // Process response
+            if (!response || !response.candidates || !response.candidates[0]) {
+                console.error('Unexpected API response structure:', JSON.stringify(response, null, 2));
+                return res.status(500).json({ 
+                    error: 'Unexpected response from AI model.'
+                });
+            }
+
+            const candidate = response.candidates[0];
+            
+            if (!candidate.content || !candidate.content.parts) {
+                console.error('No content in response:', JSON.stringify(candidate, null, 2));
+                return res.status(500).json({ 
+                    error: 'No content returned from AI model.'
+                });
+            }
+
+            for (const part of candidate.content.parts) {
+                if (part.text) {
+                    result.text = part.text;
+                } else if (part.inlineData) {
+                    const imageData = part.inlineData.data;
+                    result.image = `data:image/png;base64,${imageData}`;
+                    console.log('Generated image (base64 length):', imageData.length);
+                }
+            }
         }
 
         // Deduct one credit from user

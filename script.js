@@ -523,6 +523,11 @@ function createPromptNode(x = 300, y = 100) {
         </div>
         <div class="node-content">
             <textarea placeholder="Enter your prompt here..."></textarea>
+            <select class="model-select">
+                <option value="imagen-4.0-generate-001">Imagen 4.0</option>
+                <option value="gemini-2.5-flash-image">Gemini 2.5 Flash</option>
+                <option value="gemini-3.0-pro-image-preview">Gemini 3 Pro Image Preview</option>
+            </select>
             <select class="aspect-ratio-select">
                 <option value="1:1">1:1 (1024x1024)</option>
                 <option value="2:3">2:3 (832x1248)</option>
@@ -542,7 +547,6 @@ function createPromptNode(x = 300, y = 100) {
         <div class="connection-point input" data-node="${nodeId}"></div>
         <div class="connection-point output" data-node="${nodeId}"></div>
         <div class="node-actions">
-            <div class="model-indicator">Imagen 4.0</div>
             <button class="node-btn generate-btn" disabled>Generate Image</button>
         </div>
     `;
@@ -551,7 +555,7 @@ function createPromptNode(x = 300, y = 100) {
         id: nodeId,
         type: 'prompt',
         element: nodeEl,
-        data: { prompt: '', aspectRatio: '16:9', connectedImages: [] }, // Changed to array for multiple images
+        data: { prompt: '', model: 'imagen-4.0-generate-001', aspectRatio: '16:9', connectedImages: [] }, // Changed to array for multiple images
         position: { x, y }
     };
 
@@ -574,6 +578,13 @@ function createPromptNode(x = 300, y = 100) {
                 generateImage(node);
             }, 1000);
         }
+    });
+
+    // Model select handling
+    const modelSelect = nodeEl.querySelector('.model-select');
+    modelSelect.addEventListener('change', (e) => {
+        node.data.model = e.target.value;
+        updateGenerateButton(node);
     });
 
     // Aspect ratio select handling
@@ -746,25 +757,15 @@ function updateGenerateButton(node) {
         generateBtn.textContent = 'Generate Image';
     }
     
-    // Update model indicator based on whether there are connected images
-    const modelIndicator = node.element.querySelector('.model-indicator');
-    if (modelIndicator) {
-        if (hasImages) {
-            modelIndicator.textContent = 'Gemini 2.5 Flash';
-        } else {
-            modelIndicator.textContent = 'Imagen 4.0';
-        }
-    }
-    
-    // Show/hide aspect ratio selector based on whether images are connected
+    // Show/hide aspect ratio selector based on selected model
     const aspectRatioSelect = node.element.querySelector('.aspect-ratio-select');
     if (aspectRatioSelect) {
-        if (hasImages) {
-            // Hide aspect ratio when using Gemini 2.5 Flash (image-to-image)
-            aspectRatioSelect.style.display = 'none';
-        } else {
+        if (node.data.model === 'imagen-4.0-generate-001') {
             // Show aspect ratio when using Imagen 4.0 (text-to-image)
             aspectRatioSelect.style.display = 'block';
+        } else {
+            // Hide aspect ratio when using Gemini models
+            aspectRatioSelect.style.display = 'none';
         }
     }
 }
@@ -1206,6 +1207,7 @@ function saveCanvas() {
                     // For prompt nodes
                     prompt: node.data.prompt,
                     aspectRatio: node.data.aspectRatio,
+                    model: node.data.model,
                     // For action nodes
                     action: node.data.action,
                     // Store IDs of connected nodes instead of references
@@ -1362,6 +1364,15 @@ function loadCanvas() {
                             const select = node.element.querySelector('.aspect-ratio-select');
                             select.value = nodeData.data.aspectRatio;
                             node.data.aspectRatio = nodeData.data.aspectRatio;
+                        }
+                        if (nodeData.data.model) {
+                            const select = node.element.querySelector('.model-select');
+                            if (select) {
+                                select.value = nodeData.data.model;
+                                node.data.model = nodeData.data.model;
+                                // Trigger update for UI state (aspect ratio visibility)
+                                updateGenerateButton(node);
+                            }
                         }
                         break;
                     
@@ -1576,7 +1587,8 @@ async function generateImage(node) {
             body: JSON.stringify({
                 prompt: prompt,
                 images: images,  // Send array of images
-                aspectRatio: node.data.aspectRatio || '16:9'  // Send aspect ratio
+                aspectRatio: node.data.aspectRatio || '16:9',  // Send aspect ratio
+                model: node.data.model // Send selected model
             })
         }); 
 
