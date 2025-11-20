@@ -1163,8 +1163,71 @@ function removeNode(nodeId) {
     const nodeIndex = nodes.findIndex(n => n.id === nodeId);
     if (nodeIndex === -1) return;
 
-    const node = nodes[nodeIndex];
-    node.element.remove();
+    const nodeToRemove = nodes[nodeIndex];
+    
+    // Clean up references in other nodes
+    nodes.forEach(otherNode => {
+        if (otherNode.id === nodeId) return;
+
+        // Clean up connectedImages
+        if (otherNode.data.connectedImages) {
+            const initialLength = otherNode.data.connectedImages.length;
+            otherNode.data.connectedImages = otherNode.data.connectedImages.filter(n => n.id !== nodeId);
+            if (otherNode.data.connectedImages.length !== initialLength) {
+                updateGenerateButton(otherNode);
+                // For Veo3 nodes, also update frame indicators
+                if (otherNode.type === 'veo3') {
+                    updateVeo3FrameIndicators(otherNode);
+                }
+            }
+        }
+
+        // Clean up connectedPrompts
+        if (otherNode.data.connectedPrompts) {
+            const initialLength = otherNode.data.connectedPrompts.length;
+            otherNode.data.connectedPrompts = otherNode.data.connectedPrompts.filter(n => n.id !== nodeId);
+            if (otherNode.data.connectedPrompts.length !== initialLength) {
+                updateGenerateButton(otherNode);
+            }
+        }
+
+        // Clean up resultNode reference
+        if (otherNode.data.resultNode && otherNode.data.resultNode.id === nodeId) {
+            otherNode.data.resultNode = null;
+        }
+
+        // Clean up sourcePromptNode reference
+        if (otherNode.data.sourcePromptNode && otherNode.data.sourcePromptNode.id === nodeId) {
+            otherNode.data.sourcePromptNode = null;
+        }
+
+        // Clean up sourceVeoNode reference
+        if (otherNode.data.sourceVeoNode && otherNode.data.sourceVeoNode.id === nodeId) {
+            otherNode.data.sourceVeoNode = null;
+        }
+        
+        // Clean up Veo3 frame assignments
+        if (otherNode.type === 'veo3' && otherNode.data.frameAssignments) {
+            let changed = false;
+            if (otherNode.data.frameAssignments.first && otherNode.data.frameAssignments.first.id === nodeId) {
+                otherNode.data.frameAssignments.first = null;
+                changed = true;
+            }
+            if (otherNode.data.frameAssignments.middle && otherNode.data.frameAssignments.middle.id === nodeId) {
+                otherNode.data.frameAssignments.middle = null;
+                changed = true;
+            }
+            if (otherNode.data.frameAssignments.last && otherNode.data.frameAssignments.last.id === nodeId) {
+                otherNode.data.frameAssignments.last = null;
+                changed = true;
+            }
+            if (changed) {
+                updateVeo3FrameIndicators(otherNode);
+            }
+        }
+    });
+
+    nodeToRemove.element.remove();
     nodes.splice(nodeIndex, 1);
 
     // Remove associated connections
@@ -2385,36 +2448,49 @@ connectionCanvas.addEventListener('click', (e) => {
             const toNode = nodes.find(n => n.id === conn.to);
             
             // Clean up node data BEFORE removing connection
-            if (toNode && (toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
+            // Handle Prompt/Action/Veo3 inputs
+            if (toNode && (toNode.type === 'prompt' || toNode.type === 'action' || toNode.type === 'veo3') && fromNode) {
                 // Check for image/result/draw node connection
                 if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw') && toNode.data.connectedImages) {
                     // Filter out the disconnected node
-                    const originalLength = toNode.data.connectedImages.length;
                     toNode.data.connectedImages = toNode.data.connectedImages.filter(node => node.id !== fromNode.id);
-                    console.log(`Removed image node ${fromNode.id}, was ${originalLength}, now ${toNode.data.connectedImages.length}`);
+                    
+                    // For Veo3, update frame indicators
+                    if (toNode.type === 'veo3') {
+                        updateVeo3FrameIndicators(toNode);
+                    }
                 }
                 
-                // Check for prompt connection
+                // Check for prompt connection (chaining)
                 if (fromNode.type === 'prompt' && toNode.data.connectedPrompts) {
-                    const originalLength = toNode.data.connectedPrompts.length;
                     toNode.data.connectedPrompts = toNode.data.connectedPrompts.filter(node => node.id !== fromNode.id);
-                    console.log(`Removed prompt node ${fromNode.id}, was ${originalLength}, now ${toNode.data.connectedPrompts.length}`);
                 }
                 
-                updateGenerateButton(toNode);
+                // Update UI button state
+                if (toNode.type === 'prompt' || toNode.type === 'action') {
+                    updateGenerateButton(toNode);
+                }
             }
             
-            // Also clean up if fromNode is a prompt/action and toNode is a result
-            if (fromNode && (fromNode.type === 'prompt' || fromNode.type === 'action') && toNode && toNode.type === 'result') {
-                // Clear the resultNode reference from the prompt/action
-                if (fromNode.data.resultNode && fromNode.data.resultNode.id === toNode.id) {
-                    console.log('Clearing resultNode reference from prompt/action node');
-                    fromNode.data.resultNode = null;
+            // Handle Result/Video Result outputs
+            if (fromNode && toNode && (toNode.type === 'result' || toNode.type === 'video-result')) {
+                // Prompt/Action -> Result
+                if (fromNode.type === 'prompt' || fromNode.type === 'action') {
+                    if (fromNode.data.resultNode && fromNode.data.resultNode.id === toNode.id) {
+                        fromNode.data.resultNode = null;
+                    }
+                    if (toNode.data.sourcePromptNode && toNode.data.sourcePromptNode.id === fromNode.id) {
+                        toNode.data.sourcePromptNode = null;
+                    }
                 }
-                // Also clear the sourcePromptNode reference from the result node
-                if (toNode.data.sourcePromptNode && toNode.data.sourcePromptNode.id === fromNode.id) {
-                    console.log('Clearing sourcePromptNode reference from result node');
-                    toNode.data.sourcePromptNode = null;
+                
+                // Veo3 -> Video Result
+                if (fromNode.type === 'veo3') {
+                    // We don't store resultNode in Veo3 data structure currently, but we might in future.
+                    // Just clear the back-reference
+                    if (toNode.data.sourceVeoNode && toNode.data.sourceVeoNode.id === fromNode.id) {
+                        toNode.data.sourceVeoNode = null;
+                    }
                 }
             }
             
