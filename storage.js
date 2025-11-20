@@ -8,7 +8,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const USERS_FILE = path.join(__dirname, 'users.json');
+const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const KV_USERS_KEY = 'diffusion_canvas_users';
+const KV_SETTINGS_KEY = 'diffusion_canvas_settings';
 
 // Try Vercel KV first, then Upstash Redis, then local file
 // Check for both standard and prefixed environment variable names
@@ -92,6 +94,63 @@ export const storage = {
         }
     },
 
+    async getSettings() {
+        const defaultSettings = {
+            modelCosts: {
+                'imagen-4.0-generate-001': 1,
+                'gemini-2.5-flash-image': 1,
+                'gemini-3.0-pro-image-preview': 1,
+                'veo-3.0-fast-generate-001': 5
+            }
+        };
+
+        let settings = null;
+
+        if (redis) {
+            try {
+                settings = await redis.get(KV_SETTINGS_KEY);
+            } catch (error) {
+                console.error('Redis get settings error:', error);
+            }
+        } else if (hasVercelKV) {
+            try {
+                settings = await kv.get(KV_SETTINGS_KEY);
+            } catch (error) {
+                console.error('KV get settings error:', error);
+            }
+        } else {
+            try {
+                const data = await fs.readFile(SETTINGS_FILE, 'utf-8');
+                settings = JSON.parse(data);
+            } catch {
+                // File doesn't exist
+            }
+        }
+
+        // Merge with defaults to ensure all keys exist
+        return { ...defaultSettings, ...settings, modelCosts: { ...defaultSettings.modelCosts, ...(settings?.modelCosts || {}) } };
+    },
+
+    async setSettings(settings) {
+        if (redis) {
+            try {
+                await redis.set(KV_SETTINGS_KEY, JSON.stringify(settings));
+            } catch (error) {
+                console.error('Redis set settings error:', error);
+                throw error;
+            }
+        } else if (hasVercelKV) {
+            try {
+                await kv.set(KV_SETTINGS_KEY, settings);
+            } catch (error) {
+                console.error('KV set settings error:', error);
+                throw error;
+            }
+        } else {
+            await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+        }
+    },
+
     async init() {
         if (redis) {
             console.log('✓ Using Upstash Redis for persistent storage');
@@ -132,6 +191,24 @@ export const storage = {
                         return;
                     }
                     console.error('File storage initialization error:', error);
+                }
+            }
+
+            // Initialize settings file
+            try {
+                await fs.access(SETTINGS_FILE);
+            } catch {
+                try {
+                    await this.setSettings({
+                        modelCosts: {
+                            'imagen-4.0-generate-001': 1,
+                            'gemini-2.5-flash-image': 1,
+                            'gemini-3.0-pro-image-preview': 1,
+                            'veo-3.0-fast-generate-001': 5
+                        }
+                    });
+                } catch (error) {
+                    // Ignore errors if read-only fs (warnings already shown)
                 }
             }
         }

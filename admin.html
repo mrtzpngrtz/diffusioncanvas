@@ -280,17 +280,97 @@
         .add-user-btn:hover {
             background: #8899ff;
         }
+
+        .settings-section {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #404040;
+            margin-bottom: 20px;
+        }
+
+        .settings-section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .settings-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .model-cost-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .model-cost-row label {
+            flex: 1;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .model-cost-row input {
+            width: 100px;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .save-settings-btn {
+            align-self: flex-start;
+            padding: 10px 20px;
+            background: #27ae60;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 14px;
+            transition: background 0.2s ease;
+        }
+
+        .save-settings-btn:hover {
+            background: #2ecc71;
+        }
+
+        .success-message {
+            background: #003a00;
+            border: 1px solid #27ae60;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #27ae60;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 Admin Pane---l</h1>
-            <p>User management for Diffusion Canvas----</p>
+            <h1>🔐 Admin Panel</h1>
+            <p>User management & Settings for Diffusion Canvas</p>
             <a href="/" class="back-link">← Back to Application</a>
         </div>
 
         <div id="error" class="error" style="display: none;"></div>
+        <div id="success" class="success-message"></div>
+
+        <div class="settings-section">
+            <h2>Model Credit Costs</h2>
+            <form id="settingsForm" class="settings-form">
+                <div id="modelCostsContainer">
+                    <!-- Populated by JS -->
+                    <div class="loading">Loading settings...</div>
+                </div>
+                <button type="submit" class="save-settings-btn">Save Settings</button>
+            </form>
+        </div>
 
         <div class="add-user-section">
             <h2>Add New User</h2>
@@ -376,6 +456,7 @@
                 }
 
                 loadUsers();
+                loadSettings();
             } catch (error) {
                 showError('Failed to verify admin access');
                 setTimeout(() => {
@@ -401,6 +482,80 @@
                 showError('Failed to load users: ' + error.message);
                 document.getElementById('loading').style.display = 'none';
             }
+        }
+
+        // Load settings
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/admin/settings', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) throw new Error('Failed to load settings');
+
+                const settings = await response.json();
+                displaySettings(settings);
+            } catch (error) {
+                showError('Failed to load settings: ' + error.message);
+                document.getElementById('modelCostsContainer').innerHTML = '<div class="error">Failed to load settings</div>';
+            }
+        }
+
+        // Display settings
+        function displaySettings(settings) {
+            const container = document.getElementById('modelCostsContainer');
+            container.innerHTML = '';
+
+            if (settings.modelCosts) {
+                Object.entries(settings.modelCosts).forEach(([model, cost]) => {
+                    const div = document.createElement('div');
+                    div.className = 'model-cost-row';
+                    div.innerHTML = `
+                        <label>${model}</label>
+                        <input type="number" name="cost_${model}" value="${cost}" min="0" step="1" required>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        // Save settings
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const inputs = document.querySelectorAll('#modelCostsContainer input');
+            const modelCosts = {};
+            
+            inputs.forEach(input => {
+                const model = input.name.replace('cost_', '');
+                modelCosts[model] = parseInt(input.value);
+            });
+
+            try {
+                const response = await fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ modelCosts })
+                });
+
+                if (!response.ok) throw new Error('Failed to save settings');
+
+                showSuccess('Settings saved successfully');
+            } catch (error) {
+                showError('Failed to save settings: ' + error.message);
+            }
+        });
+
+        function showSuccess(message) {
+            const div = document.getElementById('success');
+            div.textContent = message;
+            div.style.display = 'block';
+            setTimeout(() => {
+                div.style.display = 'none';
+            }, 3000);
         }
 
         // Display users in table

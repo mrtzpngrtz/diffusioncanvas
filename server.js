@@ -214,6 +214,28 @@ app.get('/admin', (req, res) => {
 // Admin API Routes
 // (storage already imported at top of file)
 
+// Get settings (admin only)
+app.get('/api/admin/settings', isAdmin, async (req, res) => {
+    try {
+        const settings = await storage.getSettings();
+        res.json(settings);
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        res.status(500).json({ error: 'Failed to load settings' });
+    }
+});
+
+// Update settings (admin only)
+app.post('/api/admin/settings', isAdmin, async (req, res) => {
+    try {
+        await storage.setSettings(req.body);
+        res.json({ message: 'Settings updated successfully' });
+    } catch (error) {
+        console.error('Error updating settings:', error);
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
+});
+
 // Get all users (admin only)
 app.get('/api/admin/users', isAdmin, async (req, res) => {
     try {
@@ -308,12 +330,17 @@ const ai = new GoogleGenAI({
 // Protect the generate endpoint with authentication
 app.post('/api/generate', isAuthenticated, async (req, res) => {
     try {
-        // Check if user has enough credits
-        if (!req.user.credits || req.user.credits < 1) {
-            return res.status(403).json({ error: 'Insufficient credits. Please contact an administrator.' });
-        }
-
         const { prompt, images, model } = req.body;
+        
+        // Determine cost based on model
+        const settings = await storage.getSettings();
+        const selectedModel = model || (images && images.length > 0 ? 'gemini-2.5-flash-image' : 'imagen-4.0-generate-001');
+        const cost = settings.modelCosts[selectedModel] || 1;
+
+        // Check if user has enough credits
+        if (!req.user.credits || req.user.credits < cost) {
+            return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
+        }
         let userAspectRatio = req.body.aspectRatio;
 
         if (!prompt) {
@@ -323,17 +350,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         console.log('Generating image with prompt:', prompt);
         console.log('Number of input images:', images ? images.length : 0);
         
-        // Determine which model to use
-        let selectedModel = model;
-        if (!selectedModel) {
-            // Fallback logic if no model specified
-            if (images && images.length > 0) {
-                selectedModel = 'gemini-2.5-flash-image';
-            } else {
-                selectedModel = 'imagen-4.0-generate-001';
-            }
-        }
-        console.log('Using model:', selectedModel);
+        console.log('Using model:', selectedModel, 'Cost:', cost);
 
         let result = {
             text: null,
@@ -435,12 +452,12 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             }
         }
 
-        // Deduct one credit from user
+        // Deduct credits from user
         const users = await storage.getUsers();
         const userIndex = users.findIndex(u => u.id === req.user.id);
         
         if (userIndex !== -1) {
-            users[userIndex].credits = (users[userIndex].credits || 0) - 1;
+            users[userIndex].credits = (users[userIndex].credits || 0) - cost;
             await storage.setUsers(users);
             
             // Update session user object
@@ -557,8 +574,11 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
             });
         }
 
-        // Check if user has enough credits (video generation costs more - 5 credits)
-        const VIDEO_GENERATION_COST = 5;
+        // Determine cost
+        const settings = await storage.getSettings();
+        const VIDEO_GENERATION_COST = settings.modelCosts['veo-3.0-fast-generate-001'] || 5;
+
+        // Check if user has enough credits
         if (!req.user.credits || req.user.credits < VIDEO_GENERATION_COST) {
             return res.status(403).json({ 
                 error: `Insufficient credits. Video generation requires ${VIDEO_GENERATION_COST} credits. You have ${req.user.credits || 0}.` 
