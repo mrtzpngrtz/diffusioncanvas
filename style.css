@@ -373,7 +373,8 @@ body {
     background: rgba(255, 255, 255, 0.05);
 }
 
-.aspect-ratio-select {
+.aspect-ratio-select,
+.model-select {
     width: 100%;
     padding: 8px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -383,14 +384,17 @@ body {
     background: rgba(255, 255, 255, 0.03);
     color: #fff;
     cursor: pointer;
+    margin-bottom: 8px;
 }
 
-.aspect-ratio-select option {
+.aspect-ratio-select option,
+.model-select option {
     background: #000;
     color: #fff;
 }
 
-.aspect-ratio-select:focus {
+.aspect-ratio-select:focus,
+.model-select:focus {
     outline: none;
     border-color: rgba(255, 255, 255, 0.25);
     background: rgba(255, 255, 255, 0.05);
@@ -1051,13 +1055,15 @@ body.light-mode .prompt-node textarea:focus {
     background: #fafafa;
 }
 
-body.light-mode .aspect-ratio-select {
+body.light-mode .aspect-ratio-select,
+body.light-mode .model-select {
     background: #ffffff;
     color: #2a2a2a;
     border-color: #d0d0d0;
 }
 
-body.light-mode .aspect-ratio-select:focus {
+body.light-mode .aspect-ratio-select:focus,
+body.light-mode .model-select:focus {
     border-color: #999;
     background: #fafafa;
 }
