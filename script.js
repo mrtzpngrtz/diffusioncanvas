@@ -526,7 +526,7 @@ function createPromptNode(x = 300, y = 100) {
             <select class="model-select">
                 <option value="imagen-4.0-generate-001">Imagen 4.0</option>
                 <option value="gemini-2.5-flash-image">Gemini 2.5 Flash</option>
-                <option value="gemini-3.0-pro-image-preview">Gemini 3 Pro Image Preview</option>
+                <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image Preview</option>
             </select>
             <select class="aspect-ratio-select">
                 <option value="1:1">1:1 (1024x1024)</option>

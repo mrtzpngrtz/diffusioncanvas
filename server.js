@@ -394,7 +394,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
         } else {
             // GENERIC / GEMINI MODELS: Use generateContent (supports multimodal)
-            // This handles 'gemini-2.5-flash-image', 'gemini-3.0-pro-image-preview', etc.
+            // This handles 'gemini-2.5-flash-image', 'gemini-3-pro-image-preview', etc.
             console.log(`Using ${selectedModel} for generation`);
             
             // Build the contents array

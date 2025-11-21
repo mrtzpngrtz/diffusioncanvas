@@ -99,7 +99,7 @@ export const storage = {
             modelCosts: {
                 'imagen-4.0-generate-001': 1,
                 'gemini-2.5-flash-image': 1,
-                'gemini-3.0-pro-image-preview': 1,
+                'gemini-3-pro-image-preview': 1,
                 'veo-3.0-fast-generate-001': 5
             }
         };
@@ -203,7 +203,7 @@ export const storage = {
                         modelCosts: {
                             'imagen-4.0-generate-001': 1,
                             'gemini-2.5-flash-image': 1,
-                            'gemini-3.0-pro-image-preview': 1,
+                            'gemini-3-pro-image-preview': 1,
                             'veo-3.0-fast-generate-001': 5
                         }
                     });
