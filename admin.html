@@ -6,8 +6,21 @@
     <title>Admin Panel - Diffusion Canvas</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #000000;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+            --text-secondary: #999999;
+            --accent-color: #667eea;
+            --danger-color: #ff4444;
+            --success-color: #27ae60;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'Roboto Mono', monospace;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -15,10 +28,16 @@
         }
 
         body {
-            font-family: 'Roboto Mono', monospace;
-            background: #2a2a2a;
-            color: #e0e0e0;
-            padding: 20px;
+            font-family: var(--font-main);
+            background: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle, rgba(255, 255, 255, 0.05) 1.5px, transparent 1.5px),
+                radial-gradient(circle, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100px 100px, 20px 20px;
+            background-position: 0 0, 0 0;
+            padding: 40px 20px;
         }
 
         .container {
@@ -26,369 +45,361 @@
             margin: 0 auto;
         }
 
+        /* Header */
         .header {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #404040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .header h1 {
+        .header-content h1 {
             font-size: 24px;
-            margin-bottom: 8px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
         }
 
-        .header p {
-            color: #888;
-            font-size: 14px;
+        .header-content p {
+            color: var(--text-secondary);
+            font-size: 13px;
         }
 
-        .back-link {
-            display: inline-block;
-            margin-top: 10px;
-            color: #667eea;
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1px;
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            cursor: pointer;
             text-decoration: none;
-            font-size: 14px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .back-link:hover {
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: rgba(102, 126, 234, 0.3);
             color: #8899ff;
         }
 
+        .btn-primary:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        /* Stats Grid */
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
         }
 
         .stat-card {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #404040;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            border-radius: 1px;
         }
 
         .stat-card h3 {
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 8px;
+            font-size: 11px;
             text-transform: uppercase;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            font-family: var(--font-mono);
         }
 
         .stat-card .value {
-            font-size: 28px;
+            font-size: 32px;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        /* Sections */
+        .section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section h2 {
+            font-size: 16px;
             font-weight: 500;
         }
 
-        .users-section {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #404040;
-        }
-
-        .users-section h2 {
-            font-size: 18px;
-            margin-bottom: 15px;
-        }
-
-        .users-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .users-table th {
-            background: #2a2a2a;
-            padding: 12px;
-            text-align: left;
-            font-size: 12px;
-            color: #888;
-            text-transform: uppercase;
-            border-bottom: 1px solid #404040;
-        }
-
-        .users-table td {
-            padding: 12px;
-            border-bottom: 1px solid #333;
-            font-size: 14px;
-        }
-
-        .users-table tr:hover {
-            background: #2a2a2a;
-        }
-
-        .user-photo {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            vertical-align: middle;
-            margin-right: 10px;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            background: #333;
-            color: #aaa;
-        }
-
-        .badge.admin {
-            background: #667eea;
-            color: #fff;
-        }
-
-        .delete-btn {
-            padding: 6px 12px;
-            background: transparent;
-            border: 1px solid #ff4444;
-            border-radius: 4px;
-            color: #ff4444;
-            cursor: pointer;
-            font-family: 'Roboto Mono', monospace;
-            font-size: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .delete-btn:hover:not(:disabled) {
-            background: #ff4444;
-            color: #fff;
-        }
-
-        .delete-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #888;
-        }
-
-        .error {
-            background: #3a0000;
-            border: 1px solid #ff4444;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            color: #ff4444;
-        }
-
-        .no-users {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .credits-input {
-            width: 80px;
-            padding: 6px 8px;
-            background: #2a2a2a;
-            border: 1px solid #404040;
-            border-radius: 4px;
-            color: #e0e0e0;
-            font-family: 'Roboto Mono', monospace;
-            font-size: 12px;
-            text-align: center;
-        }
-
-        .credits-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .credits-input::-webkit-inner-spin-button,
-        .credits-input::-webkit-outer-spin-button {
-            opacity: 1;
-        }
-
-        .add-user-section {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #404040;
-            margin-bottom: 20px;
-        }
-
-        .add-user-section h2 {
-            font-size: 18px;
-            margin-bottom: 15px;
-        }
-
-        .add-user-form {
+        /* Forms */
+        .form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr auto auto;
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
             align-items: flex-end;
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
+            gap: 8px;
         }
 
         .form-group label {
             font-size: 12px;
-            color: #888;
-            margin-bottom: 6px;
+            color: var(--text-secondary);
         }
 
-        .form-group input {
-            padding: 10px;
-            background: #2a2a2a;
-            border: 1px solid #404040;
-            border-radius: 4px;
-            color: #e0e0e0;
-            font-family: 'Roboto Mono', monospace;
-            font-size: 14px;
+        .input-field {
+            background: #111;
+            border: 1px solid var(--border-color);
+            padding: 10px 12px;
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            border-radius: 1px;
+            width: 100%;
         }
-        
-        .form-group input:focus {
+
+        .input-field:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: rgba(255, 255, 255, 0.3);
         }
 
-        .form-group-checkbox {
+        .checkbox-group {
             display: flex;
             align-items: center;
             gap: 8px;
             padding-bottom: 10px;
         }
 
-        .form-group-checkbox input {
+        .checkbox-group input {
             width: 16px;
             height: 16px;
+            accent-color: var(--accent-color);
         }
 
-        .add-user-btn {
-            padding: 10px 20px;
-            background: #667eea;
-            border: none;
-            border-radius: 4px;
-            color: #fff;
-            cursor: pointer;
-            font-family: 'Roboto Mono', monospace;
-            font-size: 14px;
-            transition: background 0.2s ease;
+        /* Table */
+        .table-container {
+            overflow-x: auto;
         }
 
-        .add-user-btn:hover {
-            background: #8899ff;
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
         }
 
-        .settings-section {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #404040;
-            margin-bottom: 20px;
+        .users-table th {
+            text-align: left;
+            padding: 16px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border-color);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-transform: uppercase;
         }
 
-        .settings-section h2 {
-            font-size: 18px;
-            margin-bottom: 15px;
+        .users-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .settings-form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+        .users-table tr:last-child td {
+            border-bottom: none;
         }
 
-        .model-cost-row {
+        .users-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .user-cell {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
 
-        .model-cost-row label {
-            flex: 1;
-            font-size: 14px;
-            color: #e0e0e0;
+        .user-photo {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #222;
+            border: 1px solid var(--border-color);
         }
 
-        .model-cost-row input {
-            width: 100px;
-            padding: 8px;
-            background: #2a2a2a;
-            border: 1px solid #404040;
-            border-radius: 4px;
-            color: #e0e0e0;
-            font-family: 'Roboto Mono', monospace;
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 100px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
         }
 
-        .save-settings-btn {
-            align-self: flex-start;
-            padding: 10px 20px;
-            background: #27ae60;
-            border: none;
-            border-radius: 4px;
+        .badge.admin {
+            background: rgba(102, 126, 234, 0.2);
+            color: #8899ff;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 11px;
+        }
+
+        .btn-danger {
+            background: rgba(255, 68, 68, 0.1);
+            border-color: rgba(255, 68, 68, 0.3);
+            color: var(--danger-color);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: rgba(255, 68, 68, 0.2);
+            border-color: rgba(255, 68, 68, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Model Settings */
+        .model-costs-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .model-cost-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            border-radius: 1px;
+        }
+
+        .model-cost-item:hover {
+            border-color: var(--border-color);
+        }
+
+        .model-cost-item label {
+            font-family: var(--font-mono);
+            font-size: 13px;
+        }
+
+        .model-cost-item input {
+            width: 80px;
+            text-align: center;
+        }
+
+        /* Toasts */
+        .toast-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: #000;
+            border: 1px solid var(--border-color);
             color: #fff;
-            cursor: pointer;
-            font-family: 'Roboto Mono', monospace;
-            font-size: 14px;
-            transition: background 0.2s ease;
+            padding: 16px 24px;
+            border-radius: 1px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
         }
 
-        .save-settings-btn:hover {
-            background: #2ecc71;
+        .toast.show {
+            transform: translateX(0);
         }
 
-        .success-message {
-            background: #003a00;
-            border: 1px solid #27ae60;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            color: #27ae60;
+        .toast.success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .loading-overlay {
             display: none;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 13px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .users-table {
+                min-width: 800px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 Admin Panel</h1>
-            <p>User management & Settings for Diffusion Canvas</p>
-            <a href="/" class="back-link">← Back to Application</a>
-        </div>
-
-        <div id="error" class="error" style="display: none;"></div>
-        <div id="success" class="success-message"></div>
-
-        <div class="settings-section">
-            <h2>Model Credit Costs</h2>
-            <form id="settingsForm" class="settings-form">
-                <div id="modelCostsContainer">
-                    <!-- Populated by JS -->
-                    <div class="loading">Loading settings...</div>
-                </div>
-                <button type="submit" class="save-settings-btn">Save Settings</button>
-            </form>
-        </div>
-
-        <div class="add-user-section">
-            <h2>Add New User</h2>
-            <form id="addUserForm" class="add-user-form">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required>
-                </div>
-                <div class="form-group-checkbox">
-                    <input type="checkbox" id="isAdmin">
-                    <label for="isAdmin">Make Admin</label>
-                </div>
-                <button type="submit" class="add-user-btn">Add User</button>
-            </form>
+            <div class="header-content">
+                <h1>🔐 Admin Panel</h1>
+                <p>Diffusion Canvas Management System</p>
+            </div>
+            <div class="header-actions">
+                <a href="/" class="btn">
+                    <span>← Back to Canvas</span>
+                </a>
+                <button onclick="refreshData()" class="btn">
+                    <span>↻ Refresh Data</span>
+                </button>
+            </div>
         </div>
 
         <div class="stats">
@@ -406,38 +417,101 @@
             </div>
         </div>
 
-        <div class="users-section">
-            <h2>Registered Users</h2>
-            <div id="loading" class="loading">Loading users...</div>
-            <div id="noUsers" class="no-users" style="display: none;">No users registered yet</div>
-            <table class="users-table" id="usersTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Email</th>
-                        <th>Provider</th>
-                        <th>Role</th>
-                        <th>Credits</th>
-                        <th>Used Credits</th>
-                        <th>Joined</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="usersTableBody">
-                </tbody>
-            </table>
+        <div class="section">
+            <div class="section-header">
+                <h2>Model Credit Costs</h2>
+                <button type="submit" form="settingsForm" class="btn btn-primary btn-sm">Save Changes</button>
+            </div>
+            <form id="settingsForm">
+                <div id="modelCostsContainer" class="model-costs-grid">
+                    <div class="loading-overlay" style="display: flex;">Loading settings...</div>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2>Add New User</h2>
+            </div>
+            <form id="addUserForm" class="form-grid">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" class="input-field" placeholder="user@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="input-field" placeholder="••••••••" required>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="isAdmin">
+                    <label for="isAdmin" style="margin-bottom: 0; cursor: pointer;">Grant Admin Privileges</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Create User</button>
+            </form>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2>Registered Users</h2>
+            </div>
+            
+            <div id="loadingUsers" class="loading-overlay">Loading users...</div>
+            
+            <div class="table-container">
+                <table class="users-table" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Provider</th>
+                            <th>Role</th>
+                            <th>Credits</th>
+                            <th>Used</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="noUsers" class="loading-overlay">No users found</div>
         </div>
     </div>
+
+    <div class="toast-container" id="toastContainer"></div>
 
     <script>
         let currentUserId = null;
 
-        // Check if user is authenticated and is admin
+        // Toast System
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✓' : '⚠'}</span>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Auth Check
         async function checkAdminAccess() {
             try {
-                const response = await fetch('/api/user', {
-                    credentials: 'include'
-                });
+                const response = await fetch('/api/user', { credentials: 'include' });
                 const data = await response.json();
 
                 if (!data.user) {
@@ -448,60 +522,120 @@
                 currentUserId = data.user.id;
 
                 if (!data.user.isAdmin) {
-                    showError('Access denied. Admin privileges required.');
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 2000);
+                    showToast('Access denied. Admin privileges required.', 'error');
+                    setTimeout(() => window.location.href = '/', 2000);
                     return;
                 }
 
-                loadUsers();
-                loadSettings();
+                refreshData();
             } catch (error) {
-                showError('Failed to verify admin access');
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 2000);
+                showToast('Failed to verify access', 'error');
+                setTimeout(() => window.location.href = '/', 2000);
             }
         }
 
-        // Load all users
-        async function loadUsers() {
-            try {
-                const response = await fetch('/api/admin/users', {
-                    credentials: 'include'
-                });
+        function refreshData() {
+            loadUsers();
+            loadSettings();
+        }
 
-                if (!response.ok) {
-                    throw new Error('Failed to load users');
-                }
+        // Load Users
+        async function loadUsers() {
+            const loadingEl = document.getElementById('loadingUsers');
+            const tableEl = document.getElementById('usersTable');
+            const noUsersEl = document.getElementById('noUsers');
+            
+            loadingEl.style.display = 'flex';
+            tableEl.style.display = 'none';
+            noUsersEl.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/admin/users', { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to load users');
 
                 const users = await response.json();
                 displayUsers(users);
             } catch (error) {
-                showError('Failed to load users: ' + error.message);
-                document.getElementById('loading').style.display = 'none';
+                showToast('Failed to load users: ' + error.message, 'error');
+                loadingEl.textContent = 'Error loading users';
             }
         }
 
-        // Load settings
-        async function loadSettings() {
-            try {
-                const response = await fetch('/api/admin/settings', {
-                    credentials: 'include'
-                });
+        // Display Users
+        function displayUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
+            const loadingEl = document.getElementById('loadingUsers');
+            const tableEl = document.getElementById('usersTable');
+            const noUsersEl = document.getElementById('noUsers');
 
+            loadingEl.style.display = 'none';
+
+            if (users.length === 0) {
+                noUsersEl.style.display = 'flex';
+                return;
+            }
+
+            tableEl.style.display = 'table';
+            tbody.innerHTML = '';
+
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="user-cell">
+                            <img src="${user.photo || '/user_placeholder.png'}" 
+                                 alt="" class="user-photo"
+                                 onerror="this.onerror=null; this.src='/user_placeholder.png';">
+                            <span>${user.displayName || 'Unknown'}</span>
+                        </div>
+                    </td>
+                    <td style="font-family: var(--font-mono); color: var(--text-secondary);">${user.email || '-'}</td>
+                    <td>${capitalizeFirst(user.provider)}</td>
+                    <td>
+                        <span class="badge ${user.isAdmin ? 'admin' : ''}">
+                            ${user.isAdmin ? 'Admin' : 'User'}
+                        </span>
+                    </td>
+                    <td>
+                        <input type="number" 
+                               class="input-field" 
+                               style="width: 80px; text-align: center; padding: 6px;"
+                               value="${user.credits || 0}" 
+                               min="0"
+                               onchange="updateCredits('${user.id}', this.value)">
+                    </td>
+                    <td style="font-family: var(--font-mono);">${user.usedCredits || 0}</td>
+                    <td style="color: var(--text-secondary); font-size: 12px;">${formatDate(user.createdAt)}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" 
+                                onclick="deleteUser('${user.id}', '${user.displayName}')"
+                                ${user.id === currentUserId ? 'disabled' : ''}>
+                            ${user.id === currentUserId ? 'You' : 'Delete'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateStats(users);
+        }
+
+        // Load Settings
+        async function loadSettings() {
+            const container = document.getElementById('modelCostsContainer');
+            try {
+                const response = await fetch('/api/admin/settings', { credentials: 'include' });
                 if (!response.ok) throw new Error('Failed to load settings');
 
                 const settings = await response.json();
                 displaySettings(settings);
             } catch (error) {
-                showError('Failed to load settings: ' + error.message);
-                document.getElementById('modelCostsContainer').innerHTML = '<div class="error">Failed to load settings</div>';
+                showToast('Failed to load settings', 'error');
+                container.innerHTML = '<div class="loading-overlay">Error loading settings</div>';
             }
         }
 
-        // Display settings
+        // Display Settings
         function displaySettings(settings) {
             const container = document.getElementById('modelCostsContainer');
             container.innerHTML = '';
@@ -509,20 +643,64 @@
             if (settings.modelCosts) {
                 Object.entries(settings.modelCosts).forEach(([model, cost]) => {
                     const div = document.createElement('div');
-                    div.className = 'model-cost-row';
+                    div.className = 'model-cost-item';
                     div.innerHTML = `
                         <label>${model}</label>
-                        <input type="number" name="cost_${model}" value="${cost}" min="0" step="1" required>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12px; color: var(--text-secondary);">Credits:</span>
+                            <input type="number" name="cost_${model}" value="${cost}" min="0" step="1" class="input-field">
+                        </div>
                     `;
                     container.appendChild(div);
                 });
             }
         }
 
-        // Save settings
+        // Update Stats
+        function updateStats(users) {
+            document.getElementById('totalUsers').textContent = users.length;
+            document.getElementById('adminUsers').textContent = users.filter(u => u.isAdmin).length;
+            document.getElementById('regularUsers').textContent = users.filter(u => !u.isAdmin).length;
+        }
+
+        // Actions
+        async function updateCredits(userId, credits) {
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/credits`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ credits: parseInt(credits) })
+                });
+
+                if (!response.ok) throw new Error('Failed');
+                showToast('Credits updated');
+            } catch (error) {
+                showToast('Failed to update credits', 'error');
+                loadUsers(); // Revert UI
+            }
+        }
+
+        async function deleteUser(userId, userName) {
+            if (!confirm(`Delete user "${userName}"?\nThis action cannot be undone.`)) return;
+
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) throw new Error('Failed');
+                showToast('User deleted successfully');
+                loadUsers();
+            } catch (error) {
+                showToast('Failed to delete user', 'error');
+            }
+        }
+
+        // Form Handlers
         document.getElementById('settingsForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const inputs = document.querySelectorAll('#modelCostsContainer input');
             const modelCosts = {};
             
@@ -534,206 +712,64 @@
             try {
                 const response = await fetch('/api/admin/settings', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ modelCosts })
                 });
 
-                if (!response.ok) throw new Error('Failed to save settings');
-
-                showSuccess('Settings saved successfully');
+                if (!response.ok) throw new Error('Failed');
+                showToast('Settings saved successfully');
             } catch (error) {
-                showError('Failed to save settings: ' + error.message);
+                showToast('Failed to save settings', 'error');
             }
         });
 
-        function showSuccess(message) {
-            const div = document.getElementById('success');
-            div.textContent = message;
-            div.style.display = 'block';
-            setTimeout(() => {
-                div.style.display = 'none';
-            }, 3000);
-        }
-
-        // Display users in table
-        function displayUsers(users) {
-            document.getElementById('loading').style.display = 'none';
-
-            if (users.length === 0) {
-                document.getElementById('noUsers').style.display = 'block';
-                updateStats(users);
-                return;
-            }
-
-            document.getElementById('usersTable').style.display = 'table';
-            
-            const tbody = document.getElementById('usersTableBody');
-            tbody.innerHTML = '';
-
-            users.forEach(user => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <img src="${user.photo || '/user_placeholder.png'}" 
-                             alt="${user.displayName}" 
-                             class="user-photo"
-                             onerror="this.onerror=null; this.src='/user_placeholder.png';">
-                        ${user.displayName || 'Unknown User'}
-                    </td>
-                    <td>${user.email || '-'}</td>
-                    <td>${capitalizeFirst(user.provider)}</td>
-                    <td>
-                        <span class="badge ${user.isAdmin ? 'admin' : ''}">
-                            ${user.isAdmin ? 'Admin' : 'User'}
-                        </span>
-                    </td>
-                    <td>
-                        <input type="number" 
-                               class="credits-input" 
-                               value="${user.credits || 0}" 
-                               min="0"
-                               data-user-id="${user.id}"
-                               onchange="updateCredits('${user.id}', this.value)">
-                    </td>
-                    <td>${user.usedCredits || 0}</td>
-                    <td>${formatDate(user.createdAt)}</td>
-                    <td>
-                        <button class="delete-btn" 
-                                onclick="deleteUser('${user.id}', '${user.displayName}')"
-                                ${user.id === currentUserId || user.isAdmin ? 'disabled' : ''}>
-                            ${user.id === currentUserId ? 'You' : user.isAdmin ? 'Admin' : 'Delete'}
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            updateStats(users);
-        }
-
-        // Update statistics
-        function updateStats(users) {
-            const total = users.length;
-            const admins = users.filter(u => u.isAdmin).length;
-            const regular = total - admins;
-
-            document.getElementById('totalUsers').textContent = total;
-            document.getElementById('adminUsers').textContent = admins;
-            document.getElementById('regularUsers').textContent = regular;
-        }
-
-        // Update credits
-        async function updateCredits(userId, credits) {
-            const creditsNum = parseInt(credits);
-            if (isNaN(creditsNum) || creditsNum < 0) {
-                showError('Invalid credits value');
-                loadUsers(); // Reload to reset the input
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/admin/users/${userId}/credits`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ credits: creditsNum })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to update credits');
-                }
-
-                // Reload users to show updated data
-                loadUsers();
-            } catch (error) {
-                showError('Failed to update credits: ' + error.message);
-                loadUsers(); // Reload to reset the input
-            }
-        }
-
-        // Delete user
-        async function deleteUser(userId, userName) {
-            if (!confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/admin/users/${userId}`, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to delete user');
-                }
-
-                // Reload users
-                loadUsers();
-            } catch (error) {
-                showError('Failed to delete user: ' + error.message);
-            }
-        }
-
-        // Helper functions
-        function capitalizeFirst(str) {
-            return str.charAt(0).toUpperCase() + str.slice(1);
-        }
-
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        // Initialize
-        checkAdminAccess();
-
-        // Add user form handler
-        const addUserForm = document.getElementById('addUserForm');
-        addUserForm.addEventListener('submit', async (e) => {
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const isAdmin = document.getElementById('isAdmin').checked;
+            const btn = e.target.querySelector('button');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
 
             try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const isAdmin = document.getElementById('isAdmin').checked;
+
                 const response = await fetch('/api/admin/users', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ email, password, isAdmin })
                 });
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to create user');
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed');
                 }
 
-                // Clear form and reload users
-                addUserForm.reset();
+                showToast('User created successfully');
+                e.target.reset();
                 loadUsers();
-
             } catch (error) {
-                showError('Failed to create user: ' + error.message);
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
         });
+
+        // Helpers
+        const capitalizeFirst = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : '-';
+        const formatDate = str => {
+            if (!str) return '-';
+            return new Date(str).toLocaleDateString(undefined, { 
+                year: 'numeric', month: 'short', day: 'numeric' 
+            });
+        };
+
+        // Init
+        checkAdminAccess();
     </script>
 </body>
 </html>
