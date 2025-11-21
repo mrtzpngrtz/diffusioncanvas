@@ -525,8 +525,8 @@ function createPromptNode(x = 300, y = 100) {
             <textarea placeholder="Enter your prompt here..."></textarea>
             <select class="model-select">
                 <option value="imagen-4.0-generate-001">Imagen 4.0</option>
-                <option value="nano-banana-1">Nano Banana 1</option>
-                <option value="nano-banana-2">Nano Banana 2</option>
+                <option value="gemini-2.5-flash-image">Gemini 2.5 Flash (Nano Banana 1)</option>
+                <option value="gemini-3-pro-image-preview">Gemini 3 Pro (Nano Banana 2)</option>
             </select>
             <select class="aspect-ratio-select">
                 <option value="1:1">1:1 (1024x1024)</option>

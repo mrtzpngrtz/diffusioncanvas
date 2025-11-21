@@ -98,8 +98,8 @@ export const storage = {
         const defaultSettings = {
             modelCosts: {
                 'imagen-4.0-generate-001': 1,
-                'nano-banana-1': 1,
-                'nano-banana-2': 2,
+                'gemini-2.5-flash-image': 1,
+                'gemini-3-pro-image-preview': 2,
                 'veo-3.0-fast-generate-001': 5
             }
         };
@@ -202,8 +202,8 @@ export const storage = {
                     await this.setSettings({
                         modelCosts: {
                             'imagen-4.0-generate-001': 1,
-                            'nano-banana-1': 1,
-                            'nano-banana-2': 2,
+                            'gemini-2.5-flash-image': 1,
+                            'gemini-3-pro-image-preview': 2,
                             'veo-3.0-fast-generate-001': 5
                         }
                     });

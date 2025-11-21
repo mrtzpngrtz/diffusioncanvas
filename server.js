@@ -334,7 +334,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         
         // Determine cost based on model
         const settings = await storage.getSettings();
-        const selectedModel = model || (images && images.length > 0 ? 'nano-banana-1' : 'imagen-4.0-generate-001');
+        const selectedModel = model || (images && images.length > 0 ? 'gemini-2.5-flash-image' : 'imagen-4.0-generate-001');
         const cost = settings.modelCosts[selectedModel] || 1;
 
         // Check if user has enough credits
@@ -342,14 +342,6 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
         
-        // Map alias to real API model
-        let apiModel = selectedModel;
-        if (selectedModel === 'nano-banana-1') {
-            apiModel = 'gemini-2.5-flash-image';
-        } else if (selectedModel === 'nano-banana-2') {
-            apiModel = 'gemini-3-pro-image-preview';
-        }
-
         let userAspectRatio = req.body.aspectRatio;
 
         if (!prompt) {
@@ -359,7 +351,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         console.log('Generating image with prompt:', prompt);
         console.log('Number of input images:', images ? images.length : 0);
         
-        console.log('Using model:', selectedModel, 'API Model:', apiModel, 'Cost:', cost);
+        console.log('Using model:', selectedModel, 'Cost:', cost);
 
         let result = {
             text: null,
@@ -429,7 +421,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
             // Generate using Gemini model
             const response = await ai.models.generateContent({
-                model: apiModel,
+                model: selectedModel,
                 contents: contents
             });
 
