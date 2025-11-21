@@ -12,6 +12,11 @@ export class PromptNode extends NodeBase {
             ${this.createNodeHeader('Prompt Input')}
             <div class="node-content">
                 <textarea placeholder="Enter your prompt here..."></textarea>
+                <select class="model-select">
+                    <option value="imagen-4.0-generate-001">Imagen 4.0</option>
+                    <option value="gemini-2.5-flash-image">Gemini 2.5 Flash (Nano Banana 1)</option>
+                    <option value="gemini-3-pro-image-preview">Gemini 3 Pro (Nano Banana 2)</option>
+                </select>
                 <select class="aspect-ratio-select">
                     <option value="1:1">1:1 (1024x1024)</option>
                     <option value="2:3">2:3 (832x1248)</option>
@@ -30,7 +35,6 @@ export class PromptNode extends NodeBase {
             </div>
             ${this.createConnectionPoints(nodeId, true, true)}
             <div class="node-actions">
-                <div class="model-indicator">Imagen 4.0</div>
                 <button class="node-btn generate-btn" disabled>Generate Image</button>
             </div>
         `;
@@ -39,7 +43,7 @@ export class PromptNode extends NodeBase {
             id: nodeId,
             type: 'prompt',
             element: nodeEl,
-            data: { prompt: '', aspectRatio: '16:9', connectedImages: [] },
+            data: { prompt: '', model: 'imagen-4.0-generate-001', aspectRatio: '16:9', connectedImages: [] },
             position: { x, y }
         };
 
@@ -57,6 +61,13 @@ export class PromptNode extends NodeBase {
                     callbacks.generateImage(node);
                 }, 1000);
             }
+        });
+
+        // Model select handling
+        const modelSelect = nodeEl.querySelector('.model-select');
+        modelSelect.addEventListener('change', (e) => {
+            node.data.model = e.target.value;
+            callbacks.updateGenerateButton(node);
         });
 
         // Aspect ratio select handling
@@ -85,6 +96,12 @@ export class PromptNode extends NodeBase {
         nodeEl.querySelectorAll('.connection-point').forEach(point => {
             this.setupConnectionPoint(point, nodeId, callbacks.startConnection);
         });
+
+        // Add resize handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'resize-handle';
+        nodeEl.appendChild(resizeHandle);
+        this.setupNodeResize(nodeEl, node, resizeHandle, callbacks.startResize);
 
         this.setupNodeDragging(nodeEl, node, callbacks.startDrag);
 
