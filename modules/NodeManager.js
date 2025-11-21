@@ -77,7 +77,9 @@ export class NodeManager {
                 node = new Veo3Node().create(nodeId, x, y, callbacks);
                 break;
             case 'result':
-                node = new ResultNode().create(nodeId, x, y, data?.imageUrl, data?.sourceNode, callbacks);
+                // Handle both imageUrl (from generation) and imageData (from save/load)
+                const imgData = data?.imageUrl || data?.imageData;
+                node = new ResultNode().create(nodeId, x, y, imgData, data?.sourceNode, callbacks);
                 break;
         }
 
