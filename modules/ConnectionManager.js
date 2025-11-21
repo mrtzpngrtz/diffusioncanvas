@@ -8,8 +8,6 @@ export class ConnectionManager {
         this.isConnecting = false;
         this.connectionStart = null;
         this.tempConnectionEnd = { x: 0, y: 0 };
-        
-        this.init();
     }
 
     init() {

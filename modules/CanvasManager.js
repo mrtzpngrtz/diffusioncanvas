@@ -25,8 +25,6 @@ export class CanvasManager {
         this.minimapViewport = document.getElementById('minimapViewport');
         this.isDraggingMinimap = false;
         this.minimapDragStart = { x: 0, y: 0 };
-        
-        this.init();
     }
 
     init() {

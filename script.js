@@ -31,6 +31,11 @@ class App {
         
         this.canvasManager.nodeManager = this.nodeManager;
         
+        // Initialize managers
+        this.connectionManager.init();
+        this.canvasManager.init();
+        this.nodeManager.init();
+
         this.init();
     }
 
