@@ -242,14 +242,13 @@ export class NodeManager {
             generateBtn.textContent = 'Generate Image';
         }
         
-        // Show/hide aspect ratio selector based on selected model
-        const aspectRatioSelect = node.element.querySelector('.aspect-ratio-select');
-        if (aspectRatioSelect) {
-            if (node.data.model === 'imagen-4.0-generate-001') {
-                aspectRatioSelect.style.display = 'block';
-            } else {
-                aspectRatioSelect.style.display = 'none';
-            }
+        // Update model indicator if present
+        const modelIndicator = node.element.querySelector('.model-indicator');
+        if (modelIndicator && node.data.model) {
+            if (node.data.model.includes('imagen')) modelIndicator.textContent = 'Imagen 4.0';
+            else if (node.data.model.includes('gemini-2.5')) modelIndicator.textContent = 'Gemini 2.5';
+            else if (node.data.model.includes('gemini-3')) modelIndicator.textContent = 'Gemini 3';
+            else modelIndicator.textContent = node.data.model;
         }
     }
 
