@@ -121,6 +121,9 @@ export class Veo3Node extends NodeBase {
 
         this.setupNodeDragging(nodeEl, node, callbacks.startDrag);
 
+        // Attach helper to node
+        node.updateFrames = () => this.assignFrames(node);
+
         return node;
     }
 
