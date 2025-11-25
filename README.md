@@ -78,7 +78,7 @@ This application uses Google's Gemini API for image generation through a Node.js
    - Facebook App ID & Secret (optional)
    - LinkedIn Client ID & Secret (optional)
 
-### Installation
+### Setup
 
 1. Install dependencies:
 ```bash
@@ -97,16 +97,6 @@ Then edit `.env` and add your credentials:
 - OAuth credentials for Facebook and LinkedIn (optional)
 
 **See [OAUTH_SETUP.md](OAUTH_SETUP.md) for detailed instructions on obtaining OAuth credentials.**
-
-3. Start the server:
-```bash
-npm start
-```
-
-4. Open your browser and navigate to:
-```
-http://localhost:3000
-```
 
 ### How It Works
 
@@ -164,10 +154,7 @@ diffusioncanvas/
 
 ## Deployment to Vercel
 
-The application can be deployed to Vercel with persistent storage support.
-
-### Local Development
-For local development, the application uses file-based storage (`users.json`). No additional configuration needed.
+The application is designed to be deployed to Vercel with persistent storage support.
 
 ### Vercel Production
 When deploying to Vercel, you need to set up Vercel KV for persistent user storage:
@@ -198,13 +185,6 @@ node extract_images.js "path/to/your/canvas-file.json"
 ```
 
 This will create an `extracted_images` folder in the same directory as your JSON file containing all images found in the canvas.
-
-## Development
-
-For development with auto-restart on file changes:
-```bash
-npm run dev
-```
 
 ## Troubleshooting
 

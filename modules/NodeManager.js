@@ -87,7 +87,37 @@ export class NodeManager {
             // Restore data if provided (e.g. from load or clone)
             if (data) {
                 Object.assign(node.data, data);
-                // TODO: Trigger update logic if needed (e.g. fill textarea)
+                
+                // Update UI based on restored data
+                if (type === 'prompt') {
+                    if (data.prompt) node.element.querySelector('textarea').value = data.prompt;
+                    if (data.aspectRatio) {
+                        const aspectRatioSelect = node.element.querySelector('.aspect-ratio-select');
+                        if (aspectRatioSelect) aspectRatioSelect.value = data.aspectRatio;
+                    }
+                    if (data.model) {
+                        const modelSelect = node.element.querySelector('.model-select');
+                        if (modelSelect) modelSelect.value = data.model;
+                    }
+                    this.updateGenerateButton(node);
+                } else if (type === 'action') {
+                    if (data.action) {
+                        const actionSelect = node.element.querySelector('.action-select');
+                        if (actionSelect) actionSelect.value = data.action;
+                    }
+                    this.updateGenerateButton(node);
+                } else if (type === 'veo3') {
+                    if (data.prompt) node.element.querySelector('textarea').value = data.prompt;
+                    if (data.aspectRatio) {
+                        const aspectRatioSelect = node.element.querySelector('.aspect-ratio-select');
+                        if (aspectRatioSelect) aspectRatioSelect.value = data.aspectRatio;
+                    }
+                    if (data.duration) {
+                        const durationSelect = node.element.querySelector('.duration-select');
+                        if (durationSelect) durationSelect.value = data.duration;
+                    }
+                    this.updateGenerateButton(node);
+                }
             }
             
             this.nodes.push(node);
