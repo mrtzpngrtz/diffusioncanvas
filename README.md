@@ -186,6 +186,19 @@ The application automatically detects the environment:
 - **Vercel with KV**: Uses Vercel KV for persistent storage
 - **Vercel without KV**: Falls back to file-based storage (data will reset on each deployment)
 
+## Utilities
+
+### Offline Image Extraction
+
+You can extract all images (uploaded or generated) from a saved canvas `.json` file using the included utility script.
+
+Usage:
+```bash
+node extract_images.js "path/to/your/canvas-file.json"
+```
+
+This will create an `extracted_images` folder in the same directory as your JSON file containing all images found in the canvas.
+
 ## Development
 
 For development with auto-restart on file changes:

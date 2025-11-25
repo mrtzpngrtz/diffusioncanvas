@@ -299,28 +299,8 @@ class App {
             // Actually, in script.js implementation of load, it recreated nodes and then fixed up IDs.
             // "Remove the node that was auto-created and replace with our data"
             
-            // Let's hack it for now: manually set the ID after creation.
-            const tempNode = this.nodeManager.createNode(nodeData.type, nodeData.position.x, nodeData.position.y, nodeData.data);
-            if (tempNode) {
-                // Fix ID
-                const oldId = tempNode.id;
-                tempNode.id = nodeData.id;
-                tempNode.element.id = nodeData.id;
-                
-                // Update connection points
-                tempNode.element.querySelectorAll('.connection-point').forEach(p => p.dataset.node = nodeData.id);
-                // Update event listeners? No, listeners use closure 'node' object which we are modifying.
-                // Wait, callbacks use nodeId passed as string?
-                // In NodeManager: `removeNode: (id) => this.removeNode(id)`
-                // This `id` is bound at creation time.
-                // `const nodeId = ...`
-                
-                // This is tricky. `nodeId` in `createNode` is a const.
-                // So callbacks are bound to the old ID.
-                // So clicking close button will try to remove oldId.
-                
-                // I should update `createNode` to accept an optional ID.
-            }
+            // Pass the saved ID to createNode so callbacks are bound correctly
+            const tempNode = this.nodeManager.createNode(nodeData.type, nodeData.position.x, nodeData.position.y, nodeData.data, nodeData.id);
             nodeMap.set(nodeData.id, tempNode);
             
             // Handle image loading
