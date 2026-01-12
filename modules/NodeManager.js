@@ -169,7 +169,7 @@ export class NodeManager {
         this.isDragging = true;
         this.draggedNode = node;
         
-        const container = this.nodeCanvas.getBoundingClientRect();
+        const container = this.canvasManager.container.getBoundingClientRect();
         const zoom = this.canvasManager.zoom;
         const panX = this.canvasManager.panX;
         const panY = this.canvasManager.panY;
@@ -204,7 +204,7 @@ export class NodeManager {
         }
 
         if (this.isDragging && this.draggedNode) {
-            const container = this.nodeCanvas.getBoundingClientRect();
+            const container = this.canvasManager.container.getBoundingClientRect();
             const zoom = this.canvasManager.zoom;
             const panX = this.canvasManager.panX;
             const panY = this.canvasManager.panY;
