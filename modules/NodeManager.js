@@ -26,7 +26,7 @@ export class NodeManager {
         this.resizedNode = null;
         this.resizeStart = { x: 0, y: 0, width: 0, height: 0, imageWidth: 0 };
     }
-
+ 
     init() {
         this.setupGlobalEvents();
     }
