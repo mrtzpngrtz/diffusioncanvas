@@ -280,6 +280,12 @@ body {
     border-radius: 0;
 }
 
+/* Image & result nodes: wider default, no extra chrome */
+.image-node,
+.result-node {
+    min-width: 320px;
+}
+
 .node-header {
     display: flex;
     justify-content: space-between;
@@ -287,6 +293,21 @@ body {
     padding: 7px 10px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
+}
+
+/* Image/result nodes get a minimal 20px drag strip; label fades in on hover */
+.image-node .node-header,
+.result-node .node-header {
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--surface);
+    opacity: 0.4;
+    transition: opacity 0.15s;
+}
+
+.image-node:hover .node-header,
+.result-node:hover .node-header {
+    opacity: 1;
 }
 
 .node-title {
@@ -303,10 +324,10 @@ body {
     color: var(--text-muted);
     border: 1px solid var(--border-light);
     border-radius: 0;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-    font-size: 10px;
+    font-size: 9px;
     line-height: 1;
     display: flex;
     align-items: center;
@@ -323,8 +344,8 @@ body {
 
 .clear-button {
     position: absolute;
-    top: 6px;
-    right: 32px;
+    top: 3px;
+    right: 26px;
     background: transparent;
     color: var(--text-muted);
     border: 1px solid var(--border-light);
