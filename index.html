@@ -62,22 +62,21 @@
     <div class="canvas-container"> 
         <!-- Title (Top Left) -->
         <div class="canvas-title">
-            <div>diffusion canvas</div>
-            <div>beta 0.7</div>
-            <div class="canvas-credit">260112  – barely made by <a href="https://www.moritzpongratz.com" target="_blank">www.moritzpongratz.com</a></div>
+            <div>Diffusion Canvas</div>
+            <div>β 0.7 // 2026</div>
+            <div class="canvas-credit">moritzpongratz.com</div>
         </div>
         
-        <!-- Toolbar (Vertically Centered Left) -->
+        <!-- Toolbar (Left) -->
         <div class="toolbar-overlay">
             <button id="addImageNode" class="btn">+ Image Node</button>
             <button id="addPromptNode" class="btn">+ Prompt Node</button>
             <button id="addActionNode" class="btn">+ Action Node</button>
             <button id="addDrawNode" class="btn">+ Draw Node</button>
-            <button id="addVeo3Node" class="btn" disabled>+ Veo 3.1 Video</button>
-            <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 10px 0;"></div>
-            <button id="saveCanvas" class="btn">↓ Save Canvas</button>
-            <button id="loadCanvas" class="btn">↑ Load Canvas</button>
-            <button id="clearCanvas" class="btn btn-danger">Clear Canvas</button>
+            <button id="addVeo3Node" class="btn" disabled title="Coming soon">+ Veo 3 Video</button>
+            <button id="saveCanvas" class="btn" style="border-top: 1px solid var(--border, #111);">↓ Save</button>
+            <button id="loadCanvas" class="btn">↑ Load</button>
+            <button id="clearCanvas" class="btn btn-danger">✕ Clear</button>
         </div>
         
         <!-- Status (Bottom Center) -->
@@ -130,11 +129,11 @@
 
     <!-- Context Menu -->
     <div class="context-menu" id="contextMenu">
-        <div class="context-menu-item" data-action="addImage">+ Image Node</div>
-        <div class="context-menu-item" data-action="addPrompt">+ Prompt Node</div>
-        <div class="context-menu-item" data-action="addAction">+ Action Node</div>
-        <div class="context-menu-item" data-action="addDraw">+ Draw Node</div>
-        <div class="context-menu-item disabled" data-action="addVeo3">+ Veo 3.1 Video</div>
+        <div class="context-menu-item" data-action="addImage">01 — Image Node</div>
+        <div class="context-menu-item" data-action="addPrompt">02 — Prompt Node</div>
+        <div class="context-menu-item" data-action="addAction">03 — Action Node</div>
+        <div class="context-menu-item" data-action="addDraw">04 — Draw Node</div>
+        <div class="context-menu-item disabled" data-action="addVeo3">05 — Veo 3 Video</div>
     </div>
 
     <!-- Cookie Notice (German) -->

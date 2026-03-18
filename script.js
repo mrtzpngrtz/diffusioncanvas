@@ -78,15 +78,17 @@ class App {
 
     clearCanvas() {
         if (confirm('Are you sure you want to clear all nodes?')) {
-            // Remove all nodes (which removes connections)
-            while (this.nodeManager.nodes.length > 0) {
-                this.nodeManager.removeNode(this.nodeManager.nodes[0].id);
-            }
-            // Clear connections just in case
-            this.connectionManager.connections = [];
-            this.connectionManager.drawConnections();
-            this.uiManager.updateStatus('Canvas cleared');
+            this._clearCanvasImmediate();
         }
+    }
+
+    _clearCanvasImmediate() {
+        while (this.nodeManager.nodes.length > 0) {
+            this.nodeManager.removeNode(this.nodeManager.nodes[0].id);
+        }
+        this.connectionManager.connections = [];
+        this.connectionManager.drawConnections();
+        this.uiManager.updateStatus('Canvas cleared');
     }
 
     setupContextMenu() {
@@ -178,7 +180,7 @@ class App {
                     }
                 }
 
-                this.clearCanvas();
+                this._clearCanvasImmediate();
                 await this.deserializeCanvas(canvasState);
                 
             } catch (error) {
@@ -207,20 +209,32 @@ class App {
         try {
             const canvasState = this.serializeCanvas();
             localStorage.setItem('diffusionCanvas_autoSave', JSON.stringify(canvasState));
-            
-            // Visual indicator
+
+            // Visual indicator — blueprint style
+            const existing = document.getElementById('autosave-indicator');
+            if (existing) existing.remove();
+
             const indicator = document.createElement('div');
+            indicator.id = 'autosave-indicator';
             indicator.style.cssText = `
-                position: fixed; bottom: 20px; right: 20px; background: rgba(39, 174, 96, 0.9);
-                color: white; padding: 8px 16px; border-radius: 4px; font-size: 12px;
-                z-index: 10000; animation: fadeInOut 2s ease-in-out;
+                position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%);
+                background: #111; color: #fff;
+                padding: 5px 18px; font-size: 8px;
+                font-family: 'Roboto Mono', monospace; letter-spacing: 0.14em;
+                text-transform: uppercase; z-index: 10000;
+                border: 1px solid #111; white-space: nowrap;
+                animation: fadeInOut 2s ease-in-out forwards;
             `;
-            indicator.textContent = '✓ Auto-saved';
+            indicator.textContent = 'AUTOSAVED';
             document.body.appendChild(indicator);
             setTimeout(() => indicator.remove(), 2000);
         } catch (error) {
             if (error.name === 'QuotaExceededError') {
-                console.warn('Auto-save disabled: Canvas too large');
+                console.warn('Auto-save failed: canvas too large for localStorage');
+                this.uiManager.updateStatus('AUTOSAVE FAILED — CANVAS TOO LARGE', '#FF4500');
+            } else {
+                console.error('Auto-save error:', error);
+                this.uiManager.updateStatus('AUTOSAVE ERROR', '#FF4500');
             }
         }
     }

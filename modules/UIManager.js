@@ -19,11 +19,13 @@ export class UIManager {
     }
 
     setupTheme() {
-        // Load saved theme preference
+        // Default is light/blueprint. dark-mode class enables dark theme.
         const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light') {
-            document.body.classList.add('light-mode');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
             if (this.themeIcon) this.themeIcon.textContent = '●';
+        } else {
+            if (this.themeIcon) this.themeIcon.textContent = '○';
         }
 
         if (this.themeToggle) {
@@ -32,14 +34,11 @@ export class UIManager {
     }
 
     toggleTheme() {
-        document.body.classList.toggle('light-mode');
-        const isLightMode = document.body.classList.contains('light-mode');
-        
-        // Update icon
-        if (this.themeIcon) this.themeIcon.textContent = isLightMode ? '●' : '○';
-        
-        // Save preference
-        localStorage.setItem('theme', isLightMode ? 'light' : 'dark');
+        document.body.classList.toggle('dark-mode');
+        const isDarkMode = document.body.classList.contains('dark-mode');
+
+        if (this.themeIcon) this.themeIcon.textContent = isDarkMode ? '●' : '○';
+        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     }
 
     updateStatus(message, color = '#555') {
