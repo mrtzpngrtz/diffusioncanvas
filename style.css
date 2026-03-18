@@ -1,6 +1,6 @@
 /* ============================================
-   DIFFUSION CANVAS — TECHNICAL BLUEPRINT UI
-   v2.0.0 // 2026-03-18 // 48°12'N 16°22'E
+   DIFFUSION CANVAS — v1.0
+   UI System 2.0 // 2026-03-18 // 48°12'N 16°22'E
    ============================================ */
 
 :root {
@@ -756,7 +756,7 @@ body {
 }
 
 .minimap::after {
-    content: 'v0.7β';
+    content: 'v1.0';
     position: absolute;
     top: 6px; right: 8px;
     font-family: var(--font-mono);
@@ -1536,7 +1536,7 @@ body {
 
 /* Version micro-data */
 .login-disclaimer::after {
-    content: 'β 0.5 // 25/10/10';
+    content: 'v1.0 // 2026-03-18';
     position: absolute;
     top: 8px;
     right: 12px;
