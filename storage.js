@@ -7,8 +7,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const USERS_FILE = path.join(__dirname, 'users.json');
-const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const SETTINGS_FILE = path.join(__dirname, 'data', 'settings.json');
 const KV_USERS_KEY = 'diffusion_canvas_users';
 const KV_SETTINGS_KEY = 'diffusion_canvas_settings';
 
