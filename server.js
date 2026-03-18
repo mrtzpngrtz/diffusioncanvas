@@ -544,8 +544,9 @@ try {
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
     
     if (projectId) {
-        const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON 
-            ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+        const credJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+        const credentials = credJson
+            ? JSON.parse(Buffer.from(credJson, 'base64').toString('utf8'))
             : undefined;
         
         vertexAI = new VertexAI({

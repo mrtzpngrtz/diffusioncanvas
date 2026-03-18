@@ -15,8 +15,9 @@ try {
     }
     
     // Parse service account credentials from environment
-    const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON 
-        ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+    const credJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    const credentials = credJson
+        ? JSON.parse(Buffer.from(credJson, 'base64').toString('utf8'))
         : undefined;
     
     vertexAI = new VertexAI({
