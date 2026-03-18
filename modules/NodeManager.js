@@ -184,16 +184,20 @@ export class NodeManager {
 
     handleMouseMove(e) {
         if (this.isResizing && this.resizedNode) {
-             // ... resize logic
-             const zoom = this.canvasManager.zoom;
-             const deltaX = (e.clientX - this.resizeStart.x) / zoom;
-             const newWidth = Math.max(200, this.resizeStart.width + deltaX);
+            const zoom = this.canvasManager.zoom;
+            const deltaX = (e.clientX - this.resizeStart.x) / zoom;
+            const newWidth = Math.max(200, this.resizeStart.width + deltaX);
+            this.resizedNode.element.style.width = `${newWidth}px`;
 
-             this.resizedNode.element.style.width = `${newWidth}px`;
-             // Image fills 100% of node width via CSS — no manual scaling needed
+            // Prompt nodes also resize vertically
+            if (this.resizedNode.type === 'prompt') {
+                const deltaY = (e.clientY - this.resizeStart.y) / zoom;
+                const newHeight = Math.max(180, this.resizeStart.height + deltaY);
+                this.resizedNode.element.style.height = `${newHeight}px`;
+            }
 
-             this.connectionManager.drawConnections();
-             return;
+            this.connectionManager.drawConnections();
+            return;
         }
 
         if (this.isDragging && this.draggedNode) {

@@ -425,25 +425,90 @@ body {
 
 /* ── PROMPT NODE ── */
 
+/* Node itself stretches vertically; flex column keeps actions pinned to bottom */
+.prompt-node {
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+}
+
+.prompt-node .node-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    min-height: 0; /* allow shrink inside flex parent */
+}
+
 .prompt-node textarea {
+    flex: 1;
     width: 100%;
     min-height: 80px;
-    padding: 10px;
-    border: 1px solid var(--border-light);
+    padding: 10px 10px 8px;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
     border-radius: 0;
     font-family: var(--font-sans);
     font-size: 12px;
-    resize: vertical;
+    resize: none; /* node handle controls size */
     background: var(--bg);
     color: var(--text);
-    line-height: 1.5;
-    margin-bottom: 8px;
+    line-height: 1.6;
+    overflow-y: auto;
+    display: block;
 }
 
 .prompt-node textarea:focus {
     outline: none;
-    border-color: var(--text);
     background: var(--surface);
+}
+
+/* Custom scrollbar — thin, flat, blueprint */
+.prompt-node textarea::-webkit-scrollbar {
+    width: 3px;
+}
+.prompt-node textarea::-webkit-scrollbar-track {
+    background: var(--bg);
+}
+.prompt-node textarea::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+}
+.prompt-node textarea::-webkit-scrollbar-thumb:hover {
+    background: var(--text);
+}
+
+/* Char / word counter row */
+.prompt-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--surface);
+    flex-shrink: 0;
+}
+
+.prompt-char-count {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* Clone button inside prompt-meta — tiny */
+.prompt-clone-btn {
+    flex: unset !important;
+    padding: 3px 7px !important;
+    font-size: 11px !important;
+    border: 1px solid var(--border-light) !important;
+    background: var(--surface) !important;
+    color: var(--text-muted) !important;
+}
+
+.prompt-clone-btn:hover {
+    background: var(--text) !important;
+    color: var(--surface) !important;
 }
 
 /* ── SELECTS ── */
@@ -452,18 +517,20 @@ body {
 .model-select {
     width: 100%;
     padding: 7px 10px;
-    border: 1px solid var(--border-light);
+    border: none;
+    border-bottom: 1px solid var(--border-light);
     border-radius: 0;
     font-family: var(--font-mono);
     font-size: 10px;
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
-    margin-bottom: 8px;
+    margin-bottom: 0;
     -webkit-appearance: none;
     appearance: none;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    flex-shrink: 0;
 }
 
 .aspect-ratio-select option,
