@@ -187,17 +187,10 @@ export class NodeManager {
              // ... resize logic
              const zoom = this.canvasManager.zoom;
              const deltaX = (e.clientX - this.resizeStart.x) / zoom;
-             const newWidth = Math.max(250, this.resizeStart.width + deltaX);
-             
+             const newWidth = Math.max(200, this.resizeStart.width + deltaX);
+
              this.resizedNode.element.style.width = `${newWidth}px`;
-             
-             // Scale image if needed
-             if (this.resizedNode.data.image && this.resizedNode.data.imageData) {
-                 const scaleFactor = newWidth / this.resizeStart.width;
-                 const newImageWidth = Math.round(this.resizeStart.imageWidth * scaleFactor);
-                 this.resizedNode.data.imageWidth = newImageWidth;
-                 this.resizedNode.data.image.style.width = `${newImageWidth}px`;
-             }
+             // Image fills 100% of node width via CSS — no manual scaling needed
 
              this.connectionManager.drawConnections();
              return;
@@ -389,19 +382,22 @@ export class NodeManager {
                 node.data.imageData = e.target.result;
                 node.data.originalWidth = img.naturalWidth;
                 node.data.originalHeight = img.naturalHeight;
-                node.data.imageWidth = 250;
+                node.data.imageWidth = null; // let CSS control via width: 100%
 
                 // Update DOM
                 const content = node.element.querySelector('.node-content');
                 content.innerHTML = ''; // Clear dropzone
-                
+
                 const wrapper = document.createElement('div');
                 wrapper.className = 'image-wrapper';
-                img.style.width = `${node.data.imageWidth}px`;
                 wrapper.appendChild(img);
                 content.appendChild(wrapper);
 
-                // Add action buttons (can be helper function)
+                // Show clear button
+                const clearBtn = node.element.querySelector('.clear-button');
+                if (clearBtn) clearBtn.style.display = '';
+
+                // Add action buttons as hover overlay
                 this.addNodeActionButtons(node, content);
                 
                 this.uiManager.updateStatus('Image loaded successfully', '#27ae60');
@@ -415,10 +411,12 @@ export class NodeManager {
         actionButtons.className = 'image-actions';
         actionButtons.innerHTML = `
             <button class="icon-btn" title="View Full Size">⛶</button>
-            <button class="icon-btn" title="Download Image">↓</button>
+            <button class="icon-btn" title="Download">↓</button>
             <button class="icon-btn node-clone" title="Clone Node">⎘</button>
         `;
-        container.appendChild(actionButtons);
+        // Append inside image-wrapper so the overlay sits on the image
+        const wrapper = container.querySelector('.image-wrapper') || container;
+        wrapper.appendChild(actionButtons);
 
         actionButtons.querySelector('.node-clone').addEventListener('click', () => this.cloneNode(node.id));
         const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');

@@ -111,13 +111,13 @@ export class UIManager {
 
         let isToolbarDragging = false;
         let toolbarDragStart = { x: 0, y: 0 };
-        // Position toolbar at top-left, below the title with more space
-        let toolbarPosition = { x: 20, y: 180 }; // Initial position with more breathing room
+        // Docked flush-left below the title block (~76px tall)
+        let toolbarPosition = { x: 0, y: 76 };
 
         // Set initial position
         this.toolbar.style.left = `${toolbarPosition.x}px`;
         this.toolbar.style.top = `${toolbarPosition.y}px`;
-        this.toolbar.style.transform = 'none'; // Remove the transform
+        this.toolbar.style.transform = 'none';
 
         this.toolbar.addEventListener('mousedown', (e) => {
             // Don't drag if clicking on a button

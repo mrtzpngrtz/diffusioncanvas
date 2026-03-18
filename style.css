@@ -162,8 +162,7 @@ body {
     flex-direction: column;
     z-index: 999;
     background: var(--surface);
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
+    border: 1px solid var(--border);
     cursor: move;
     user-select: none;
     min-width: 176px;
@@ -351,9 +350,16 @@ body {
 
 /* ── IMAGE NODE ── */
 
+/* Image/result node-content has no padding — image fills edge to edge */
+.image-node .node-content,
+.result-node .node-content {
+    padding: 0;
+    position: relative;
+}
+
 .image-node .drop-zone {
     border: 1px dashed var(--border-light);
-    padding: 28px 20px;
+    padding: 32px 20px;
     text-align: center;
     color: var(--text-muted);
     cursor: pointer;
@@ -363,6 +369,7 @@ body {
     letter-spacing: 0.12em;
     background: var(--bg);
     transition: all 0.1s;
+    margin: 8px;
 }
 
 .image-node .drop-zone:hover,
@@ -376,49 +383,23 @@ body {
 .image-node .image-wrapper,
 .result-node .image-wrapper {
     position: relative;
-    max-width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 100%;
+    overflow: hidden;
+    display: block;
+    line-height: 0; /* remove gap below inline img */
 }
 
 .image-node img,
 .result-node img {
-    max-width: 100%;
+    width: 100%;
     display: block;
-    border: 1px solid var(--border-light);
+    border: none;
     border-radius: 0;
 }
 
+/* Legacy .image-controls (kept for compat) */
 .image-controls {
-    display: flex;
-    gap: 0;
-    margin-top: 8px;
-    border: 1px solid var(--border-light);
-}
-
-.image-controls button {
-    flex: 1;
-    padding: 5px 8px;
-    background: var(--surface);
-    border: none;
-    border-right: 1px solid var(--border-light);
-    color: var(--text);
-    cursor: pointer;
-    font-size: 9px;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    transition: all 0.1s;
-}
-
-.image-controls button:last-child {
-    border-right: none;
-}
-
-.image-controls button:hover {
-    background: var(--text);
-    color: var(--surface);
+    display: none;
 }
 
 /* ── PROMPT NODE ── */
@@ -872,37 +853,62 @@ body {
     border-radius: 0;
 }
 
-/* ============ SCALE INDICATOR / IMAGE ACTIONS ============ */
+/* ============ SCALE INDICATOR / IMAGE ACTIONS — hover overlays ============ */
 
+/* Dimension badge — top-right corner of image, appears on hover */
 .scale-indicator {
-    font-size: 8px;
-    color: var(--text-muted);
-    text-align: center;
-    margin-top: 4px;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    font-size: 7px;
     font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    color: #fff;
+    background: rgba(17,17,17,0.75);
+    padding: 2px 6px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 5;
 }
 
+.node:hover .scale-indicator {
+    opacity: 1;
+}
+
+/* Action bar — slides up from bottom of image on hover */
 .image-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     display: flex;
     gap: 0;
-    margin-top: 8px;
-    border: 1px solid var(--border-light);
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.node:hover .image-actions {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .icon-btn {
     flex: 1;
-    padding: 6px 10px;
-    background: var(--surface);
+    padding: 7px 6px;
+    background: rgba(17,17,17,0.82);
     border: none;
-    border-right: 1px solid var(--border-light);
-    color: var(--text);
+    border-right: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
     cursor: pointer;
     font-size: 12px;
-    transition: all 0.1s;
+    transition: background 0.1s;
     border-radius: 0;
     text-align: center;
+    backdrop-filter: none;
 }
 
 .icon-btn:last-child {
@@ -910,8 +916,7 @@ body {
 }
 
 .icon-btn:hover {
-    background: var(--text);
-    color: var(--surface);
+    background: rgba(255,69,0,0.9);
 }
 
 /* ============ RESIZE HANDLE ============ */

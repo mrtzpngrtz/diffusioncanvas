@@ -22,10 +22,10 @@ export class ResultNode extends NodeBase {
             id: nodeId,
             type: 'result',
             element: nodeEl,
-            data: { 
-                image: img, 
-                imageData: imageUrl, 
-                imageWidth: 250,
+            data: {
+                image: img,
+                imageData: imageUrl,
+                imageWidth: null, // CSS controls width: 100%
                 sourcePromptNode: sourcePromptNode
             },
             position: { x, y }
@@ -34,32 +34,31 @@ export class ResultNode extends NodeBase {
         const content = nodeEl.querySelector('.node-content');
         const wrapper = document.createElement('div');
         wrapper.className = 'image-wrapper';
-        img.style.width = `${node.data.imageWidth}px`;
         wrapper.appendChild(img);
-        
-        content.appendChild(wrapper);
-        
-        // Add scale indicator
+
+        // Scale indicator as hover overlay inside wrapper
         const scaleIndicator = document.createElement('div');
         scaleIndicator.className = 'scale-indicator';
-        scaleIndicator.textContent = `Loading...`;
-        content.appendChild(scaleIndicator);
+        scaleIndicator.textContent = '…';
+        wrapper.appendChild(scaleIndicator);
+
+        content.appendChild(wrapper);
 
         img.onload = () => {
             node.data.originalWidth = img.naturalWidth;
             node.data.originalHeight = img.naturalHeight;
-            scaleIndicator.textContent = `${node.data.originalWidth} x ${node.data.originalHeight}px`;
+            scaleIndicator.textContent = `${node.data.originalWidth}×${node.data.originalHeight}`;
         };
-        
-        // Add action buttons
+
+        // Action buttons as hover overlay at bottom of image
         const actionButtons = document.createElement('div');
         actionButtons.className = 'image-actions';
         actionButtons.innerHTML = `
             <button class="icon-btn" title="View Full Size">⛶</button>
-            <button class="icon-btn" title="Download Image">↓</button>
+            <button class="icon-btn" title="Download">↓</button>
             <button class="icon-btn node-clone" title="Clone Node">⎘</button>
         `;
-        content.appendChild(actionButtons);
+        wrapper.appendChild(actionButtons);
         
         actionButtons.querySelector('.node-clone').addEventListener('click', () => 
             callbacks.cloneNode(node.id)

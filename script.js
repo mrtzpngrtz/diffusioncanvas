@@ -330,7 +330,6 @@ class App {
                          content.innerHTML = '';
                          const wrapper = document.createElement('div');
                          wrapper.className = 'image-wrapper';
-                         img.style.width = `${tempNode.data.imageWidth}px`;
                          wrapper.appendChild(img);
                          content.appendChild(wrapper);
                          this.nodeManager.addNodeActionButtons(tempNode, content);
