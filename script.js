@@ -68,6 +68,7 @@ class App {
         document.getElementById('openBoardsBtn').addEventListener('click', () => this.toggleBoardsPanel());
         document.getElementById('newBoardBtn').addEventListener('click', () => this.saveBoardAsNew());
         document.getElementById('boardsModalClose').addEventListener('click', () => this.closeBoardsModal());
+        document.getElementById('boardsModalNew').addEventListener('click', () => this.saveBoardAsNew());
         document.getElementById('boardsModal').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) this.closeBoardsModal();
         });
@@ -273,7 +274,8 @@ class App {
         try {
             const savedState = localStorage.getItem('diffusionCanvas_autoSave');
             if (!savedState) {
-                this.uiManager.updateStatus('Ready - Add nodes to get started');
+                this.uiManager.updateStatus('Ready');
+                this.toggleBoardsPanel(); // no board — show picker
                 return;
             }
             const canvasState = JSON.parse(savedState);

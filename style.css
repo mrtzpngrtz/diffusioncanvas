@@ -1732,6 +1732,27 @@ body {
     color: var(--text-muted);
 }
 
+.boards-modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.board-new-btn {
+    background: var(--text);
+    color: var(--surface);
+    border: none;
+    padding: 5px 12px;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: opacity 0.1s;
+}
+
+.board-new-btn:hover { opacity: 0.75; }
+
 .boards-modal-close {
     background: transparent;
     border: none;
