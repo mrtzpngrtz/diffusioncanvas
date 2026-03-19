@@ -105,6 +105,8 @@
             <button id="addDrawNode" class="btn">+ Draw Node</button>
             <button id="resetAllSizes" class="btn">⊡ Reset Sizes</button>
             <button id="clearCanvas" class="btn btn-danger">✕ Clear</button>
+            <div class="toolbar-section-label btn-section-start">03 — History</div>
+            <button id="toggleHistoryBtn" class="btn">⏱ History</button>
             <div class="toolbar-section-label">02 — Boards</div>
             <div id="currentBoardName" class="board-name-display"></div>
             <button id="saveBoardBtn" class="btn">↑ Save Board</button>
@@ -115,6 +117,17 @@
         <!-- Status (Bottom Center) -->
         <div class="status" id="status">Ready</div>
         
+        <!-- History Panel (Right) -->
+        <div class="history-panel" id="historyPanel">
+            <div class="history-panel-header">
+                <span>03 — History</span>
+                <button class="history-snapshot-btn" id="historySnapshotBtn" title="Take snapshot now">+ Snapshot</button>
+            </div>
+            <div class="history-list" id="historyList">
+                <div class="history-empty">No history yet</div>
+            </div>
+        </div>
+
         <canvas id="connectionCanvas"></canvas>
         <div id="nodeCanvas" class="node-canvas"></div>
         

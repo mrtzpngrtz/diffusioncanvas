@@ -39,6 +39,10 @@ class App {
         this.currentBoardId = null;
         this.currentBoardName = null;
 
+        // History stack — in-memory snapshots, max 30 entries
+        this.historyStack = [];      // [{state, timestamp, label, nodeCount}]
+        this.historyCurrentIdx = -1; // index of the currently displayed state (-1 = live)
+
         this.init();
     }
 
@@ -72,6 +76,12 @@ class App {
         document.getElementById('boardsModal').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) this.closeBoardsModal();
         });
+
+        document.getElementById('toggleHistoryBtn').addEventListener('click', () => this.toggleHistoryPanel());
+        document.getElementById('historySnapshotBtn').addEventListener('click', () => {
+            this._pushHistory('Manual snapshot');
+            this._renderHistoryPanel();
+        });
     }
 
     addNode(type) {
@@ -95,6 +105,7 @@ class App {
 
     async clearCanvas() {
         if (await this._confirm('Clear all nodes? This cannot be undone.')) {
+            this._pushHistory('Before clear');
             this._clearCanvasImmediate();
         }
     }
@@ -558,6 +569,8 @@ Object.assign(App.prototype, {
             this.currentBoardId = saved.id;
             this.currentBoardName = saved.name;
             this._updateBoardUI();
+            this._pushHistory(`Saved: ${saved.name}`);
+            this._renderHistoryPanel();
             this.uiManager.updateStatus(`"${saved.name}" saved`, '#27ae60');
             this.closeBoardsModal();
         } catch (err) {
@@ -581,6 +594,7 @@ Object.assign(App.prototype, {
     async _loadBoardFromServer(boardId) {
         if (this.nodeManager.nodes.length > 0) {
             if (!await this._confirm('Loading will replace the current canvas. Continue?')) return;
+            this._pushHistory(`Before loading board`);
         }
         this.closeBoardsModal();
         this._showLoading('Loading board...');
@@ -600,6 +614,7 @@ Object.assign(App.prototype, {
             this.currentBoardId = boardId;
             this.currentBoardName = meta ? meta.name : 'Board';
             this._updateBoardUI();
+            this._renderHistoryPanel();
             this.uiManager.updateStatus(`"${this.currentBoardName}" loaded`, '#27ae60');
         } catch (err) {
             console.error('Load board error:', err);
@@ -824,4 +839,97 @@ Object.assign(App.prototype, {
         return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
             + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     }
+});
+
+// ── HISTORY ───────────────────────────────────────────────────────────────────
+
+Object.assign(App.prototype, {
+
+    toggleHistoryPanel() {
+        const panel = document.getElementById('historyPanel');
+        const btn = document.getElementById('toggleHistoryBtn');
+        if (!panel) return;
+        const isOpen = panel.classList.toggle('open');
+        btn.classList.toggle('active', isOpen);
+        if (isOpen) this._renderHistoryPanel();
+    },
+
+    _pushHistory(label) {
+        if (!this.nodeManager) return;
+        const nodeCount = this.nodeManager.nodes.length;
+        // Don't push if canvas is empty and last entry was also empty
+        if (nodeCount === 0 && this.historyStack.length > 0 && this.historyStack[0].nodeCount === 0) return;
+
+        try {
+            const state = this.serializeCanvas();
+            this.historyStack.unshift({
+                state,
+                label,
+                timestamp: new Date().toISOString(),
+                nodeCount
+            });
+            // Cap at 30 entries
+            if (this.historyStack.length > 30) this.historyStack.pop();
+            this.historyCurrentIdx = -1; // reset "browsing" pointer
+        } catch (e) {
+            console.warn('History snapshot failed:', e);
+        }
+    },
+
+    async _restoreHistory(idx) {
+        const entry = this.historyStack[idx];
+        if (!entry) return;
+        if (!await this._confirm(`Restore to: "${entry.label}"?\nThis will replace the current canvas.`)) return;
+
+        // Save current state before restoring so user can undo the undo
+        this._pushHistory('Before restore');
+
+        this._showLoading('Restoring...');
+        try {
+            this._clearCanvasImmediate();
+            await this.deserializeCanvas(entry.state);
+            this.historyCurrentIdx = idx;
+            this.uiManager.updateStatus(`Restored: "${entry.label}"`, '#667eea');
+            this._renderHistoryPanel();
+        } catch (e) {
+            this.uiManager.updateStatus('Restore failed', '#e74c3c');
+        } finally {
+            this._hideLoading();
+        }
+    },
+
+    _renderHistoryPanel() {
+        const listEl = document.getElementById('historyList');
+        if (!listEl) return;
+
+        if (!this.historyStack.length) {
+            listEl.innerHTML = '<div class="history-empty">No history yet</div>';
+            return;
+        }
+
+        listEl.innerHTML = this.historyStack.map((entry, idx) => {
+            const isCurrent = idx === this.historyCurrentIdx;
+            const time = new Date(entry.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const date = new Date(entry.timestamp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            return `
+                <div class="history-entry${isCurrent ? ' current' : ''}" data-idx="${idx}">
+                    <div class="history-entry-label">${this._escHtml(entry.label)}</div>
+                    <div class="history-entry-meta">
+                        <span>${date} ${time}</span>
+                        <span>${entry.nodeCount} node${entry.nodeCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <button class="history-entry-restore">↺ Restore</button>
+                </div>
+            `;
+        }).join('');
+
+        listEl.querySelectorAll('.history-entry-restore').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(btn.closest('.history-entry').dataset.idx);
+                this._restoreHistory(idx);
+            });
+        });
+    }
+
 });
