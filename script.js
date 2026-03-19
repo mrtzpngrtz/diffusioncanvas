@@ -68,7 +68,7 @@ class App {
         document.getElementById('openBoardsBtn').addEventListener('click', () => this.toggleBoardsPanel());
         document.getElementById('newBoardBtn').addEventListener('click', () => this.saveBoardAsNew());
         document.getElementById('boardsModalClose').addEventListener('click', () => this.closeBoardsModal());
-        document.getElementById('boardsModalNew').addEventListener('click', () => this.saveBoardAsNew());
+        document.getElementById('boardsModalNew').addEventListener('click', () => this.newEmptyBoard());
         document.getElementById('boardsModal').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) this.closeBoardsModal();
         });
@@ -503,6 +503,15 @@ Object.assign(App.prototype, {
         await this._saveBoardToServer(name.trim(), null);
     },
 
+    async newEmptyBoard() {
+        const name = prompt('Board name:', 'Untitled Board');
+        if (!name || !name.trim()) return;
+        this._clearCanvasImmediate();
+        this.currentBoardId = null;
+        this.currentBoardName = null;
+        await this._saveBoardToServer(name.trim(), null);
+    },
+
     async _saveBoardToServer(name, id) {
         this.uiManager.updateStatus('Saving board...');
         try {
@@ -536,11 +545,24 @@ Object.assign(App.prototype, {
         }
     },
 
+    _showLoading(msg = 'Loading...') {
+        const el = document.getElementById('loadingOverlay');
+        const label = document.getElementById('loadingLabel');
+        if (el) { el.classList.add('active'); }
+        if (label) label.textContent = msg;
+    },
+
+    _hideLoading() {
+        const el = document.getElementById('loadingOverlay');
+        if (el) el.classList.remove('active');
+    },
+
     async _loadBoardFromServer(boardId) {
         if (this.nodeManager.nodes.length > 0) {
             if (!confirm('Loading will replace the current canvas. Continue?')) return;
         }
-        this.uiManager.updateStatus('Loading board...');
+        this.closeBoardsModal();
+        this._showLoading('Loading board...');
         try {
             const [stateRes, listRes] = await Promise.all([
                 fetch(`/api/boards/${boardId}`, { credentials: 'include' }),
@@ -558,10 +580,11 @@ Object.assign(App.prototype, {
             this.currentBoardName = meta ? meta.name : 'Board';
             this._updateBoardUI();
             this.uiManager.updateStatus(`"${this.currentBoardName}" loaded`, '#27ae60');
-            this.closeBoardsModal();
         } catch (err) {
             console.error('Load board error:', err);
             this.uiManager.updateStatus('Failed to load board', '#e74c3c');
+        } finally {
+            this._hideLoading();
         }
     },
 
