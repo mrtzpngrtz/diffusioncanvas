@@ -2158,6 +2158,22 @@ body.dark-mode .login-modal {
     }
 }
 
+/* ============ MULTI-SELECT ============ */
+
+.node.selected {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.marquee-rect {
+    position: absolute;
+    border: 1px solid var(--accent);
+    background: rgba(255, 69, 0, 0.06);
+    pointer-events: none;
+    z-index: 1500;
+    display: none;
+}
+
 /* ============ HISTORY PANEL (RIGHT SIDE) ============ */
 
 .history-panel {

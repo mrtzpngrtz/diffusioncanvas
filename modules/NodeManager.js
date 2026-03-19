@@ -14,20 +14,28 @@ export class NodeManager {
         this.nodes = [];
         this.nodeIdCounter = 0;
         this.nodeCanvas = document.getElementById('nodeCanvas');
-        
+
         // Dragging state
         this.isDragging = false;
         this.draggedNode = null;
         this.dragOffset = { x: 0, y: 0 };
-        
+        this.multiDragOffsets = new Map(); // nodeId -> {x, y}
+
         // Resizing state
         this.isResizing = false;
         this.resizedNode = null;
         this.resizeStart = { x: 0, y: 0, width: 0, height: 0, imageWidth: 0 };
+
+        // Multi-select state
+        this.selectedNodes = new Set(); // set of node IDs
+        this.isMarquee = false;
+        this.marqueeStart = { x: 0, y: 0 };
+        this.marqueeEl = null;
     }
- 
+
     init() {
         this.setupGlobalEvents();
+        this.setupMarquee();
     }
 
     setupGlobalEvents() {
@@ -128,6 +136,7 @@ export class NodeManager {
 
         nodeToRemove.element.remove();
         this.nodes.splice(nodeIndex, 1);
+        this.selectedNodes.delete(nodeId);
 
         // Remove associated connections
         this.connectionManager.removeConnectionsForNode(nodeId);
@@ -151,20 +160,59 @@ export class NodeManager {
     }
 
     startDrag(e, node) {
+        if (e.shiftKey) {
+            // Shift-click: toggle this node in selection, don't drag
+            if (this.selectedNodes.has(node.id)) {
+                this.selectedNodes.delete(node.id);
+                node.element.classList.remove('selected');
+            } else {
+                this.selectedNodes.add(node.id);
+                node.element.classList.add('selected');
+            }
+            return;
+        }
+
+        // If clicking a node that isn't selected, clear selection and select only this one
+        if (!this.selectedNodes.has(node.id)) {
+            this.clearSelection();
+            this.selectedNodes.add(node.id);
+            node.element.classList.add('selected');
+        }
+
         this.isDragging = true;
         this.draggedNode = node;
-        
+
         const container = this.canvasManager.container.getBoundingClientRect();
         const zoom = this.canvasManager.zoom;
         const panX = this.canvasManager.panX;
         const panY = this.canvasManager.panY;
-        
+
         const mouseCanvasX = (e.clientX - container.left) / zoom - panX;
         const mouseCanvasY = (e.clientY - container.top) / zoom - panY;
-        
+
+        // Store per-node drag offsets for all selected nodes
+        this.multiDragOffsets.clear();
+        for (const id of this.selectedNodes) {
+            const n = this.nodes.find(nd => nd.id === id);
+            if (n) {
+                this.multiDragOffsets.set(id, {
+                    x: mouseCanvasX - n.position.x,
+                    y: mouseCanvasY - n.position.y
+                });
+            }
+        }
+
         this.dragOffset.x = mouseCanvasX - node.position.x;
         this.dragOffset.y = mouseCanvasY - node.position.y;
         node.element.style.zIndex = 1000;
+    }
+
+    clearSelection() {
+        for (const id of this.selectedNodes) {
+            const n = this.nodes.find(nd => nd.id === id);
+            if (n) n.element.classList.remove('selected');
+        }
+        this.selectedNodes.clear();
     }
 
     handleMouseMove(e) {
@@ -190,31 +238,133 @@ export class NodeManager {
             const zoom = this.canvasManager.zoom;
             const panX = this.canvasManager.panX;
             const panY = this.canvasManager.panY;
-            
+
             const mouseCanvasX = (e.clientX - container.left) / zoom - panX;
             const mouseCanvasY = (e.clientY - container.top) / zoom - panY;
-            
-            this.draggedNode.position.x = mouseCanvasX - this.dragOffset.x;
-            this.draggedNode.position.y = mouseCanvasY - this.dragOffset.y;
 
-            this.draggedNode.element.style.left = `${this.draggedNode.position.x}px`;
-            this.draggedNode.element.style.top = `${this.draggedNode.position.y}px`;
+            // Move all selected nodes together
+            for (const id of this.selectedNodes) {
+                const n = this.nodes.find(nd => nd.id === id);
+                const offset = this.multiDragOffsets.get(id);
+                if (n && offset) {
+                    n.position.x = mouseCanvasX - offset.x;
+                    n.position.y = mouseCanvasY - offset.y;
+                    n.element.style.left = `${n.position.x}px`;
+                    n.element.style.top = `${n.position.y}px`;
+                }
+            }
 
             this.connectionManager.drawConnections();
+        }
+
+        // Update marquee rect
+        if (this.isMarquee && this.marqueeEl) {
+            const container = this.canvasManager.container.getBoundingClientRect();
+            const x1 = Math.min(this.marqueeStart.x, e.clientX) - container.left;
+            const y1 = Math.min(this.marqueeStart.y, e.clientY) - container.top;
+            const w = Math.abs(e.clientX - this.marqueeStart.x);
+            const h = Math.abs(e.clientY - this.marqueeStart.y);
+            this.marqueeEl.style.left   = x1 + 'px';
+            this.marqueeEl.style.top    = y1 + 'px';
+            this.marqueeEl.style.width  = w + 'px';
+            this.marqueeEl.style.height = h + 'px';
         }
     }
 
     handleMouseUp(e) {
         if (this.isResizing) {
+            if (this.resizedNode) {
+                // Persist final width for serialization
+                this.resizedNode.data.nodeWidth = this.resizedNode.element.offsetWidth;
+                if (this.resizedNode.type === 'prompt') {
+                    this.resizedNode.data.nodeHeight = this.resizedNode.element.offsetHeight;
+                }
+            }
             this.isResizing = false;
             this.resizedNode = null;
         }
-        
+
         if (this.isDragging && this.draggedNode) {
             this.draggedNode.element.style.zIndex = '';
         }
         this.isDragging = false;
         this.draggedNode = null;
+
+        // Finish marquee selection
+        if (this.isMarquee) {
+            this.isMarquee = false;
+            if (this.marqueeEl) {
+                this.marqueeEl.style.display = 'none';
+                this.marqueeEl.style.width = '0';
+                this.marqueeEl.style.height = '0';
+            }
+            // Only select if the marquee had meaningful size (avoid accidental tiny drags)
+            const w = Math.abs(e.clientX - this.marqueeStart.x);
+            const h = Math.abs(e.clientY - this.marqueeStart.y);
+            if (w > 6 || h > 6) {
+                this._selectNodesInMarquee(e);
+            } else {
+                // Plain click on empty canvas — clear selection
+                this.clearSelection();
+            }
+        }
+    }
+
+    setupMarquee() {
+        const canvas = document.getElementById('connectionCanvas');
+        const container = document.querySelector('.canvas-container');
+        if (!canvas || !container) return;
+
+        // Create marquee overlay element
+        this.marqueeEl = document.createElement('div');
+        this.marqueeEl.className = 'marquee-rect';
+        container.appendChild(this.marqueeEl);
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if (this.connectionManager.isConnecting) return;
+            e.preventDefault();
+            this.isMarquee = true;
+            this.marqueeStart = { x: e.clientX, y: e.clientY };
+            const rect = container.getBoundingClientRect();
+            this.marqueeEl.style.left   = (e.clientX - rect.left) + 'px';
+            this.marqueeEl.style.top    = (e.clientY - rect.top) + 'px';
+            this.marqueeEl.style.width  = '0';
+            this.marqueeEl.style.height = '0';
+            this.marqueeEl.style.display = 'block';
+        });
+    }
+
+    _selectNodesInMarquee(upEvent) {
+        const container = this.canvasManager.container.getBoundingClientRect();
+        const zoom = this.canvasManager.zoom;
+        const panX = this.canvasManager.panX;
+        const panY = this.canvasManager.panY;
+
+        // Marquee bounds in screen coords → canvas coords
+        const sx1 = Math.min(this.marqueeStart.x, upEvent.clientX);
+        const sy1 = Math.min(this.marqueeStart.y, upEvent.clientY);
+        const sx2 = Math.max(this.marqueeStart.x, upEvent.clientX);
+        const sy2 = Math.max(this.marqueeStart.y, upEvent.clientY);
+
+        const cx1 = (sx1 - container.left) / zoom - panX;
+        const cy1 = (sy1 - container.top)  / zoom - panY;
+        const cx2 = (sx2 - container.left) / zoom - panX;
+        const cy2 = (sy2 - container.top)  / zoom - panY;
+
+        if (!upEvent.shiftKey) this.clearSelection();
+
+        for (const n of this.nodes) {
+            const nx1 = n.position.x;
+            const ny1 = n.position.y;
+            const nx2 = nx1 + (n.element ? n.element.offsetWidth  : 220);
+            const ny2 = ny1 + (n.element ? n.element.offsetHeight : 120);
+            // Overlap test
+            if (nx2 > cx1 && nx1 < cx2 && ny2 > cy1 && ny1 < cy2) {
+                this.selectedNodes.add(n.id);
+                n.element.classList.add('selected');
+            }
+        }
     }
 
     startResize(e, node) {

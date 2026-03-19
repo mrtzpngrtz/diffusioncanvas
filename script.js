@@ -111,6 +111,7 @@ class App {
     }
 
     _clearCanvasImmediate() {
+        this.nodeManager.clearSelection();
         while (this.nodeManager.nodes.length > 0) {
             this.nodeManager.removeNode(this.nodeManager.nodes[0].id);
         }
