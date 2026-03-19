@@ -1962,6 +1962,83 @@ body {
     text-align: center;
 }
 
+/* ============ UI DIALOGS ============ */
+
+.ui-dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 4000;
+    align-items: center;
+    justify-content: center;
+}
+
+.ui-dialog-overlay.active { display: flex; }
+
+.ui-dialog {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    min-width: 300px;
+    max-width: 420px;
+    width: 90vw;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ui-dialog-message {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+}
+
+.ui-dialog-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 8px 10px;
+    outline: none;
+    letter-spacing: 0.04em;
+}
+
+.ui-dialog-input:focus { border-color: var(--border); }
+
+.ui-dialog-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.ui-dialog-btn {
+    padding: 7px 18px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+}
+
+.ui-dialog-btn:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
+
+.ui-dialog-ok {
+    background: var(--text);
+    color: var(--surface);
+    border-color: var(--text);
+}
+
+.ui-dialog-ok:hover { opacity: 0.8; }
+
 /* ============ LOADING OVERLAY ============ */
 
 .loading-overlay {

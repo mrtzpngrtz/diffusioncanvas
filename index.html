@@ -135,6 +135,29 @@
         <img id="lightboxImage" src="" alt="Full size image">
     </div>
 
+    <!-- Confirm Dialog -->
+    <div class="ui-dialog-overlay" id="confirmDialog">
+        <div class="ui-dialog">
+            <div class="ui-dialog-message" id="confirmMessage"></div>
+            <div class="ui-dialog-actions">
+                <button class="ui-dialog-btn ui-dialog-cancel" id="confirmCancel">Cancel</button>
+                <button class="ui-dialog-btn ui-dialog-ok" id="confirmOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Dialog -->
+    <div class="ui-dialog-overlay" id="promptDialog">
+        <div class="ui-dialog">
+            <div class="ui-dialog-message" id="promptMessage"></div>
+            <input class="ui-dialog-input" id="promptInput" type="text">
+            <div class="ui-dialog-actions">
+                <button class="ui-dialog-btn ui-dialog-cancel" id="promptCancel">Cancel</button>
+                <button class="ui-dialog-btn ui-dialog-ok" id="promptOk">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-box">

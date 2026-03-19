@@ -81,8 +81,8 @@ class App {
         this.nodeManager.createNode(type, center.x + offsetX, center.y + offsetY);
     }
 
-    clearCanvas() {
-        if (confirm('Are you sure you want to clear all nodes?')) {
+    async clearCanvas() {
+        if (await this._confirm('Clear all nodes? This cannot be undone.')) {
             this._clearCanvasImmediate();
         }
     }
@@ -182,7 +182,7 @@ class App {
                 const canvasState = JSON.parse(text);
 
                 if (this.nodeManager.nodes.length > 0) {
-                    if (!confirm('Loading will replace the current canvas. Continue?')) return;
+                    if (!await this._confirm('Loading will replace the current canvas. Continue?')) return;
                 }
 
                 this._clearCanvasImmediate();
@@ -498,7 +498,7 @@ Object.assign(App.prototype, {
     async saveBoard() {
         let name = this.currentBoardName;
         if (!name) {
-            name = prompt('Board name:', 'Untitled Board');
+            name = await this._prompt('Board name:', 'Untitled Board');
             if (!name || !name.trim()) return;
             name = name.trim();
         }
@@ -507,13 +507,13 @@ Object.assign(App.prototype, {
 
     async saveBoardAsNew() {
         const suggested = this.currentBoardName ? `${this.currentBoardName} copy` : 'Untitled Board';
-        const name = prompt('Board name:', suggested);
+        const name = await this._prompt('Board name:', suggested);
         if (!name || !name.trim()) return;
         await this._saveBoardToServer(name.trim(), null);
     },
 
     async newEmptyBoard() {
-        const name = prompt('Board name:', 'Untitled Board');
+        const name = await this._prompt('Board name:', 'Untitled Board');
         if (!name || !name.trim()) return;
         this._clearCanvasImmediate();
         this.currentBoardId = null;
@@ -568,7 +568,7 @@ Object.assign(App.prototype, {
 
     async _loadBoardFromServer(boardId) {
         if (this.nodeManager.nodes.length > 0) {
-            if (!confirm('Loading will replace the current canvas. Continue?')) return;
+            if (!await this._confirm('Loading will replace the current canvas. Continue?')) return;
         }
         this.closeBoardsModal();
         this._showLoading('Loading board...');
@@ -611,7 +611,7 @@ Object.assign(App.prototype, {
                 const state = data.state || data;
                 if (!state.nodes) throw new Error('Invalid board file');
                 const defaultName = data.name || file.name.replace(/\.(dc\.)?json$/i, '');
-                const name = prompt('Board name:', defaultName);
+                const name = await this._prompt('Board name:', defaultName);
                 if (!name || !name.trim()) return;
                 this._showLoading('Importing board...');
                 const preview = null; // no preview for imported boards
@@ -635,7 +635,7 @@ Object.assign(App.prototype, {
     },
 
     async _renameBoard(boardId, currentName) {
-        const name = prompt('Rename board:', currentName);
+        const name = await this._prompt('Rename board:', currentName);
         if (!name || !name.trim() || name.trim() === currentName) return;
         try {
             const res = await fetch(`/api/boards/${boardId}`, {
@@ -660,7 +660,7 @@ Object.assign(App.prototype, {
     },
 
     async _deleteBoardFromServer(boardId) {
-        if (!confirm('Delete this board? This cannot be undone.')) return;
+        if (!await this._confirm('Delete this board? This cannot be undone.')) return;
         try {
             const res = await fetch(`/api/boards/${boardId}`, { method: 'DELETE', credentials: 'include' });
             if (!res.ok) throw new Error('Delete failed');
@@ -688,6 +688,58 @@ Object.assign(App.prototype, {
         } else {
             localStorage.removeItem('diffusionCanvas_lastBoardId');
         }
+    },
+
+    _confirm(message) {
+        return new Promise(resolve => {
+            document.getElementById('confirmMessage').textContent = message;
+            const overlay = document.getElementById('confirmDialog');
+            overlay.classList.add('active');
+            const ok = document.getElementById('confirmOk');
+            const cancel = document.getElementById('confirmCancel');
+            const cleanup = (result) => {
+                overlay.classList.remove('active');
+                ok.removeEventListener('click', onOk);
+                cancel.removeEventListener('click', onCancel);
+                overlay.removeEventListener('click', onBackdrop);
+                resolve(result);
+            };
+            const onOk = () => cleanup(true);
+            const onCancel = () => cleanup(false);
+            const onBackdrop = (e) => { if (e.target === overlay) cleanup(false); };
+            ok.addEventListener('click', onOk);
+            cancel.addEventListener('click', onCancel);
+            overlay.addEventListener('click', onBackdrop);
+        });
+    },
+
+    _prompt(message, defaultValue = '') {
+        return new Promise(resolve => {
+            document.getElementById('promptMessage').textContent = message;
+            const input = document.getElementById('promptInput');
+            input.value = defaultValue;
+            const overlay = document.getElementById('promptDialog');
+            overlay.classList.add('active');
+            requestAnimationFrame(() => { input.focus(); input.select(); });
+            const ok = document.getElementById('promptOk');
+            const cancel = document.getElementById('promptCancel');
+            const cleanup = (result) => {
+                overlay.classList.remove('active');
+                ok.removeEventListener('click', onOk);
+                cancel.removeEventListener('click', onCancel);
+                input.removeEventListener('keydown', onKey);
+                overlay.removeEventListener('click', onBackdrop);
+                resolve(result);
+            };
+            const onOk = () => cleanup(input.value);
+            const onCancel = () => cleanup(null);
+            const onKey = (e) => { if (e.key === 'Enter') onOk(); else if (e.key === 'Escape') onCancel(); };
+            const onBackdrop = (e) => { if (e.target === overlay) onCancel(); };
+            ok.addEventListener('click', onOk);
+            cancel.addEventListener('click', onCancel);
+            input.addEventListener('keydown', onKey);
+            overlay.addEventListener('click', onBackdrop);
+        });
     },
 
     _generatePreview() {
