@@ -56,25 +56,32 @@ export class ResultNode extends NodeBase {
         actionButtons.innerHTML = `
             <button class="icon-btn" title="View Full Size">⛶</button>
             <button class="icon-btn" title="Download">↓</button>
+            <button class="icon-btn icon-btn-std" title="Reset to standard size">⊡</button>
             <button class="icon-btn node-clone" title="Clone Node">⎘</button>
         `;
         wrapper.appendChild(actionButtons);
-        
-        actionButtons.querySelector('.node-clone').addEventListener('click', () => 
+
+        actionButtons.querySelector('.node-clone').addEventListener('click', () =>
             callbacks.cloneNode(node.id)
         );
-        
+
         const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
         const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
-        
+        const stdBtn = actionButtons.querySelector('.icon-btn-std');
+
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             callbacks.openLightbox(node.data.imageData);
         });
-        
+
         downloadBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             callbacks.downloadImage(node.data.imageData, 'generated-result.png');
+        });
+
+        stdBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            nodeEl.style.width = '400px';
         });
 
         // Close button

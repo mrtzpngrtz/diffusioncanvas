@@ -335,6 +335,8 @@ export class NodeManager {
         reader.onload = (e) => {
             const img = document.createElement('img');
             img.src = e.target.result;
+            img.draggable = false;
+            img.addEventListener('dragstart', (ev) => ev.preventDefault());
             img.onload = () => {
                 node.data.image = img;
                 node.data.imageData = e.target.result;
@@ -370,6 +372,7 @@ export class NodeManager {
         actionButtons.innerHTML = `
             <button class="icon-btn" title="View Full Size">⛶</button>
             <button class="icon-btn" title="Download">↓</button>
+            <button class="icon-btn icon-btn-std" title="Reset to standard size">⊡</button>
             <button class="icon-btn node-clone" title="Clone Node">⎘</button>
         `;
         // Append inside image-wrapper so the overlay sits on the image
@@ -379,15 +382,21 @@ export class NodeManager {
         actionButtons.querySelector('.node-clone').addEventListener('click', () => this.cloneNode(node.id));
         const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
         const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
-        
+        const stdBtn = actionButtons.querySelector('.icon-btn-std');
+
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.uiManager.openLightbox(node.data.imageData);
         });
-        
+
         downloadBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.downloadImage(node.data.imageData, 'image.png');
+        });
+
+        stdBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            node.element.style.width = '400px';
         });
     }
 
