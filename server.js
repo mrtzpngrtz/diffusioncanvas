@@ -456,16 +456,18 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         // Deduct credits from user
         const users = await storage.getUsers();
         const userIndex = users.findIndex(u => u.id === req.user.id);
-        
+
         if (userIndex !== -1) {
             users[userIndex].credits = (users[userIndex].credits || 0) - cost;
+            users[userIndex].usedCredits = (users[userIndex].usedCredits || 0) + cost;
             await storage.setUsers(users);
-            
+
             // Update session user object
             req.user.credits = users[userIndex].credits;
-            
+
             // Add credits info to response
             result.creditsRemaining = users[userIndex].credits;
+            result.usedCredits = users[userIndex].usedCredits;
         }
 
         res.json(result);
