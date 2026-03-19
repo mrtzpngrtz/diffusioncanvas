@@ -56,7 +56,6 @@ class App {
         document.getElementById('addPromptNode').addEventListener('click', () => this.addNode('prompt'));
         document.getElementById('addActionNode').addEventListener('click', () => this.addNode('action'));
         document.getElementById('addDrawNode').addEventListener('click', () => this.addNode('draw'));
-        document.getElementById('addVeo3Node').addEventListener('click', () => this.addNode('veo3'));
         
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
         document.getElementById('saveCanvas').addEventListener('click', () => this.saveCanvas());
@@ -68,11 +67,6 @@ class App {
         // Offset based on node size approximation
         let offsetX = -125; 
         let offsetY = -75;
-        if (type === 'veo3') {
-             offsetX = -160;
-             offsetY = -100;
-        }
-        
         this.nodeManager.createNode(type, center.x + offsetX, center.y + offsetY);
     }
 
@@ -116,7 +110,6 @@ class App {
                     case 'addPrompt': newNode = this.nodeManager.createNode('prompt', canvasX, canvasY); break;
                     case 'addAction': newNode = this.nodeManager.createNode('action', canvasX, canvasY); break;
                     case 'addDraw': newNode = this.nodeManager.createNode('draw', canvasX, canvasY); break;
-                    case 'addVeo3': newNode = this.nodeManager.createNode('veo3', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu

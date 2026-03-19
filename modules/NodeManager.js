@@ -2,7 +2,6 @@ import { ImageNode } from '../nodes/ImageNode.js';
 import { PromptNode } from '../nodes/PromptNode.js';
 import { ActionNode } from '../nodes/ActionNode.js';
 import { DrawNode } from '../nodes/DrawNode.js';
-import { Veo3Node } from '../nodes/Veo3Node.js';
 import { ResultNode } from '../nodes/ResultNode.js';
 
 export class NodeManager {
@@ -54,7 +53,6 @@ export class NodeManager {
             handleImageFile: (file, n) => this.handleImageFile(file, n),
             updateGenerateButton: (n) => this.updateGenerateButton(n),
             generateImage: (n) => this.handleGenerateImage(n),
-            generateVideo: (n) => this.handleGenerateVideo(n),
             openLightbox: (src) => this.uiManager.openLightbox(src),
             downloadImage: (src, name) => this.downloadImage(src, name),
             updateDrawNodeImage: (n) => this.updateDrawNodeImage(n)
@@ -72,9 +70,6 @@ export class NodeManager {
                 break;
             case 'draw':
                 node = new DrawNode().create(nodeId, x, y, callbacks);
-                break;
-            case 'veo3':
-                node = new Veo3Node().create(nodeId, x, y, callbacks);
                 break;
             case 'result':
                 // Handle both imageUrl (from generation) and imageData (from save/load)
@@ -106,18 +101,6 @@ export class NodeManager {
                         if (actionSelect) actionSelect.value = data.action;
                     }
                     this.updateGenerateButton(node);
-                } else if (type === 'veo3') {
-                    if (data.prompt) node.element.querySelector('textarea').value = data.prompt;
-                    if (data.aspectRatio) {
-                        const aspectRatioSelect = node.element.querySelector('.aspect-ratio-select');
-                        if (aspectRatioSelect) aspectRatioSelect.value = data.aspectRatio;
-                    }
-                    if (data.duration) {
-                        const durationSelect = node.element.querySelector('.duration-select');
-                        if (durationSelect) durationSelect.value = data.duration;
-                    }
-                    this.updateGenerateButton(node);
-                }
             }
             
             this.nodes.push(node);
@@ -331,37 +314,6 @@ export class NodeManager {
         }
     }
 
-    async handleGenerateVideo(node) {
-        const result = await this.apiManager.generateVideo(node);
-        
-        if (result.success && result.video) {
-            const resultX = node.position.x + node.element.offsetWidth + 50;
-            const resultY = node.position.y;
-
-            // Create video result node (custom type or handled in createNode)
-            // script.js had createVideoResultNode. We can handle it as a 'video-result' type or modify 'result' type
-            // Let's assume we add 'video-result' to createNode or handle it here.
-            // For now, let's assume 'result' node can handle video if we modify it, or we add a case.
-            // But ResultNode.js only handles images.
-            // I should probably add a VideoResultNode.js or update ResultNode.js.
-            // For now, let's just alert success as placeholder or implement VideoResultNode later.
-            
-            // Actually script.js created a "video-result" node.
-            // I should add 'video-result' case in createNode.
-            // For now, I'll just log it.
-            console.log('Video generated:', result.video);
-            
-            // TODO: Implement VideoResultNode
-             if (result.creditsRemaining !== undefined) {
-                const userCredits = document.getElementById('userCredits');
-                if (userCredits) {
-                    userCredits.textContent = `${result.creditsRemaining} credit${result.creditsRemaining !== 1 ? 's' : ''}`;
-                }
-            }
-            
-            this.uiManager.updateStatus('Video generated successfully!', '#27ae60');
-        }
-    }
 
     handleImageFile(file, node) {
         // ... Logic from script.js

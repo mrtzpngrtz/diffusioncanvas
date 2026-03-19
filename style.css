@@ -1673,52 +1673,6 @@ body {
     align-items: stretch;
 }
 
-/* ============ VEO3 NODE ============ */
-
-.veo3-node {
-    border-color: var(--border);
-    background: var(--surface);
-    min-width: 320px;
-}
-
-.veo3-node .node-title {
-    color: var(--text);
-}
-
-.veo-settings {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin: 8px 0;
-    border: 1px solid var(--border-light);
-}
-
-.veo-label {
-    font-size: 8px;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-    padding: 6px 10px 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-}
-
-.duration-select {
-    width: 100%;
-    padding: 7px 10px;
-    border: none;
-    border-top: 1px solid var(--border-light);
-    border-radius: 0;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    background: var(--surface);
-    color: var(--text);
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
 /* ============ AUTO-SAVE INDICATOR ============ */
 
 @keyframes fadeInOut {

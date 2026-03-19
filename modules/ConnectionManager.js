@@ -304,7 +304,7 @@ export class ConnectionManager {
                 const toNode = this.nodeManager.nodes.find(n => n.id === conn.to);
                 
                 // Cleanup connection data
-                if (toNode && (toNode.type === 'prompt' || toNode.type === 'action' || toNode.type === 'veo3') && fromNode) {
+                if (toNode && (toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
                     if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw') && toNode.data.connectedImages) {
                         toNode.data.connectedImages = toNode.data.connectedImages.filter(node => node.id !== fromNode.id);
                         // updateVeo3FrameIndicators(toNode);
@@ -315,7 +315,7 @@ export class ConnectionManager {
                     this.nodeManager.updateGenerateButton(toNode);
                 }
                 
-                if (fromNode && toNode && (toNode.type === 'result' || toNode.type === 'video-result')) {
+                if (fromNode && toNode && toNode.type === 'result') {
                     if (fromNode.type === 'prompt' || fromNode.type === 'action') {
                         if (fromNode.data.resultNode && fromNode.data.resultNode.id === toNode.id) {
                             fromNode.data.resultNode = null;
