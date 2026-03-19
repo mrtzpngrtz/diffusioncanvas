@@ -91,7 +91,7 @@ class App {
             }
         });
         this.uiManager.updateStatus(`Reset ${count} image${count !== 1 ? 's' : ''} to standard size`);
-    },
+    }
 
     async clearCanvas() {
         if (await this._confirm('Clear all nodes? This cannot be undone.')) {
