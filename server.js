@@ -576,6 +576,38 @@ app.get('/api/boards/:id', isAuthenticated, async (req, res) => {
     }
 });
 
+// GET /api/boards/:id/export — download full board (state + meta) as JSON
+app.get('/api/boards/:id/export', isAuthenticated, async (req, res) => {
+    try {
+        const boards = await storage.getBoards(req.user.id);
+        const board = boards.find(b => b.id === req.params.id);
+        if (!board) return res.status(404).json({ error: 'Board not found' });
+        const { state, name, createdAt, updatedAt } = board;
+        const filename = `${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.dc.json`;
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.json({ name, createdAt, updatedAt, state });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to export board' });
+    }
+});
+
+// PATCH /api/boards/:id — rename a board
+app.patch('/api/boards/:id', isAuthenticated, async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
+        const boards = await storage.getBoards(req.user.id);
+        const idx = boards.findIndex(b => b.id === req.params.id);
+        if (idx === -1) return res.status(404).json({ error: 'Board not found' });
+        boards[idx].name = name.trim();
+        boards[idx].updatedAt = new Date().toISOString();
+        await storage.setBoards(req.user.id, boards);
+        res.json({ id: boards[idx].id, name: boards[idx].name, updatedAt: boards[idx].updatedAt });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to rename board' });
+    }
+});
+
 // DELETE /api/boards/:id — delete a board
 app.delete('/api/boards/:id', isAuthenticated, async (req, res) => {
     try {

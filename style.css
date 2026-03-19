@@ -1784,6 +1784,14 @@ body {
 
 .board-new-btn:hover { opacity: 0.75; }
 
+.board-import-btn {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border-light);
+}
+
+.board-import-btn:hover { opacity: 1; background: var(--text); color: var(--surface); }
+
 .boards-modal-close {
     background: transparent;
     border: none;
@@ -1875,6 +1883,13 @@ body {
     border-top: 1px solid var(--border-light);
 }
 
+.board-card-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
 .board-card-name {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -1884,7 +1899,23 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
+    min-width: 0;
 }
+
+.board-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 1px 3px;
+    flex-shrink: 0;
+    transition: color 0.1s;
+    line-height: 1;
+}
+
+.board-icon-btn:hover { color: var(--text); }
 
 .board-card-dates {
     display: flex;

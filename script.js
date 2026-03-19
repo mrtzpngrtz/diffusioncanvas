@@ -61,14 +61,13 @@ class App {
         document.getElementById('addDrawNode').addEventListener('click', () => this.addNode('draw'));
         
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
-        document.getElementById('saveCanvas').addEventListener('click', () => this.saveCanvas());
-        document.getElementById('loadCanvas').addEventListener('click', () => this.loadCanvas());
 
         document.getElementById('saveBoardBtn').addEventListener('click', () => this.saveBoard());
         document.getElementById('openBoardsBtn').addEventListener('click', () => this.toggleBoardsPanel());
         document.getElementById('newBoardBtn').addEventListener('click', () => this.saveBoardAsNew());
         document.getElementById('boardsModalClose').addEventListener('click', () => this.closeBoardsModal());
         document.getElementById('boardsModalNew').addEventListener('click', () => this.newEmptyBoard());
+        document.getElementById('boardsModalImport').addEventListener('click', () => this._importBoardFromFile());
         document.getElementById('boardsModal').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) this.closeBoardsModal();
         });
@@ -462,14 +461,18 @@ Object.assign(App.prototype, {
                         ${b.id === this.currentBoardId ? '<div class="board-card-badge">active</div>' : ''}
                     </div>
                     <div class="board-card-meta">
-                        <div class="board-card-name">${this._escHtml(b.name)}</div>
+                        <div class="board-card-name-row">
+                            <span class="board-card-name">${this._escHtml(b.name)}</span>
+                            <button class="board-icon-btn board-rename-btn" data-id="${b.id}" data-name="${this._escHtml(b.name)}" title="Rename">✎</button>
+                        </div>
                         <div class="board-card-dates">
                             <span>Created ${this._fmtDate(b.createdAt)}</span>
                             <span>Updated ${this._fmtDate(b.updatedAt)}</span>
                         </div>
                         <div class="board-card-actions">
                             <button class="board-btn board-load-btn" data-id="${b.id}">↑ Load</button>
-                            <button class="board-btn board-delete-btn" data-id="${b.id}">✕ Delete</button>
+                            <button class="board-btn board-download-btn" data-id="${b.id}">↓ Download</button>
+                            <button class="board-btn board-delete-btn" data-id="${b.id}">✕</button>
                         </div>
                     </div>
                 </div>
@@ -477,6 +480,12 @@ Object.assign(App.prototype, {
 
             listEl.querySelectorAll('.board-load-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => { e.stopPropagation(); this._loadBoardFromServer(btn.dataset.id); });
+            });
+            listEl.querySelectorAll('.board-download-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => { e.stopPropagation(); this._downloadBoard(btn.dataset.id); });
+            });
+            listEl.querySelectorAll('.board-rename-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => { e.stopPropagation(); this._renameBoard(btn.dataset.id, btn.dataset.name); });
             });
             listEl.querySelectorAll('.board-delete-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => { e.stopPropagation(); this._deleteBoardFromServer(btn.dataset.id); });
@@ -586,6 +595,68 @@ Object.assign(App.prototype, {
         } finally {
             this._hideLoading();
         }
+    },
+
+    _importBoardFromFile() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,.dc.json';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                // Support both raw canvas state and exported board format
+                const state = data.state || data;
+                if (!state.nodes) throw new Error('Invalid board file');
+                const defaultName = data.name || file.name.replace(/\.(dc\.)?json$/i, '');
+                const name = prompt('Board name:', defaultName);
+                if (!name || !name.trim()) return;
+                this._showLoading('Importing board...');
+                const preview = null; // no preview for imported boards
+                const res = await fetch('/api/boards', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name.trim(), state, preview })
+                });
+                if (!res.ok) throw new Error('Upload failed');
+                this._hideLoading();
+                this._loadBoardsList();
+            } catch (err) {
+                this._hideLoading();
+                this.uiManager.updateStatus(`Import failed: ${err.message}`, '#e74c3c');
+            }
+        };
+        document.body.appendChild(input);
+        input.click();
+        document.body.removeChild(input);
+    },
+
+    async _renameBoard(boardId, currentName) {
+        const name = prompt('Rename board:', currentName);
+        if (!name || !name.trim() || name.trim() === currentName) return;
+        try {
+            const res = await fetch(`/api/boards/${boardId}`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name.trim() })
+            });
+            if (!res.ok) throw new Error('Rename failed');
+            if (boardId === this.currentBoardId) {
+                this.currentBoardName = name.trim();
+                this._updateBoardUI();
+            }
+            this._loadBoardsList();
+        } catch (err) {
+            this.uiManager.updateStatus('Rename failed', '#e74c3c');
+        }
+    },
+
+    async _downloadBoard(boardId) {
+        window.location.href = `/api/boards/${boardId}/export`;
     },
 
     async _deleteBoardFromServer(boardId) {
