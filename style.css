@@ -227,6 +227,10 @@ body {
     color: var(--border-light);
 }
 
+.btn-section-start {
+    border-top: 1px solid var(--border);
+}
+
 .btn-danger {
     color: var(--accent);
     background: var(--surface);

@@ -242,14 +242,40 @@ class App {
         }
     }
 
-    restoreAutoSavedCanvas() {
+    async restoreAutoSavedCanvas() {
+        // Try to restore last server board first
+        const lastBoardId = localStorage.getItem('diffusionCanvas_lastBoardId');
+        if (lastBoardId) {
+            try {
+                const res = await fetch(`/api/boards/${lastBoardId}`, { credentials: 'include' });
+                if (res.ok) {
+                    const state = await res.json();
+                    const listRes = await fetch('/api/boards', { credentials: 'include' });
+                    if (listRes.ok) {
+                        const boards = await listRes.json();
+                        const meta = boards.find(b => b.id === lastBoardId);
+                        if (meta) {
+                            this.currentBoardId = lastBoardId;
+                            this.currentBoardName = meta.name;
+                            this._updateBoardUI();
+                        }
+                    }
+                    await this.deserializeCanvas(state);
+                    this.uiManager.updateStatus(`"${this.currentBoardName || 'Board'}" restored`, '#667eea');
+                    return;
+                }
+            } catch (e) {
+                console.warn('Could not restore server board, falling back to local save', e);
+            }
+        }
+
+        // Fall back to localStorage autosave
         try {
             const savedState = localStorage.getItem('diffusionCanvas_autoSave');
             if (!savedState) {
                 this.uiManager.updateStatus('Ready - Add nodes to get started');
                 return;
             }
-
             const canvasState = JSON.parse(savedState);
             this.deserializeCanvas(canvasState);
             this.uiManager.updateStatus('Canvas restored from auto-save', '#667eea');
@@ -547,8 +573,11 @@ Object.assign(App.prototype, {
     _updateBoardUI() {
         const nameEl = document.getElementById('currentBoardName');
         if (nameEl) nameEl.textContent = this.currentBoardName || '';
-        const saveBtn = document.getElementById('saveBoardBtn');
-        if (saveBtn) saveBtn.textContent = this.currentBoardId ? '↑ Save Board' : '↑ Save Board';
+        if (this.currentBoardId) {
+            localStorage.setItem('diffusionCanvas_lastBoardId', this.currentBoardId);
+        } else {
+            localStorage.removeItem('diffusionCanvas_lastBoardId');
+        }
     },
 
     _escHtml(str) {
