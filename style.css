@@ -1241,6 +1241,7 @@ body {
     height: 22px;
     border-radius: 50%;
     border: 1px solid var(--border-light);
+    display: none;
 }
 
 .user-info span,

@@ -144,11 +144,16 @@ export class AuthManager {
                 // User is authenticated
                 this.loginModal.classList.add('hidden');
                 this.userInfo.style.display = 'flex';
-                this.userPhoto.src = data.user.photo || '/user_placeholder.png';
-                this.userPhoto.onerror = () => {
-                    this.userPhoto.onerror = null;
-                    this.userPhoto.src = '/user_placeholder.png';
-                };
+                if (data.user.photo) {
+                    this.userPhoto.src = data.user.photo;
+                    this.userPhoto.style.display = '';
+                    this.userPhoto.onerror = () => {
+                        this.userPhoto.onerror = null;
+                        this.userPhoto.style.display = 'none';
+                    };
+                } else {
+                    this.userPhoto.style.display = 'none';
+                }
                 this.userName.textContent = data.user.displayName || data.user.email;
                 
                 // Show credits
@@ -161,7 +166,7 @@ export class AuthManager {
                 // Show admin link if user is admin
                 const adminLink = document.getElementById('adminLink');
                 if (data.user.isAdmin && adminLink) {
-                    adminLink.style.display = 'inline-block';
+                    adminLink.style.display = 'flex';
                 }
             } else {
                 // User is not authenticated
