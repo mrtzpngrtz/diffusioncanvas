@@ -233,11 +233,10 @@ class App {
             setTimeout(() => indicator.remove(), 2000);
         } catch (error) {
             if (error.name === 'QuotaExceededError') {
-                console.warn('Auto-save failed: canvas too large for localStorage');
-                this.uiManager.updateStatus('AUTOSAVE FAILED — CANVAS TOO LARGE', '#FF4500');
+                // Canvas too large for localStorage — silently skip, server boards still work
+                console.warn('Auto-save skipped: canvas too large for localStorage');
             } else {
                 console.error('Auto-save error:', error);
-                this.uiManager.updateStatus('AUTOSAVE ERROR', '#FF4500');
             }
         }
     }
@@ -474,8 +473,9 @@ Object.assign(App.prototype, {
             });
 
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Save failed');
+                let errMsg = `HTTP ${res.status}`;
+                try { const e = await res.json(); errMsg = e.error || errMsg; } catch {}
+                throw new Error(errMsg);
             }
 
             const saved = await res.json();
@@ -488,7 +488,7 @@ Object.assign(App.prototype, {
             if (panel && panel.classList.contains('active')) this._loadBoardsList();
         } catch (err) {
             console.error('Save board error:', err);
-            this.uiManager.updateStatus('Failed to save board', '#e74c3c');
+            this.uiManager.updateStatus(`Save failed: ${err.message}`, '#e74c3c');
         }
     },
 
