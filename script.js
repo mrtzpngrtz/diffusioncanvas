@@ -529,9 +529,7 @@ Object.assign(App.prototype, {
             this.currentBoardName = saved.name;
             this._updateBoardUI();
             this.uiManager.updateStatus(`"${saved.name}" saved`, '#27ae60');
-
-            const modal = document.getElementById('boardsModal');
-            if (modal && modal.classList.contains('active')) this._loadBoardsList();
+            this.closeBoardsModal();
         } catch (err) {
             console.error('Save board error:', err);
             this.uiManager.updateStatus(`Save failed: ${err.message}`, '#e74c3c');
@@ -560,7 +558,7 @@ Object.assign(App.prototype, {
             this.currentBoardName = meta ? meta.name : 'Board';
             this._updateBoardUI();
             this.uiManager.updateStatus(`"${this.currentBoardName}" loaded`, '#27ae60');
-            this._loadBoardsList();
+            this.closeBoardsModal();
         } catch (err) {
             console.error('Load board error:', err);
             this.uiManager.updateStatus('Failed to load board', '#e74c3c');
