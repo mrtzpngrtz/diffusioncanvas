@@ -607,8 +607,11 @@ Object.assign(App.prototype, {
     },
 
     _updateBoardUI() {
-        const nameEl = document.getElementById('currentBoardName');
-        if (nameEl) nameEl.textContent = this.currentBoardName || '';
+        const name = this.currentBoardName || '';
+        const sidebarEl = document.getElementById('currentBoardName');
+        if (sidebarEl) sidebarEl.textContent = name;
+        const topBarEl = document.getElementById('topBarBoardName');
+        if (topBarEl) topBarEl.textContent = name;
         if (this.currentBoardId) {
             localStorage.setItem('diffusionCanvas_lastBoardId', this.currentBoardId);
         } else {
