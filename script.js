@@ -60,6 +60,7 @@ class App {
         document.getElementById('addActionNode').addEventListener('click', () => this.addNode('action'));
         document.getElementById('addDrawNode').addEventListener('click', () => this.addNode('draw'));
         
+        document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
 
         document.getElementById('saveBoardBtn').addEventListener('click', () => this.saveBoard());
@@ -80,6 +81,17 @@ class App {
         let offsetY = -75;
         this.nodeManager.createNode(type, center.x + offsetX, center.y + offsetY);
     }
+
+    resetAllImageSizes() {
+        const count = this.nodeManager.nodes.filter(n => n.type === 'image' || n.type === 'result').length;
+        if (!count) return;
+        this.nodeManager.nodes.forEach(n => {
+            if (n.type === 'image' || n.type === 'result') {
+                n.element.style.width = '400px';
+            }
+        });
+        this.uiManager.updateStatus(`Reset ${count} image${count !== 1 ? 's' : ''} to standard size`);
+    },
 
     async clearCanvas() {
         if (await this._confirm('Clear all nodes? This cannot be undone.')) {
