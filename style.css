@@ -1708,8 +1708,8 @@ body {
 .boards-modal-inner {
     background: var(--surface);
     border: 1px solid var(--border);
-    width: 360px;
-    max-height: 70vh;
+    width: min(860px, 92vw);
+    max-height: 82vh;
     display: flex;
     flex-direction: column;
 }
@@ -1749,43 +1749,111 @@ body {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    padding: 16px;
 }
 
 .boards-modal-body::-webkit-scrollbar { width: 3px; }
 .boards-modal-body::-webkit-scrollbar-track { background: transparent; }
 .boards-modal-body::-webkit-scrollbar-thumb { background: var(--border-light); }
 
-.board-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border-light);
-    gap: 8px;
-    transition: background 0.1s;
+.boards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
 }
 
-.board-item:hover { background: var(--bg); }
+.board-card {
+    border: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.15s;
+    cursor: default;
+}
 
-.board-item.active { border-left: 2px solid var(--text); padding-left: 12px; }
+.board-card:hover { border-color: var(--border); }
 
-.board-item-name {
-    flex: 1;
+.board-card.active { border-color: var(--text); }
+
+.board-card-preview {
+    position: relative;
+    aspect-ratio: 16/9;
+    background: var(--bg);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.board-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.board-card-no-preview {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--text);
+    font-size: 8px;
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.1em;
+}
+
+.board-card-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--text);
+    color: var(--surface);
+    font-family: var(--font-mono);
+    font-size: 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 2px 5px;
+}
+
+.board-card-meta {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 1px solid var(--border-light);
+}
+
+.board-card-name {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text);
+    font-weight: 500;
+    letter-spacing: 0.04em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    min-width: 0;
 }
 
-.board-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.board-card-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.board-card-dates span {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+}
+
+.board-card-actions {
+    display: flex;
+    gap: 6px;
+}
 
 .board-btn {
-    padding: 4px 8px;
+    padding: 5px 10px;
     background: transparent;
     border: 1px solid var(--border-light);
     color: var(--text-muted);
@@ -1794,13 +1862,15 @@ body {
     font-family: var(--font-mono);
     transition: all 0.1s;
     line-height: 1;
+    flex: 1;
+    text-align: center;
 }
 
 .board-btn:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
 .board-delete-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .boards-empty {
-    padding: 24px 14px;
+    padding: 40px 14px;
     font-family: var(--font-mono);
     font-size: 8px;
     color: var(--text-muted);

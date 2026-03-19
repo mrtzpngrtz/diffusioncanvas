@@ -451,15 +451,27 @@ Object.assign(App.prototype, {
                 return;
             }
 
-            listEl.innerHTML = boards.map(b => `
-                <div class="board-item${b.id === this.currentBoardId ? ' active' : ''}" data-id="${b.id}">
-                    <span class="board-item-name">${this._escHtml(b.name)}</span>
-                    <div class="board-item-actions">
-                        <button class="board-btn board-load-btn" data-id="${b.id}" title="Load">↑</button>
-                        <button class="board-btn board-delete-btn" data-id="${b.id}" title="Delete">✕</button>
+            listEl.innerHTML = `<div class="boards-grid">${boards.map(b => `
+                <div class="board-card${b.id === this.currentBoardId ? ' active' : ''}" data-id="${b.id}">
+                    <div class="board-card-preview">
+                        ${b.preview
+                            ? `<img src="${b.preview}" alt="preview" class="board-card-img">`
+                            : `<div class="board-card-no-preview">no preview</div>`}
+                        ${b.id === this.currentBoardId ? '<div class="board-card-badge">active</div>' : ''}
+                    </div>
+                    <div class="board-card-meta">
+                        <div class="board-card-name">${this._escHtml(b.name)}</div>
+                        <div class="board-card-dates">
+                            <span>Created ${this._fmtDate(b.createdAt)}</span>
+                            <span>Updated ${this._fmtDate(b.updatedAt)}</span>
+                        </div>
+                        <div class="board-card-actions">
+                            <button class="board-btn board-load-btn" data-id="${b.id}">↑ Load</button>
+                            <button class="board-btn board-delete-btn" data-id="${b.id}">✕ Delete</button>
+                        </div>
                     </div>
                 </div>
-            `).join('');
+            `).join('')}</div>`;
 
             listEl.querySelectorAll('.board-load-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => { e.stopPropagation(); this._loadBoardFromServer(btn.dataset.id); });
@@ -493,7 +505,8 @@ Object.assign(App.prototype, {
         this.uiManager.updateStatus('Saving board...');
         try {
             const state = this.serializeCanvas();
-            const body = { name, state };
+            const preview = this._generatePreview();
+            const body = { name, state, preview };
             if (id) body.id = id;
 
             const res = await fetch('/api/boards', {
@@ -580,12 +593,74 @@ Object.assign(App.prototype, {
         }
     },
 
+    _generatePreview() {
+        const nodes = this.nodeManager.nodes;
+        if (!nodes.length) return null;
+
+        const W = 320, H = 180;
+        const cvs = document.createElement('canvas');
+        cvs.width = W; cvs.height = H;
+        const ctx = cvs.getContext('2d');
+
+        // Background
+        ctx.fillStyle = '#111111';
+        ctx.fillRect(0, 0, W, H);
+
+        // Dot grid
+        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        for (let gx = 0; gx < W; gx += 20) {
+            for (let gy = 0; gy < H; gy += 20) {
+                ctx.beginPath();
+                ctx.arc(gx, gy, 0.9, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Node bounds
+        const xs = nodes.map(n => n.position.x);
+        const ys = nodes.map(n => n.position.y);
+        const xe = nodes.map(n => n.position.x + (n.element ? n.element.offsetWidth : 220));
+        const ye = nodes.map(n => n.position.y + (n.element ? n.element.offsetHeight : 120));
+
+        const pad = 20;
+        const minX = Math.min(...xs) - pad;
+        const maxX = Math.max(...xe) + pad;
+        const minY = Math.min(...ys) - pad;
+        const maxY = Math.max(...ye) + pad;
+
+        const rangeX = maxX - minX || 1;
+        const rangeY = maxY - minY || 1;
+
+        const scale = Math.min((W - pad * 2) / rangeX, (H - pad * 2) / rangeY);
+        const offX = pad + ((W - pad * 2) - rangeX * scale) / 2;
+        const offY = pad + ((H - pad * 2) - rangeY * scale) / 2;
+
+        const colors = { image: '#667eea', prompt: '#48bb78', action: '#ed8936', result: '#9f7aea', draw: '#e53e3e' };
+
+        nodes.forEach(n => {
+            const x = offX + (n.position.x - minX) * scale;
+            const y = offY + (n.position.y - minY) * scale;
+            const w = Math.max((n.element ? n.element.offsetWidth : 220) * scale, 16);
+            const h = Math.max((n.element ? n.element.offsetHeight : 120) * scale, 10);
+            const c = colors[n.type] || '#888888';
+            ctx.fillStyle = c + '33';
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = c;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(x, y, w, h);
+        });
+
+        return cvs.toDataURL('image/jpeg', 0.6);
+    },
+
     _escHtml(str) {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     },
 
     _fmtDate(iso) {
+        if (!iso) return '—';
         const d = new Date(iso);
-        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+            + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     }
 });

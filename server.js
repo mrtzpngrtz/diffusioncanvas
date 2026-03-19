@@ -517,7 +517,7 @@ app.get('/api/boards', isAuthenticated, async (req, res) => {
     try {
         const boards = await storage.getBoards(req.user.id);
         const meta = boards
-            .map(({ state, ...m }) => m)
+            .map(({ state, ...m }) => m)  // exclude heavy state; keep preview
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         res.json(meta);
     } catch (error) {
@@ -529,7 +529,7 @@ app.get('/api/boards', isAuthenticated, async (req, res) => {
 // POST /api/boards — create or update a board
 app.post('/api/boards', isAuthenticated, async (req, res) => {
     try {
-        const { name, state } = req.body;
+        const { name, state, preview } = req.body;
         let { id } = req.body;
 
         if (!name || !name.trim()) {
@@ -545,7 +545,9 @@ app.post('/api/boards', isAuthenticated, async (req, res) => {
 
         const boards = await storage.getBoards(req.user.id);
         const existing = boards.findIndex(b => b.id === id);
-        const board = { id, name: name.trim(), updatedAt: new Date().toISOString(), state };
+        const now = new Date().toISOString();
+        const createdAt = existing >= 0 ? boards[existing].createdAt : now;
+        const board = { id, name: name.trim(), createdAt, updatedAt: now, preview: preview || null, state };
 
         if (existing >= 0) {
             boards[existing] = board;
@@ -554,7 +556,7 @@ app.post('/api/boards', isAuthenticated, async (req, res) => {
         }
 
         await storage.setBoards(req.user.id, boards);
-        res.json({ id: board.id, name: board.name, updatedAt: board.updatedAt });
+        res.json({ id: board.id, name: board.name, createdAt: board.createdAt, updatedAt: board.updatedAt });
     } catch (error) {
         console.error('Error saving board:', error);
         res.status(500).json({ error: 'Failed to save board' });
