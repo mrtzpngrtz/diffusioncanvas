@@ -36,6 +36,9 @@ class App {
         this.canvasManager.init();
         this.nodeManager.init();
 
+        this.currentBoardId = null;
+        this.currentBoardName = null;
+
         this.init();
     }
 
@@ -60,6 +63,13 @@ class App {
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
         document.getElementById('saveCanvas').addEventListener('click', () => this.saveCanvas());
         document.getElementById('loadCanvas').addEventListener('click', () => this.loadCanvas());
+
+        document.getElementById('saveBoardBtn').addEventListener('click', () => this.saveBoard());
+        document.getElementById('openBoardsBtn').addEventListener('click', () => this.toggleBoardsPanel());
+        document.getElementById('boardsPanelClose').addEventListener('click', () => {
+            document.getElementById('boardsPanel').classList.remove('active');
+        });
+        document.getElementById('newBoardBtn').addEventListener('click', () => this.saveBoardAsNew());
     }
 
     addNode(type) {
@@ -373,4 +383,175 @@ class App {
 // Initialize App
 window.addEventListener('load', () => {
     new App();
+});
+
+// ── BOARDS ───────────────────────────────────────────────────────────────────
+
+Object.assign(App.prototype, {
+
+    toggleBoardsPanel() {
+        const panel = document.getElementById('boardsPanel');
+        if (!panel) return;
+        if (panel.classList.contains('active')) {
+            panel.classList.remove('active');
+        } else {
+            panel.classList.add('active');
+            this._loadBoardsList();
+        }
+    },
+
+    async _loadBoardsList() {
+        const listEl = document.getElementById('boardsList');
+        if (!listEl) return;
+        listEl.innerHTML = '<div class="boards-empty">Loading...</div>';
+
+        try {
+            const res = await fetch('/api/boards', { credentials: 'include' });
+            if (!res.ok) {
+                listEl.innerHTML = '<div class="boards-empty">Sign in to use boards</div>';
+                return;
+            }
+            const boards = await res.json();
+
+            if (boards.length === 0) {
+                listEl.innerHTML = '<div class="boards-empty">No saved boards yet</div>';
+                return;
+            }
+
+            listEl.innerHTML = boards.map(b => `
+                <div class="board-item${b.id === this.currentBoardId ? ' active' : ''}" data-id="${b.id}">
+                    <div class="board-item-info">
+                        <span class="board-item-name">${this._escHtml(b.name)}</span>
+                        <span class="board-item-date">${this._fmtDate(b.updatedAt)}</span>
+                    </div>
+                    <div class="board-item-actions">
+                        <button class="board-btn board-load-btn" data-id="${b.id}" title="Load board">↑</button>
+                        <button class="board-btn board-delete-btn" data-id="${b.id}" title="Delete board">✕</button>
+                    </div>
+                </div>
+            `).join('');
+
+            listEl.querySelectorAll('.board-load-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => { e.stopPropagation(); this._loadBoardFromServer(btn.dataset.id); });
+            });
+            listEl.querySelectorAll('.board-delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => { e.stopPropagation(); this._deleteBoardFromServer(btn.dataset.id); });
+            });
+        } catch (err) {
+            listEl.innerHTML = '<div class="boards-empty">Failed to load boards</div>';
+        }
+    },
+
+    async saveBoard() {
+        let name = this.currentBoardName;
+        if (!name) {
+            name = prompt('Board name:', 'Untitled Board');
+            if (!name || !name.trim()) return;
+            name = name.trim();
+        }
+        await this._saveBoardToServer(name, this.currentBoardId);
+    },
+
+    async saveBoardAsNew() {
+        const suggested = this.currentBoardName ? `${this.currentBoardName} copy` : 'Untitled Board';
+        const name = prompt('Board name:', suggested);
+        if (!name || !name.trim()) return;
+        await this._saveBoardToServer(name.trim(), null);
+    },
+
+    async _saveBoardToServer(name, id) {
+        this.uiManager.updateStatus('Saving board...');
+        try {
+            const state = this.serializeCanvas();
+            const body = { name, state };
+            if (id) body.id = id;
+
+            const res = await fetch('/api/boards', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Save failed');
+            }
+
+            const saved = await res.json();
+            this.currentBoardId = saved.id;
+            this.currentBoardName = saved.name;
+            this._updateBoardUI();
+            this.uiManager.updateStatus(`"${saved.name}" saved`, '#27ae60');
+
+            const panel = document.getElementById('boardsPanel');
+            if (panel && panel.classList.contains('active')) this._loadBoardsList();
+        } catch (err) {
+            console.error('Save board error:', err);
+            this.uiManager.updateStatus('Failed to save board', '#e74c3c');
+        }
+    },
+
+    async _loadBoardFromServer(boardId) {
+        if (this.nodeManager.nodes.length > 0) {
+            if (!confirm('Loading will replace the current canvas. Continue?')) return;
+        }
+        this.uiManager.updateStatus('Loading board...');
+        try {
+            const [stateRes, listRes] = await Promise.all([
+                fetch(`/api/boards/${boardId}`, { credentials: 'include' }),
+                fetch('/api/boards', { credentials: 'include' })
+            ]);
+            if (!stateRes.ok) throw new Error('Board not found');
+            const state = await stateRes.json();
+            const boards = await listRes.json();
+            const meta = boards.find(b => b.id === boardId);
+
+            this._clearCanvasImmediate();
+            await this.deserializeCanvas(state);
+
+            this.currentBoardId = boardId;
+            this.currentBoardName = meta ? meta.name : 'Board';
+            this._updateBoardUI();
+            this.uiManager.updateStatus(`"${this.currentBoardName}" loaded`, '#27ae60');
+            this._loadBoardsList();
+        } catch (err) {
+            console.error('Load board error:', err);
+            this.uiManager.updateStatus('Failed to load board', '#e74c3c');
+        }
+    },
+
+    async _deleteBoardFromServer(boardId) {
+        if (!confirm('Delete this board? This cannot be undone.')) return;
+        try {
+            const res = await fetch(`/api/boards/${boardId}`, { method: 'DELETE', credentials: 'include' });
+            if (!res.ok) throw new Error('Delete failed');
+            if (this.currentBoardId === boardId) {
+                this.currentBoardId = null;
+                this.currentBoardName = null;
+                this._updateBoardUI();
+            }
+            this._loadBoardsList();
+            this.uiManager.updateStatus('Board deleted');
+        } catch (err) {
+            console.error('Delete board error:', err);
+            this.uiManager.updateStatus('Failed to delete board', '#e74c3c');
+        }
+    },
+
+    _updateBoardUI() {
+        const nameEl = document.getElementById('currentBoardName');
+        if (nameEl) nameEl.textContent = this.currentBoardName || '';
+        const saveBtn = document.getElementById('saveBoardBtn');
+        if (saveBtn) saveBtn.textContent = this.currentBoardId ? '↑ Save Board' : '↑ Save Board';
+    },
+
+    _escHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    },
+
+    _fmtDate(iso) {
+        const d = new Date(iso);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+    }
 });

@@ -9,8 +9,10 @@ const __dirname = path.dirname(__filename);
 
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
 const SETTINGS_FILE = path.join(__dirname, 'data', 'settings.json');
+const BOARDS_FILE = path.join(__dirname, 'data', 'boards.json');
 const KV_USERS_KEY = 'diffusion_canvas_users';
 const KV_SETTINGS_KEY = 'diffusion_canvas_settings';
+const boardsKey = (userId) => `diffusion_canvas_boards_${userId}`;
 
 // Try Vercel KV first, then Upstash Redis, then local file
 // Check for both standard and prefixed environment variable names
@@ -151,6 +153,61 @@ export const storage = {
         }
     },
 
+    async getBoards(userId) {
+        if (redis) {
+            try {
+                const data = await redis.get(boardsKey(userId));
+                if (!data) return [];
+                return typeof data === 'string' ? JSON.parse(data) : data;
+            } catch (error) {
+                console.error('Redis getBoards error:', error);
+                return [];
+            }
+        } else if (hasVercelKV) {
+            try {
+                const data = await kv.get(boardsKey(userId));
+                return data || [];
+            } catch (error) {
+                console.error('KV getBoards error:', error);
+                return [];
+            }
+        } else {
+            try {
+                const data = await fs.readFile(BOARDS_FILE, 'utf-8');
+                const all = JSON.parse(data);
+                return all[userId] || [];
+            } catch {
+                return [];
+            }
+        }
+    },
+
+    async setBoards(userId, boards) {
+        if (redis) {
+            try {
+                await redis.set(boardsKey(userId), JSON.stringify(boards));
+            } catch (error) {
+                console.error('Redis setBoards error:', error);
+                throw error;
+            }
+        } else if (hasVercelKV) {
+            try {
+                await kv.set(boardsKey(userId), boards);
+            } catch (error) {
+                console.error('KV setBoards error:', error);
+                throw error;
+            }
+        } else {
+            let all = {};
+            try {
+                const data = await fs.readFile(BOARDS_FILE, 'utf-8');
+                all = JSON.parse(data);
+            } catch { /* file doesn't exist yet */ }
+            all[userId] = boards;
+            await fs.writeFile(BOARDS_FILE, JSON.stringify(all, null, 2));
+        }
+    },
+
     async init() {
         if (redis) {
             console.log('✓ Using Upstash Redis for persistent storage');
@@ -191,6 +248,19 @@ export const storage = {
                         return;
                     }
                     console.error('File storage initialization error:', error);
+                }
+            }
+
+            // Initialize boards file
+            try {
+                await fs.access(BOARDS_FILE);
+            } catch {
+                try {
+                    await fs.writeFile(BOARDS_FILE, JSON.stringify({}, null, 2));
+                } catch (error) {
+                    if (error.code !== 'EROFS') {
+                        console.error('Boards file initialization error:', error);
+                    }
                 }
             }
 

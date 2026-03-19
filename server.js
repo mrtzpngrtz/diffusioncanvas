@@ -509,6 +509,83 @@ app.delete('/api/user/delete', isAuthenticated, async (req, res) => {
     }
 });
 
+// ── BOARDS API ─────────────────────────────────────────────────────────────
+
+// GET /api/boards — list board metadata for current user (no state payload)
+app.get('/api/boards', isAuthenticated, async (req, res) => {
+    try {
+        const boards = await storage.getBoards(req.user.id);
+        const meta = boards
+            .map(({ state, ...m }) => m)
+            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        res.json(meta);
+    } catch (error) {
+        console.error('Error listing boards:', error);
+        res.status(500).json({ error: 'Failed to list boards' });
+    }
+});
+
+// POST /api/boards — create or update a board
+app.post('/api/boards', isAuthenticated, async (req, res) => {
+    try {
+        const { name, state } = req.body;
+        let { id } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'Board name is required' });
+        }
+        if (!state || !state.nodes) {
+            return res.status(400).json({ error: 'Invalid canvas state' });
+        }
+
+        if (!id) {
+            id = `${req.user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        }
+
+        const boards = await storage.getBoards(req.user.id);
+        const existing = boards.findIndex(b => b.id === id);
+        const board = { id, name: name.trim(), updatedAt: new Date().toISOString(), state };
+
+        if (existing >= 0) {
+            boards[existing] = board;
+        } else {
+            boards.push(board);
+        }
+
+        await storage.setBoards(req.user.id, boards);
+        res.json({ id: board.id, name: board.name, updatedAt: board.updatedAt });
+    } catch (error) {
+        console.error('Error saving board:', error);
+        res.status(500).json({ error: 'Failed to save board' });
+    }
+});
+
+// GET /api/boards/:id — load full canvas state for one board
+app.get('/api/boards/:id', isAuthenticated, async (req, res) => {
+    try {
+        const boards = await storage.getBoards(req.user.id);
+        const board = boards.find(b => b.id === req.params.id);
+        if (!board) return res.status(404).json({ error: 'Board not found' });
+        res.json(board.state);
+    } catch (error) {
+        console.error('Error loading board:', error);
+        res.status(500).json({ error: 'Failed to load board' });
+    }
+});
+
+// DELETE /api/boards/:id — delete a board
+app.delete('/api/boards/:id', isAuthenticated, async (req, res) => {
+    try {
+        const boards = await storage.getBoards(req.user.id);
+        const filtered = boards.filter(b => b.id !== req.params.id);
+        await storage.setBoards(req.user.id, filtered);
+        res.json({ message: 'Board deleted' });
+    } catch (error) {
+        console.error('Error deleting board:', error);
+        res.status(500).json({ error: 'Failed to delete board' });
+    }
+});
+
 // Update user credits (admin only)
 app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
     try {
