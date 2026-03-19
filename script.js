@@ -66,9 +66,6 @@ class App {
 
         document.getElementById('saveBoardBtn').addEventListener('click', () => this.saveBoard());
         document.getElementById('openBoardsBtn').addEventListener('click', () => this.toggleBoardsPanel());
-        document.getElementById('boardsPanelClose').addEventListener('click', () => {
-            document.getElementById('boardsPanel').classList.remove('active');
-        });
         document.getElementById('newBoardBtn').addEventListener('click', () => this.saveBoardAsNew());
     }
 
@@ -389,12 +386,15 @@ window.addEventListener('load', () => {
 Object.assign(App.prototype, {
 
     toggleBoardsPanel() {
-        const panel = document.getElementById('boardsPanel');
-        if (!panel) return;
-        if (panel.classList.contains('active')) {
-            panel.classList.remove('active');
+        const listEl = document.getElementById('boardsList');
+        if (!listEl) return;
+        const isOpen = listEl.style.display !== 'none';
+        if (isOpen) {
+            listEl.style.display = 'none';
+            document.getElementById('openBoardsBtn').classList.remove('active');
         } else {
-            panel.classList.add('active');
+            listEl.style.display = 'block';
+            document.getElementById('openBoardsBtn').classList.add('active');
             this._loadBoardsList();
         }
     },
@@ -413,19 +413,16 @@ Object.assign(App.prototype, {
             const boards = await res.json();
 
             if (boards.length === 0) {
-                listEl.innerHTML = '<div class="boards-empty">No saved boards yet</div>';
+                listEl.innerHTML = '<div class="boards-empty">No boards yet</div>';
                 return;
             }
 
             listEl.innerHTML = boards.map(b => `
                 <div class="board-item${b.id === this.currentBoardId ? ' active' : ''}" data-id="${b.id}">
-                    <div class="board-item-info">
-                        <span class="board-item-name">${this._escHtml(b.name)}</span>
-                        <span class="board-item-date">${this._fmtDate(b.updatedAt)}</span>
-                    </div>
+                    <span class="board-item-name">${this._escHtml(b.name)}</span>
                     <div class="board-item-actions">
-                        <button class="board-btn board-load-btn" data-id="${b.id}" title="Load board">↑</button>
-                        <button class="board-btn board-delete-btn" data-id="${b.id}" title="Delete board">✕</button>
+                        <button class="board-btn board-load-btn" data-id="${b.id}" title="Load">↑</button>
+                        <button class="board-btn board-delete-btn" data-id="${b.id}" title="Delete">✕</button>
                     </div>
                 </div>
             `).join('');
@@ -437,7 +434,7 @@ Object.assign(App.prototype, {
                 btn.addEventListener('click', (e) => { e.stopPropagation(); this._deleteBoardFromServer(btn.dataset.id); });
             });
         } catch (err) {
-            listEl.innerHTML = '<div class="boards-empty">Failed to load boards</div>';
+            listEl.innerHTML = '<div class="boards-empty">Failed to load</div>';
         }
     },
 
@@ -484,8 +481,8 @@ Object.assign(App.prototype, {
             this._updateBoardUI();
             this.uiManager.updateStatus(`"${saved.name}" saved`, '#27ae60');
 
-            const panel = document.getElementById('boardsPanel');
-            if (panel && panel.classList.contains('active')) this._loadBoardsList();
+            const listEl = document.getElementById('boardsList');
+            if (listEl && listEl.style.display !== 'none') this._loadBoardsList();
         } catch (err) {
             console.error('Save board error:', err);
             this.uiManager.updateStatus(`Save failed: ${err.message}`, '#e74c3c');

@@ -80,7 +80,8 @@
             <div id="currentBoardName" class="board-name-display"></div>
             <button id="saveBoardBtn" class="btn">↑ Save Board</button>
             <button id="newBoardBtn" class="btn">+ Save as New</button>
-            <button id="openBoardsBtn" class="btn">☰ Open Boards</button>
+            <button id="openBoardsBtn" class="btn">☰ Switch Board</button>
+            <div id="boardsList" class="boards-inline-list" style="display:none;"></div>
         </div>
         
         <!-- Status (Bottom Center) -->
@@ -124,15 +125,6 @@
             <canvas class="minimap-canvas" id="minimapCanvas"></canvas>
             <div class="minimap-viewport" id="minimapViewport"></div>
         </div>
-    </div>
-
-    <!-- Boards Panel -->
-    <div class="boards-panel" id="boardsPanel">
-        <div class="boards-panel-header">
-            <span class="boards-panel-title">Boards</span>
-            <button class="boards-panel-close" id="boardsPanelClose">✕</button>
-        </div>
-        <div class="boards-list" id="boardsList"></div>
     </div>
 
     <!-- Lightbox -->
