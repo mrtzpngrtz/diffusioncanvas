@@ -226,11 +226,50 @@ class App {
     }
 
     startAutoSave() {
+        // Local autosave every 5s
         setInterval(() => {
             if (this.nodeManager.nodes.length > 0) {
                 this.autoSaveCanvas();
             }
         }, 5000);
+
+        // Server autosave every 30s
+        setInterval(() => {
+            if (this.currentBoardId) {
+                this._autoSaveToServer();
+            }
+        }, 30000);
+    }
+
+    async _autoSaveToServer() {
+        const badge = document.getElementById('autosaveBadge');
+        const show = (cls, text) => {
+            if (!badge) return;
+            badge.className = `autosave-badge visible ${cls}`;
+            badge.textContent = text;
+        };
+        show('saving', '● saving…');
+        try {
+            const state = this.serializeCanvas();
+            state.preview = this._generatePreview();
+            const res = await fetch(`/api/boards/${this.currentBoardId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ name: this.currentBoardName, state, preview: state.preview })
+            });
+            if (!res.ok) throw new Error(res.statusText);
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            show('saved', `✓ saved ${hh}:${mm}:${ss}`);
+            // Fade out after 4s
+            setTimeout(() => { if (badge) badge.classList.remove('visible'); }, 4000);
+        } catch (e) {
+            show('error', '✕ save failed');
+            setTimeout(() => { if (badge) badge.classList.remove('visible'); }, 5000);
+        }
     }
 
     autoSaveCanvas() {
@@ -267,48 +306,9 @@ class App {
     }
 
     async restoreAutoSavedCanvas() {
-        // Try to restore last server board first
-        const lastBoardId = localStorage.getItem('diffusionCanvas_lastBoardId');
-        if (lastBoardId) {
-            try {
-                const res = await fetch(`/api/boards/${lastBoardId}`, { credentials: 'include' });
-                if (res.ok) {
-                    const state = await res.json();
-                    const listRes = await fetch('/api/boards', { credentials: 'include' });
-                    if (listRes.ok) {
-                        const boards = await listRes.json();
-                        const meta = boards.find(b => b.id === lastBoardId);
-                        if (meta) {
-                            this.currentBoardId = lastBoardId;
-                            this.currentBoardName = meta.name;
-                            this._updateBoardUI();
-                        }
-                    }
-                    await this.deserializeCanvas(state);
-                    this.uiManager.updateStatus(`"${this.currentBoardName || 'Board'}" restored`, '#667eea');
-                    this.toggleBoardsPanel(); // always show picker on startup
-                    return;
-                }
-            } catch (e) {
-                console.warn('Could not restore server board, falling back to local save', e);
-            }
-        }
-
-        // Fall back to localStorage autosave
-        try {
-            const savedState = localStorage.getItem('diffusionCanvas_autoSave');
-            if (!savedState) {
-                this.uiManager.updateStatus('Ready');
-                this.toggleBoardsPanel(); // no board — show picker
-                return;
-            }
-            const canvasState = JSON.parse(savedState);
-            this.deserializeCanvas(canvasState);
-            this.uiManager.updateStatus('Canvas restored from auto-save', '#667eea');
-            this.toggleBoardsPanel(); // always show picker on startup
-        } catch (error) {
-            console.error('Auto-restore error:', error);
-        }
+        // Always open the board manager on startup — user picks what to open
+        this.uiManager.updateStatus('Ready');
+        this.toggleBoardsPanel();
     }
 
     serializeCanvas() {

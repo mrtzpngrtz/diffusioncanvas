@@ -134,6 +134,20 @@ body {
     font-size: 9px;
 }
 
+.autosave-badge {
+    font-size: 9px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    margin-left: 8px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.4s;
+}
+.autosave-badge.visible { opacity: 1; }
+.autosave-badge.saving  { color: #667eea; }
+.autosave-badge.saved   { color: #48bb78; }
+.autosave-badge.error   { color: #fc8181; }
+
 .top-bar-right {
     display: flex;
     align-items: stretch;
