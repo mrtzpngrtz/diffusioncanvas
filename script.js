@@ -226,13 +226,6 @@ class App {
     }
 
     startAutoSave() {
-        // Local autosave every 5s
-        setInterval(() => {
-            if (this.nodeManager.nodes.length > 0) {
-                this.autoSaveCanvas();
-            }
-        }, 5000);
-
         // Server autosave every 30s
         setInterval(() => {
             if (this.currentBoardId) {
@@ -272,38 +265,6 @@ class App {
         }
     }
 
-    autoSaveCanvas() {
-        try {
-            const canvasState = this.serializeCanvas();
-            localStorage.setItem('diffusionCanvas_autoSave', JSON.stringify(canvasState));
-
-            // Visual indicator — blueprint style
-            const existing = document.getElementById('autosave-indicator');
-            if (existing) existing.remove();
-
-            const indicator = document.createElement('div');
-            indicator.id = 'autosave-indicator';
-            indicator.style.cssText = `
-                position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%);
-                background: #111; color: #fff;
-                padding: 5px 18px; font-size: 8px;
-                font-family: 'Roboto Mono', monospace; letter-spacing: 0.14em;
-                text-transform: uppercase; z-index: 10000;
-                border: 1px solid #111; white-space: nowrap;
-                animation: fadeInOut 2s ease-in-out forwards;
-            `;
-            indicator.textContent = 'AUTOSAVED';
-            document.body.appendChild(indicator);
-            setTimeout(() => indicator.remove(), 2000);
-        } catch (error) {
-            if (error.name === 'QuotaExceededError') {
-                // Canvas too large for localStorage — silently skip, server boards still work
-                console.warn('Auto-save skipped: canvas too large for localStorage');
-            } else {
-                console.error('Auto-save error:', error);
-            }
-        }
-    }
 
     async restoreAutoSavedCanvas() {
         // If refreshed within the same tab session, restore the last board silently
@@ -760,10 +721,8 @@ Object.assign(App.prototype, {
         const topBarEl = document.getElementById('topBarBoardName');
         if (topBarEl) topBarEl.textContent = name;
         if (this.currentBoardId) {
-            localStorage.setItem('diffusionCanvas_lastBoardId', this.currentBoardId);
             sessionStorage.setItem('diffusionCanvas_sessionBoardId', this.currentBoardId);
         } else {
-            localStorage.removeItem('diffusionCanvas_lastBoardId');
             sessionStorage.removeItem('diffusionCanvas_sessionBoardId');
         }
     },
