@@ -286,6 +286,7 @@ class App {
                     }
                     await this.deserializeCanvas(state);
                     this.uiManager.updateStatus(`"${this.currentBoardName || 'Board'}" restored`, '#667eea');
+                    this.toggleBoardsPanel(); // always show picker on startup
                     return;
                 }
             } catch (e) {
@@ -304,6 +305,7 @@ class App {
             const canvasState = JSON.parse(savedState);
             this.deserializeCanvas(canvasState);
             this.uiManager.updateStatus('Canvas restored from auto-save', '#667eea');
+            this.toggleBoardsPanel(); // always show picker on startup
         } catch (error) {
             console.error('Auto-restore error:', error);
         }
