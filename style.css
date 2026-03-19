@@ -33,9 +33,9 @@ body {
 
 .canvas-container {
     position: fixed;
-    top: 0; left: 0;
+    top: 62px; left: 0;
     width: 100vw;
-    height: 100vh;
+    height: calc(100vh - 62px);
     overflow: hidden;
     background: var(--bg);
     background-image:
@@ -62,70 +62,50 @@ body {
     pointer-events: none;
 }
 
-/* ============ CANVAS TITLE (TOP LEFT) ============ */
+/* ============ TOP BAR ============ */
 
-.canvas-title {
-    position: absolute;
-    top: 0; left: 0;
-    font-family: var(--font-sans);
-    pointer-events: none;
-    z-index: 1001;
+.top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 62px;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
     background: var(--surface);
-    border-right: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
-    padding: 14px 20px 12px;
-    line-height: 1;
+    z-index: 1001;
 }
 
-.canvas-title > div:first-child {
-    font-size: 22px;
+.top-bar-logo {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 20px;
+    border-right: 1px solid var(--border);
+    line-height: 1;
+    gap: 5px;
+}
+
+.top-bar-title {
+    font-size: 16px;
     font-weight: 800;
     color: var(--text);
     text-transform: uppercase;
     letter-spacing: -0.03em;
+    font-family: var(--font-sans);
 }
 
-.canvas-title > div:nth-child(2) {
+.top-bar-sub {
     font-size: 9px;
     font-family: var(--font-mono);
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.18em;
-    margin-top: 5px;
+    letter-spacing: 0.12em;
 }
 
-.canvas-credit {
-    font-size: 9px;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-    margin-top: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    opacity: 0.7;
-}
-
-.canvas-credit a {
-    color: var(--text-muted);
-    text-decoration: underline;
-    pointer-events: auto;
-    cursor: pointer;
-}
-
-.canvas-credit a:hover {
-    color: var(--accent);
-}
-
-/* ============ CANVAS CONTROLS (TOP RIGHT) ============ */
-
-.canvas-controls {
-    position: absolute;
-    top: 0; right: 0;
+.top-bar-right {
     display: flex;
     align-items: stretch;
-    border-left: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    z-index: 1000;
 }
 
 /* ============ THEME TOGGLE ============ */
@@ -156,7 +136,7 @@ body {
 
 .toolbar-overlay {
     position: absolute;
-    top: 62px;
+    top: 0;
     left: 0;
     display: flex;
     flex-direction: column;

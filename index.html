@@ -59,39 +59,17 @@
         </div>
     </div>
     
-    <div class="canvas-container"> 
-        <!-- Title (Top Left) -->
-        <div class="canvas-title">
-            <div>Diffusion Canvas</div>
-            <div>v1.0 // 2026</div>
-            <div class="canvas-credit">moritzpongratz.com</div>
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <div class="top-bar-logo">
+            <div class="top-bar-title">Diffusion Canvas</div>
+            <div class="top-bar-sub">v1.0 // 2026 — moritzpongratz.com</div>
         </div>
-        
-        <!-- Toolbar (Left) -->
-        <div class="toolbar-overlay">
-            <button id="addImageNode" class="btn">+ Image Node</button>
-            <button id="addPromptNode" class="btn">+ Prompt Node</button>
-            <button id="addActionNode" class="btn">+ Action Node</button>
-            <button id="addDrawNode" class="btn">+ Draw Node</button>
-            <button id="saveCanvas" class="btn btn-section-start">↓ Export</button>
-            <button id="loadCanvas" class="btn">↑ Import</button>
-            <button id="clearCanvas" class="btn btn-danger">✕ Clear</button>
-            <div class="toolbar-section-label">02 — Boards</div>
-            <div id="currentBoardName" class="board-name-display"></div>
-            <button id="saveBoardBtn" class="btn">↑ Save Board</button>
-            <button id="newBoardBtn" class="btn">+ Save as New</button>
-            <button id="openBoardsBtn" class="btn">☰ Switch Board</button>
-        </div>
-        
-        <!-- Status (Bottom Center) -->
-        <div class="status" id="status">Ready</div> 
-        
-        <!-- Top Right Controls -->
-        <div class="canvas-controls">
+        <div class="top-bar-right">
             <div class="user-info-inline" id="userInfo" style="display: none;">
                 <img id="userPhoto" src="" alt="User" class="user-photo">
                 <span id="userName"></span>
-                <span id="userCredits" class="user-credits">0 credits</span>
+                <span id="userCredits" class="user-credits">— credits</span>
                 <a href="/admin" id="adminLink" class="admin-link" style="display: none;">Admin</a>
                 <div class="user-info-wrapper">
                     <button class="user-menu-btn" id="userMenuBtn">⋮</button>
@@ -109,6 +87,27 @@
                 <span class="theme-icon">○</span>
             </button>
         </div>
+    </header>
+
+    <div class="canvas-container">
+        <!-- Toolbar (Left) -->
+        <div class="toolbar-overlay">
+            <button id="addImageNode" class="btn">+ Image Node</button>
+            <button id="addPromptNode" class="btn">+ Prompt Node</button>
+            <button id="addActionNode" class="btn">+ Action Node</button>
+            <button id="addDrawNode" class="btn">+ Draw Node</button>
+            <button id="saveCanvas" class="btn btn-section-start">↓ Export</button>
+            <button id="loadCanvas" class="btn">↑ Import</button>
+            <button id="clearCanvas" class="btn btn-danger">✕ Clear</button>
+            <div class="toolbar-section-label">02 — Boards</div>
+            <div id="currentBoardName" class="board-name-display"></div>
+            <button id="saveBoardBtn" class="btn">↑ Save Board</button>
+            <button id="newBoardBtn" class="btn">+ Save as New</button>
+            <button id="openBoardsBtn" class="btn">☰ Switch Board</button>
+        </div>
+
+        <!-- Status (Bottom Center) -->
+        <div class="status" id="status">Ready</div>
         
         <canvas id="connectionCanvas"></canvas>
         <div id="nodeCanvas" class="node-canvas"></div>
