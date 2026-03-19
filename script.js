@@ -67,6 +67,10 @@ class App {
         document.getElementById('saveBoardBtn').addEventListener('click', () => this.saveBoard());
         document.getElementById('openBoardsBtn').addEventListener('click', () => this.toggleBoardsPanel());
         document.getElementById('newBoardBtn').addEventListener('click', () => this.saveBoardAsNew());
+        document.getElementById('boardsModalClose').addEventListener('click', () => this.closeBoardsModal());
+        document.getElementById('boardsModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) this.closeBoardsModal();
+        });
     }
 
     addNode(type) {
@@ -165,9 +169,12 @@ class App {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = '.json';
-        
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
+            document.body.removeChild(fileInput);
             if (!file) return;
 
             try {
@@ -175,18 +182,15 @@ class App {
                 const canvasState = JSON.parse(text);
 
                 if (this.nodeManager.nodes.length > 0) {
-                    if (!confirm('Loading will replace the current canvas. Continue?')) {
-                        return;
-                    }
+                    if (!confirm('Loading will replace the current canvas. Continue?')) return;
                 }
 
                 this._clearCanvasImmediate();
                 await this.deserializeCanvas(canvasState);
-                
+                this.uiManager.updateStatus('Canvas imported', '#27ae60');
             } catch (error) {
                 console.error('Load error:', error);
-                this.uiManager.updateStatus('Failed to load canvas', '#e74c3c');
-                alert('Failed to load canvas: ' + error.message);
+                this.uiManager.updateStatus('Failed to import canvas', '#e74c3c');
             }
         });
 
@@ -386,21 +390,25 @@ window.addEventListener('load', () => {
 Object.assign(App.prototype, {
 
     toggleBoardsPanel() {
-        const listEl = document.getElementById('boardsList');
-        if (!listEl) return;
-        const isOpen = listEl.style.display !== 'none';
-        if (isOpen) {
-            listEl.style.display = 'none';
-            document.getElementById('openBoardsBtn').classList.remove('active');
+        const modal = document.getElementById('boardsModal');
+        if (!modal) return;
+        if (modal.classList.contains('active')) {
+            this.closeBoardsModal();
         } else {
-            listEl.style.display = 'block';
+            modal.classList.add('active');
             document.getElementById('openBoardsBtn').classList.add('active');
             this._loadBoardsList();
         }
     },
 
+    closeBoardsModal() {
+        const modal = document.getElementById('boardsModal');
+        if (modal) modal.classList.remove('active');
+        document.getElementById('openBoardsBtn').classList.remove('active');
+    },
+
     async _loadBoardsList() {
-        const listEl = document.getElementById('boardsList');
+        const listEl = document.getElementById('boardsModalBody');
         if (!listEl) return;
         listEl.innerHTML = '<div class="boards-empty">Loading...</div>';
 
@@ -481,8 +489,8 @@ Object.assign(App.prototype, {
             this._updateBoardUI();
             this.uiManager.updateStatus(`"${saved.name}" saved`, '#27ae60');
 
-            const listEl = document.getElementById('boardsList');
-            if (listEl && listEl.style.display !== 'none') this._loadBoardsList();
+            const modal = document.getElementById('boardsModal');
+            if (modal && modal.classList.contains('active')) this._loadBoardsList();
         } catch (err) {
             console.error('Save board error:', err);
             this.uiManager.updateStatus(`Save failed: ${err.message}`, '#e74c3c');

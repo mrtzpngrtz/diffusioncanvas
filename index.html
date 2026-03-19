@@ -81,7 +81,6 @@
             <button id="saveBoardBtn" class="btn">↑ Save Board</button>
             <button id="newBoardBtn" class="btn">+ Save as New</button>
             <button id="openBoardsBtn" class="btn">☰ Switch Board</button>
-            <div id="boardsList" class="boards-inline-list" style="display:none;"></div>
         </div>
         
         <!-- Status (Bottom Center) -->
@@ -130,6 +129,17 @@
     <!-- Lightbox -->
     <div class="lightbox" id="lightbox">
         <img id="lightboxImage" src="" alt="Full size image">
+    </div>
+
+    <!-- Boards Modal -->
+    <div class="boards-modal" id="boardsModal">
+        <div class="boards-modal-inner">
+            <div class="boards-modal-header">
+                <span class="boards-modal-title">02 — Boards</span>
+                <button class="boards-modal-close" id="boardsModalClose">✕</button>
+            </div>
+            <div class="boards-modal-body" id="boardsModalBody"></div>
+        </div>
     </div>
 
     <!-- Context Menu -->
