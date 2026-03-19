@@ -11,8 +11,8 @@
     --border:       #111111;
     --border-light: #CCCCCC;
     --accent:       #FF4500;
-    --font-sans:    'Inter', 'Helvetica Neue', Arial, sans-serif;
-    --font-mono:    'Roboto Mono', 'Courier New', Courier, monospace;
+    --font-sans:    'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono:    'JetBrains Mono', 'Courier New', Courier, monospace;
 }
 
 * {
@@ -22,7 +22,7 @@
 }
 
 body {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     background: var(--bg);
     color: var(--text);
     overflow: hidden;
@@ -101,8 +101,8 @@ body {
 }
 
 .top-bar-sub {
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -119,7 +119,7 @@ body {
 
 .top-bar-board-name {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text);
     letter-spacing: 0.06em;
     white-space: nowrap;
@@ -131,12 +131,12 @@ body {
 .top-bar-board-name:empty::after {
     content: '— no board —';
     color: var(--text-muted);
-    font-size: 9px;
+    font-size: 12px;
 }
 
 .autosave-badge {
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     color: var(--text-muted);
     margin-left: 8px;
     white-space: nowrap;
@@ -161,8 +161,8 @@ body {
     border-left: 1px solid var(--border-light);
     padding: 10px 16px;
     cursor: pointer;
-    font-size: 13px;
-    font-family: var(--font-mono);
+    font-size: 14px;
+    font-family: var(--font-sans);
     color: var(--text);
     line-height: 1;
     transition: background 0.1s, color 0.1s;
@@ -198,7 +198,7 @@ body {
     content: '01 — NODES';
     display: block;
     font-family: var(--font-mono);
-    font-size: 8px;
+    font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -222,8 +222,8 @@ body {
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
-    font-size: 10px;
-    font-family: var(--font-mono);
+    font-size: 13px;
+    font-family: var(--font-sans);
     font-weight: 400;
     text-align: left;
     white-space: nowrap;
@@ -281,8 +281,8 @@ body {
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -341,7 +341,7 @@ body {
 
 .node-title {
     font-weight: 500;
-    font-size: 9px;
+    font-size: 12px;
     font-family: var(--font-mono);
     color: var(--text);
     text-transform: uppercase;
@@ -356,7 +356,7 @@ body {
     width: 16px;
     height: 16px;
     cursor: pointer;
-    font-size: 9px;
+    font-size: 12px;
     line-height: 1;
     display: flex;
     align-items: center;
@@ -381,8 +381,8 @@ body {
     border-radius: 0;
     padding: 2px 6px;
     cursor: pointer;
-    font-size: 8px;
-    font-family: var(--font-mono);
+    font-size: 11px;
+    font-family: var(--font-sans);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     transition: all 0.1s;
@@ -413,8 +413,8 @@ body {
     text-align: center;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     background: var(--bg);
@@ -478,7 +478,7 @@ body {
     border-bottom: 1px solid var(--border-light);
     border-radius: 0;
     font-family: var(--font-sans);
-    font-size: 12px;
+    font-size: 14px;
     resize: none; /* node handle controls size */
     background: var(--bg);
     color: var(--text);
@@ -519,7 +519,7 @@ body {
 
 .prompt-char-count {
     font-family: var(--font-mono);
-    font-size: 8px;
+    font-size: 11px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -529,7 +529,7 @@ body {
 .prompt-clone-btn {
     flex: unset !important;
     padding: 3px 7px !important;
-    font-size: 11px !important;
+    font-size: 13px !important;
     border: 1px solid var(--border-light) !important;
     background: var(--surface) !important;
     color: var(--text-muted) !important;
@@ -550,7 +550,7 @@ body {
     border-bottom: 1px solid var(--border-light);
     border-radius: 0;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 13px;
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
@@ -581,7 +581,7 @@ body {
     border: 1px solid var(--border-light);
     border-radius: 0;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 13px;
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
@@ -622,7 +622,7 @@ body {
 }
 
 .model-indicator {
-    font-size: 8px;
+    font-size: 11px;
     font-family: var(--font-mono);
     color: var(--text-muted);
     text-align: center;
@@ -640,8 +640,8 @@ body {
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
-    font-size: 10px;
-    font-family: var(--font-mono);
+    font-size: 13px;
+    font-family: var(--font-sans);
     font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -754,8 +754,8 @@ body {
     border-right: 1px solid var(--border-light);
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 8px;
-    font-family: var(--font-mono);
+    font-size: 11px;
+    font-family: var(--font-sans);
     transition: all 0.1s;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -864,7 +864,7 @@ body {
     position: absolute;
     top: 6px; left: 8px;
     font-family: var(--font-mono);
-    font-size: 7px;
+    font-size: 10px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.18em;
@@ -877,7 +877,7 @@ body {
     position: absolute;
     top: 6px; right: 8px;
     font-family: var(--font-mono);
-    font-size: 7px;
+    font-size: 10px;
     color: var(--border-light);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -917,8 +917,8 @@ body {
     border-right: 1px solid var(--border-light);
     color: var(--text);
     cursor: pointer;
-    font-size: 13px;
-    font-family: var(--font-mono);
+    font-size: 14px;
+    font-family: var(--font-sans);
     transition: all 0.1s;
     border-radius: 0;
     line-height: 1;
@@ -932,7 +932,7 @@ body {
 .zoom-level {
     padding: 9px 12px;
     color: var(--text-muted);
-    font-size: 9px;
+    font-size: 12px;
     font-family: var(--font-mono);
     min-width: 52px;
     text-align: center;
@@ -977,7 +977,7 @@ body {
     position: absolute;
     top: 6px;
     right: 6px;
-    font-size: 7px;
+    font-size: 10px;
     font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1022,7 +1022,7 @@ body {
     border-bottom: 1px solid rgba(255,255,255,0.1);
     color: #fff;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 14px;
     transition: background 0.1s;
     border-radius: 0;
     display: flex;
@@ -1077,8 +1077,8 @@ body {
 
 .context-menu-item {
     padding: 9px 14px;
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--text);
@@ -1133,8 +1133,8 @@ body {
 
 .password-container h2 {
     color: var(--text);
-    font-size: 12px;
-    font-family: var(--font-mono);
+    font-size: 14px;
+    font-family: var(--font-sans);
     margin-bottom: 6px;
     font-weight: 700;
     text-transform: uppercase;
@@ -1143,8 +1143,8 @@ body {
 
 .password-container p {
     color: var(--text-muted);
-    font-size: 11px;
-    font-family: var(--font-mono);
+    font-size: 13px;
+    font-family: var(--font-sans);
     margin-bottom: 24px;
 }
 
@@ -1156,7 +1156,7 @@ body {
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 14px;
     margin-bottom: 16px;
 }
 
@@ -1172,8 +1172,8 @@ body {
     border-radius: 0;
     background: var(--text);
     color: var(--surface);
-    font-family: var(--font-mono);
-    font-size: 10px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -1187,8 +1187,8 @@ body {
 
 .password-error {
     color: var(--accent);
-    font-size: 10px;
-    font-family: var(--font-mono);
+    font-size: 13px;
+    font-family: var(--font-sans);
     margin-top: 10px;
     min-height: 18px;
     text-transform: uppercase;
@@ -1254,8 +1254,8 @@ body {
 .user-dropdown-item {
     padding: 10px 14px;
     cursor: pointer;
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--text);
@@ -1295,12 +1295,12 @@ body {
 .user-info span,
 .user-info-inline span {
     color: var(--text);
-    font-size: 10px;
-    font-family: var(--font-mono);
+    font-size: 13px;
+    font-family: var(--font-sans);
 }
 
 .user-credits {
-    font-size: 9px;
+    font-size: 12px;
     font-family: var(--font-mono);
     color: var(--text);
     text-transform: uppercase;
@@ -1311,8 +1311,8 @@ body {
     background: transparent;
     color: var(--text);
     text-decoration: none;
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     cursor: pointer;
@@ -1328,8 +1328,8 @@ body {
     border: none;
     color: var(--text-muted);
     text-decoration: none;
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     cursor: pointer;
@@ -1373,8 +1373,8 @@ body {
 }
 
 .cookie-notice-text h3 {
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     font-weight: 700;
     color: var(--text);
     margin: 0 0 6px;
@@ -1383,15 +1383,15 @@ body {
 }
 
 .cookie-notice-text p {
-    font-family: var(--font-mono);
-    font-size: 10px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     line-height: 1.6;
     color: var(--text-muted);
     margin: 0 0 4px;
 }
 
 .cookie-notice-small {
-    font-size: 9px !important;
+    font-size: 12px !important;
     color: var(--text-muted) !important;
 }
 
@@ -1415,8 +1415,8 @@ body {
     padding: 10px 24px;
     border: none;
     border-right: 1px solid var(--border-light);
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -1489,7 +1489,7 @@ body {
     bottom: 10px;
     right: 14px;
     font-family: var(--font-mono);
-    font-size: 7px;
+    font-size: 10px;
     color: var(--border-light);
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -1508,9 +1508,9 @@ body {
 
 .login-headline i {
     font-style: normal;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 400;
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     color: var(--text-muted);
     text-transform: none;
     letter-spacing: 0;
@@ -1537,8 +1537,8 @@ body {
 }
 
 .form-group label {
-    font-family: var(--font-mono);
-    font-size: 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.18em;
@@ -1567,8 +1567,8 @@ body {
     border: none;
     border-radius: 0;
     border-top: 1px solid var(--border);
-    font-family: var(--font-mono);
-    font-size: 10px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.14em;
@@ -1584,8 +1584,8 @@ body {
 
 .login-error {
     color: var(--accent);
-    font-size: 9px;
-    font-family: var(--font-mono);
+    font-size: 12px;
+    font-family: var(--font-sans);
     text-align: center;
     min-height: 18px;
     padding: 8px 20px;
@@ -1609,8 +1609,8 @@ body {
 
 .login-separator span {
     padding: 12px 16px;
-    font-size: 8px;
-    font-family: var(--font-mono);
+    font-size: 11px;
+    font-family: var(--font-sans);
     text-transform: uppercase;
     letter-spacing: 0.18em;
     color: var(--text-muted);
@@ -1633,8 +1633,8 @@ body {
     background: var(--surface);
     color: var(--text);
     text-decoration: none;
-    font-family: var(--font-mono);
-    font-size: 11px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     cursor: pointer;
     transition: all 0.1s;
     letter-spacing: 0.04em;
@@ -1662,7 +1662,7 @@ body {
     top: 8px;
     right: 12px;
     font-family: var(--font-mono);
-    font-size: 7px;
+    font-size: 10px;
     color: var(--border-light);
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -1670,10 +1670,10 @@ body {
 
 .login-disclaimer p {
     color: var(--text-muted);
-    font-size: 9px;
+    font-size: 12px;
     line-height: 1.6;
     margin: 0;
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
 }
 
 .login-disclaimer strong {
@@ -1683,10 +1683,10 @@ body {
 
 .login-footer {
     color: var(--text-muted);
-    font-size: 9px;
+    font-size: 12px;
     margin: 0;
     text-align: center;
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     text-transform: uppercase;
     letter-spacing: 0.12em;
 }
@@ -1709,8 +1709,8 @@ body {
 /* ============ BOARDS ============ */
 
 .toolbar-section-label {
-    font-family: var(--font-mono);
-    font-size: 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -1724,7 +1724,7 @@ body {
 
 .board-name-display {
     padding: 5px 14px;
-    font-size: 8px;
+    font-size: 11px;
     font-family: var(--font-mono);
     color: var(--text-muted);
     text-transform: uppercase;
@@ -1776,8 +1776,8 @@ body {
 }
 
 .boards-modal-title {
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.18em;
@@ -1795,8 +1795,8 @@ body {
     color: var(--surface);
     border: none;
     padding: 6px 14px;
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     cursor: pointer;
@@ -1842,8 +1842,8 @@ body {
     border-top: 1px solid var(--border);
     padding: 8px 18px;
     background: var(--bg);
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     color: var(--text-muted);
     display: flex;
     gap: 20px;
@@ -1888,8 +1888,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--font-mono);
-    font-size: 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1901,8 +1901,8 @@ body {
     right: 6px;
     background: var(--text);
     color: var(--surface);
-    font-family: var(--font-mono);
-    font-size: 7px;
+    font-family: var(--font-sans);
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     padding: 2px 5px;
@@ -1925,7 +1925,7 @@ body {
 
 .board-card-name {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text);
     font-weight: 500;
     letter-spacing: 0.04em;
@@ -1941,7 +1941,7 @@ body {
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 11px;
+    font-size: 13px;
     padding: 1px 4px;
     flex-shrink: 0;
     transition: color 0.1s;
@@ -1964,14 +1964,14 @@ body {
 
 .board-card-dates span {
     font-family: var(--font-mono);
-    font-size: 8px;
+    font-size: 11px;
     color: var(--text-muted);
     letter-spacing: 0.04em;
 }
 
 .board-card-size {
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 12px;
     color: var(--text-muted);
     letter-spacing: 0.04em;
     text-align: right;
@@ -1989,8 +1989,8 @@ body {
     border: 1px solid var(--border-light);
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 8px;
-    font-family: var(--font-mono);
+    font-size: 11px;
+    font-family: var(--font-sans);
     transition: all 0.1s;
     line-height: 1;
     flex: 1;
@@ -2002,8 +2002,8 @@ body {
 
 .boards-empty {
     padding: 40px 14px;
-    font-family: var(--font-mono);
-    font-size: 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -2037,8 +2037,8 @@ body {
 }
 
 .ui-dialog-message {
-    font-family: var(--font-mono);
-    font-size: 10px;
+    font-family: var(--font-sans);
+    font-size: 13px;
     color: var(--text);
     letter-spacing: 0.04em;
     line-height: 1.6;
@@ -2050,7 +2050,7 @@ body {
     border: 1px solid var(--border-light);
     color: var(--text);
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 13px;
     padding: 8px 10px;
     outline: none;
     letter-spacing: 0.04em;
@@ -2066,8 +2066,8 @@ body {
 
 .ui-dialog-btn {
     padding: 7px 18px;
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     border: 1px solid var(--border-light);
@@ -2124,8 +2124,8 @@ body {
 }
 
 .loading-label {
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.18em;
     color: rgba(255,255,255,0.7);
@@ -2248,8 +2248,8 @@ body.dark-mode .login-modal {
     justify-content: space-between;
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
-    font-family: var(--font-mono);
-    font-size: 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -2261,8 +2261,8 @@ body.dark-mode .login-modal {
     background: transparent;
     border: 1px solid var(--border-light);
     color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 3px 7px;
@@ -2284,8 +2284,8 @@ body.dark-mode .login-modal {
 
 .history-empty {
     padding: 20px 12px;
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     color: var(--text-muted);
     text-align: center;
     letter-spacing: 0.08em;
@@ -2313,8 +2313,8 @@ body.dark-mode .login-modal {
 }
 
 .history-entry-label {
-    font-family: var(--font-mono);
-    font-size: 9px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     font-weight: 500;
     color: var(--text);
     letter-spacing: 0.04em;
@@ -2329,7 +2329,7 @@ body.dark-mode .login-modal {
 
 .history-entry-meta {
     font-family: var(--font-mono);
-    font-size: 8px;
+    font-size: 11px;
     color: var(--text-muted);
     letter-spacing: 0.06em;
     display: flex;
@@ -2344,8 +2344,8 @@ body.dark-mode .login-modal {
     background: var(--text);
     color: var(--surface);
     border: none;
-    font-family: var(--font-mono);
-    font-size: 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     padding: 3px 7px;
