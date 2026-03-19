@@ -71,11 +71,12 @@ export class NodeManager {
             case 'draw':
                 node = new DrawNode().create(nodeId, x, y, callbacks);
                 break;
-            case 'result':
+            case 'result': {
                 // Handle both imageUrl (from generation) and imageData (from save/load)
                 const imgData = data?.imageUrl || data?.imageData;
                 node = new ResultNode().create(nodeId, x, y, imgData, data?.sourceNode, callbacks);
                 break;
+            }
         }
 
         if (node) {
@@ -101,8 +102,9 @@ export class NodeManager {
                         if (actionSelect) actionSelect.value = data.action;
                     }
                     this.updateGenerateButton(node);
+                }
             }
-            
+
             this.nodes.push(node);
             this.nodeCanvas.appendChild(node.element);
             this.uiManager.updateStatus(`${type.charAt(0).toUpperCase() + type.slice(1)} node created`);
