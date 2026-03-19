@@ -306,7 +306,33 @@ class App {
     }
 
     async restoreAutoSavedCanvas() {
-        // Always open the board manager on startup — user picks what to open
+        // If refreshed within the same tab session, restore the last board silently
+        const sessionBoardId = sessionStorage.getItem('diffusionCanvas_sessionBoardId');
+        if (sessionBoardId) {
+            try {
+                const res = await fetch(`/api/boards/${sessionBoardId}`, { credentials: 'include' });
+                if (res.ok) {
+                    const state = await res.json();
+                    const listRes = await fetch('/api/boards', { credentials: 'include' });
+                    if (listRes.ok) {
+                        const boards = await listRes.json();
+                        const meta = boards.find(b => b.id === sessionBoardId);
+                        if (meta) {
+                            this.currentBoardId = sessionBoardId;
+                            this.currentBoardName = meta.name;
+                            this._updateBoardUI();
+                        }
+                    }
+                    await this.deserializeCanvas(state);
+                    this.uiManager.updateStatus(`"${this.currentBoardName || 'Board'}" restored`, '#667eea');
+                    return;
+                }
+            } catch (e) {
+                console.warn('Could not restore session board', e);
+            }
+        }
+
+        // New session — show the board manager
         this.uiManager.updateStatus('Ready');
         this.toggleBoardsPanel();
     }
@@ -725,8 +751,10 @@ Object.assign(App.prototype, {
         if (topBarEl) topBarEl.textContent = name;
         if (this.currentBoardId) {
             localStorage.setItem('diffusionCanvas_lastBoardId', this.currentBoardId);
+            sessionStorage.setItem('diffusionCanvas_sessionBoardId', this.currentBoardId);
         } else {
             localStorage.removeItem('diffusionCanvas_lastBoardId');
+            sessionStorage.removeItem('diffusionCanvas_sessionBoardId');
         }
     },
 
