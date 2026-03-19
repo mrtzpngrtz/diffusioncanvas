@@ -519,7 +519,12 @@ app.get('/api/boards', isAuthenticated, async (req, res) => {
     try {
         const boards = await storage.getBoards(req.user.id);
         const meta = boards
-            .map(({ state, ...m }) => m)  // exclude heavy state; keep preview
+            .map(b => {
+                const { state, ...m } = b;
+                m.size = JSON.stringify(b).length; // bytes including state
+                m.nodeCount = state?.nodes?.length || 0;
+                return m;
+            })
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         res.json(meta);
     } catch (error) {

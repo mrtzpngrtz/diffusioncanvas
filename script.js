@@ -511,8 +511,12 @@ Object.assign(App.prototype, {
 
             if (boards.length === 0) {
                 listEl.innerHTML = '<div class="boards-empty">No boards yet</div>';
+                this._updateBoardsFooter(0, 0);
                 return;
             }
+
+            const totalSize = boards.reduce((s, b) => s + (b.size || 0), 0);
+            this._updateBoardsFooter(boards.length, totalSize);
 
             listEl.innerHTML = `<div class="boards-grid">${boards.map(b => `
                 <div class="board-card${b.id === this.currentBoardId ? ' active' : ''}" data-id="${b.id}">
@@ -527,9 +531,15 @@ Object.assign(App.prototype, {
                             <span class="board-card-name">${this._escHtml(b.name)}</span>
                             <button class="board-icon-btn board-rename-btn" data-id="${b.id}" data-name="${this._escHtml(b.name)}" title="Rename">✎</button>
                         </div>
-                        <div class="board-card-dates">
-                            <span>Created ${this._fmtDate(b.createdAt)}</span>
-                            <span>Updated ${this._fmtDate(b.updatedAt)}</span>
+                        <div class="board-card-info">
+                            <div class="board-card-dates">
+                                <span>Created ${this._fmtDate(b.createdAt)}</span>
+                                <span>Updated ${this._fmtDate(b.updatedAt)}</span>
+                            </div>
+                            <div class="board-card-size">
+                                <div>${b.nodeCount || 0} nodes</div>
+                                <div>${this._fmtBytes(b.size || 0)}</div>
+                            </div>
                         </div>
                         <div class="board-card-actions">
                             <button class="board-btn board-load-btn" data-id="${b.id}">↑ Load</button>
@@ -879,6 +889,25 @@ Object.assign(App.prototype, {
         const d = new Date(iso);
         return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
             + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    },
+
+    _fmtBytes(b) {
+        if (b < 1024) return b + ' B';
+        if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+        return (b / 1048576).toFixed(2) + ' MB';
+    },
+
+    _updateBoardsFooter(count, totalBytes) {
+        let footer = document.getElementById('boardsModalFooter');
+        if (!footer) {
+            footer = document.createElement('div');
+            footer.id = 'boardsModalFooter';
+            footer.className = 'boards-modal-footer';
+            document.querySelector('.boards-modal-inner').appendChild(footer);
+        }
+        footer.textContent = count
+            ? `${count} board${count !== 1 ? 's' : ''}  ·  ${this._fmtBytes(totalBytes)} total`
+            : 'No boards';
     }
 });
 
