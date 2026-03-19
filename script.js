@@ -323,6 +323,8 @@ class App {
                 data: {
                     imageData: node.data.imageData,
                     imageWidth: node.data.imageWidth,
+                    nodeWidth: node.element ? node.element.offsetWidth : null,
+                    nodeHeight: node.element ? node.element.offsetHeight : null,
                     prompt: node.data.prompt,
                     aspectRatio: node.data.aspectRatio,
                     model: node.data.model,
@@ -369,6 +371,14 @@ class App {
             // Pass the saved ID to createNode so callbacks are bound correctly
             const tempNode = this.nodeManager.createNode(nodeData.type, nodeData.position.x, nodeData.position.y, nodeData.data, nodeData.id);
             nodeMap.set(nodeData.id, tempNode);
+
+            // Restore resized dimensions
+            if (nodeData.data.nodeWidth && tempNode.element) {
+                tempNode.element.style.width = nodeData.data.nodeWidth + 'px';
+            }
+            if (nodeData.data.nodeHeight && nodeData.type === 'prompt' && tempNode.element) {
+                tempNode.element.style.height = nodeData.data.nodeHeight + 'px';
+            }
             
             // Handle image loading
             if (nodeData.type === 'image' && nodeData.data.imageData) {
