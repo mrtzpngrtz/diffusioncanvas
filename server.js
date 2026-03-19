@@ -621,6 +621,46 @@ app.delete('/api/boards/:id', isAuthenticated, async (req, res) => {
     }
 });
 
+// GET /api/admin/storage — per-user board storage stats (admin only)
+app.get('/api/admin/storage', isAdmin, async (req, res) => {
+    try {
+        const users = await storage.getUsers();
+        let totalBytes = 0;
+        const result = [];
+
+        for (const user of users) {
+            const boards = await storage.getBoards(user.id);
+            let userBytes = 0;
+            const boardStats = boards.map(b => {
+                const bytes = JSON.stringify(b).length;
+                userBytes += bytes;
+                return {
+                    id: b.id,
+                    name: b.name,
+                    nodeCount: b.state?.nodes?.length || 0,
+                    bytes,
+                    updatedAt: b.updatedAt
+                };
+            });
+            totalBytes += userBytes;
+            result.push({
+                id: user.id,
+                displayName: user.displayName || user.email,
+                email: user.email,
+                photo: user.photo,
+                totalBytes: userBytes,
+                boards: boardStats.sort((a, b) => b.bytes - a.bytes)
+            });
+        }
+
+        result.sort((a, b) => b.totalBytes - a.totalBytes);
+        res.json({ totalBytes, users: result });
+    } catch (error) {
+        console.error('Error loading storage stats:', error);
+        res.status(500).json({ error: 'Failed to load storage stats' });
+    }
+});
+
 // Update user credits (admin only)
 app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
     try {
