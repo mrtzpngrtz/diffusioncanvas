@@ -17,10 +17,10 @@ export class PromptNode extends NodeBase {
                     <button class="icon-btn node-clone prompt-clone-btn" title="Clone Node">⎘</button>
                 </div>
                 <select class="model-select">
-                    <option value="gemini-3.1-flash-image-preview">Nano Banana Flash</option>
-                    <option value="gemini-3-pro-image-preview">Nano Banana Pro</option>
-                    <option value="imagen-4.0-ultra-generate-001">Imagen Ultra</option>
-                    <option value="imagen-4.0-fast-generate-001">Imagen Fast</option>
+                    <option value="gemini-3.1-flash-image-preview">Nano Banana Flash (image edit)</option>
+                    <option value="gemini-3-pro-image-preview">Nano Banana Pro (image edit)</option>
+                    <option value="imagen-4.0-ultra-generate-001">Imagen Ultra (text to image)</option>
+                    <option value="imagen-4.0-fast-generate-001">Imagen Fast (text to image)</option>
                 </select>
                 <select class="aspect-ratio-select">
                     <option value="1:1">1:1 — 1024×1024</option>
