@@ -48,9 +48,11 @@ export default async function handler(req, res) {
         };
 
         // Choose generation method based on whether input images are provided
+        const selectedModel = req.body.model || (images && images.length > 0 ? 'gemini-3.1-flash-image-preview' : 'imagen-4.0-fast-generate-001');
+
         if (images && images.length > 0) {
-            // IMAGE-TO-IMAGE: Use Gemini 2.5 Flash
-            console.log('Using Gemini 2.5 Flash for image-to-image generation');
+            // IMAGE-TO-IMAGE: Use Gemini model
+            console.log(`Using ${selectedModel} for image-to-image generation`);
             
             let contents = [];
             contents.push({ text: `${prompt}` });
@@ -71,7 +73,7 @@ export default async function handler(req, res) {
             });
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
+                model: selectedModel,
                 contents: contents
             });
 
@@ -95,14 +97,14 @@ export default async function handler(req, res) {
             }
 
         } else {
-            // TEXT-TO-IMAGE: Use Imagen 4.0
-            console.log('Using Imagen 4.0 for text-to-image generation');
+            // TEXT-TO-IMAGE: Use Imagen
+            console.log(`Using ${selectedModel} for text-to-image generation`);
             
             const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '16:9', '9:16', '4:3', '3:4']);
             const validAspectRatio = SUPPORTED_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '1:1';
 
             const response = await ai.models.generateImages({
-                model: 'imagen-4.0-generate-001',
+                model: selectedModel,
                 prompt: prompt,
                 config: {
                     numberOfImages: 1,

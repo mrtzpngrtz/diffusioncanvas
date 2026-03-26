@@ -407,9 +407,10 @@ export class NodeManager {
         // Update model indicator if present
         const modelIndicator = node.element.querySelector('.model-indicator');
         if (modelIndicator && node.data.model) {
-            if (node.data.model.includes('imagen')) modelIndicator.textContent = 'Imagen 4.0';
-            else if (node.data.model.includes('gemini-2.5')) modelIndicator.textContent = 'Gemini 2.5';
-            else if (node.data.model.includes('gemini-3')) modelIndicator.textContent = 'Gemini 3';
+            if (node.data.model === 'gemini-3.1-flash-image-preview') modelIndicator.textContent = 'Nano Banana Flash';
+            else if (node.data.model === 'gemini-3-pro-image-preview') modelIndicator.textContent = 'Nano Banana Pro';
+            else if (node.data.model === 'imagen-4.0-ultra-generate-001') modelIndicator.textContent = 'Imagen Ultra';
+            else if (node.data.model === 'imagen-4.0-fast-generate-001') modelIndicator.textContent = 'Imagen Fast';
             else modelIndicator.textContent = node.data.model;
         }
     }

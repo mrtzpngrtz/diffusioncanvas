@@ -99,10 +99,10 @@ export const storage = {
     async getSettings() {
         const defaultSettings = {
             modelCosts: {
-                'imagen-4.0-generate-001': 1,
-                'gemini-2.5-flash-image': 1,
-                'gemini-3-pro-image-preview': 2,
-                'veo-3.0-fast-generate-001': 5
+                'gemini-3.1-flash-image-preview': 4,
+                'gemini-3-pro-image-preview': 6,
+                'imagen-4.0-ultra-generate-001': 3,
+                'imagen-4.0-fast-generate-001': 2
             }
         };
 
@@ -271,10 +271,10 @@ export const storage = {
                 try {
                     await this.setSettings({
                         modelCosts: {
-                            'imagen-4.0-generate-001': 1,
-                            'gemini-2.5-flash-image': 1,
-                            'gemini-3-pro-image-preview': 2,
-                            'veo-3.0-fast-generate-001': 5
+                            'gemini-3.1-flash-image-preview': 4,
+                            'gemini-3-pro-image-preview': 6,
+                            'imagen-4.0-ultra-generate-001': 3,
+                            'imagen-4.0-fast-generate-001': 2
                         }
                     });
                 } catch (error) {

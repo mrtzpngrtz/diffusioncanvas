@@ -334,7 +334,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         
         // Determine cost based on model
         const settings = await storage.getSettings();
-        const selectedModel = model || (images && images.length > 0 ? 'gemini-2.5-flash-image' : 'imagen-4.0-generate-001');
+        const selectedModel = model || (images && images.length > 0 ? 'gemini-3.1-flash-image-preview' : 'imagen-4.0-fast-generate-001');
         const cost = settings.modelCosts[selectedModel] || 1;
 
         // Check if user has enough credits
@@ -358,9 +358,9 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             image: null
         };
 
-        if (selectedModel === 'imagen-4.0-generate-001') {
-            // TEXT-TO-IMAGE: Use Imagen 4.0 with aspect ratio support
-            console.log('Using Imagen 4.0 for text-to-image generation');
+        if (selectedModel === 'imagen-4.0-ultra-generate-001' || selectedModel === 'imagen-4.0-fast-generate-001') {
+            // TEXT-TO-IMAGE: Use Imagen with aspect ratio support
+            console.log(`Using ${selectedModel} for text-to-image generation`);
             
             // Define the set of valid aspect ratios for Imagen
             const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '16:9', '9:16', '4:3', '3:4']);
@@ -369,9 +369,9 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             console.log('Requested aspect ratio:', userAspectRatio);
             console.log('Using aspect ratio:', aspectRatio);
 
-            // Generate using Imagen 4.0
+            // Generate using Imagen
             const response = await ai.models.generateImages({
-                model: 'imagen-4.0-generate-001',
+                model: selectedModel,
                 prompt: prompt,
                 config: {
                     numberOfImages: 1,
@@ -394,8 +394,8 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             console.log('Generated image (base64 length):', imageBytes.length);
 
         } else {
-            // GENERIC / GEMINI MODELS: Use generateContent (supports multimodal)
-            // This handles 'gemini-2.5-flash-image', 'gemini-3-pro-image-preview', etc.
+            // GEMINI MODELS: Use generateContent (supports multimodal)
+            // This handles 'gemini-3.1-flash-image-preview', 'gemini-3-pro-image-preview', etc.
             console.log(`Using ${selectedModel} for generation`);
             
             // Build the contents array

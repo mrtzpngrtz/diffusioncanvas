@@ -17,9 +17,10 @@ export class PromptNode extends NodeBase {
                     <button class="icon-btn node-clone prompt-clone-btn" title="Clone Node">⎘</button>
                 </div>
                 <select class="model-select">
-                    <option value="imagen-4.0-generate-001">Imagen 4.0</option>
-                    <option value="gemini-2.5-flash-image">Gemini 2.5 Flash</option>
-                    <option value="gemini-3-pro-image-preview">Gemini 3 Pro</option>
+                    <option value="gemini-3.1-flash-image-preview">Nano Banana Flash</option>
+                    <option value="gemini-3-pro-image-preview">Nano Banana Pro</option>
+                    <option value="imagen-4.0-ultra-generate-001">Imagen Ultra</option>
+                    <option value="imagen-4.0-fast-generate-001">Imagen Fast</option>
                 </select>
                 <select class="aspect-ratio-select">
                     <option value="1:1">1:1 — 1024×1024</option>
@@ -36,7 +37,7 @@ export class PromptNode extends NodeBase {
             </div>
             ${this.createConnectionPoints(nodeId, true, true)}
             <div class="node-actions">
-                <div class="model-indicator">Imagen 4.0</div>
+                <div class="model-indicator">Nano Banana Flash</div>
                 <button class="node-btn generate-btn" disabled>Generate Image</button>
             </div>
         `;
@@ -45,7 +46,7 @@ export class PromptNode extends NodeBase {
             id: nodeId,
             type: 'prompt',
             element: nodeEl,
-            data: { prompt: '', model: 'imagen-4.0-generate-001', aspectRatio: '16:9', connectedImages: [] },
+            data: { prompt: '', model: 'gemini-3.1-flash-image-preview', aspectRatio: '16:9', connectedImages: [] },
             position: { x, y }
         };
 
