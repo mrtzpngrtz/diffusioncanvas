@@ -50,12 +50,52 @@ class App {
         this.setupToolbar();
         this.setupStorage();
         this.setupContextMenu();
-        
+        this.setupCanvasDrop();
+
         // Start auto-save
         this.startAutoSave();
-        
+
         // Restore auto-save
         this.restoreAutoSavedCanvas();
+    }
+
+    setupCanvasDrop() {
+        const container = document.querySelector('.canvas-container');
+        const nodeCanvas = document.getElementById('nodeCanvas');
+
+        container.addEventListener('dragover', (e) => {
+            if (e.dataTransfer.types.includes('Files')) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                nodeCanvas.classList.add('drop-active');
+            }
+        });
+
+        container.addEventListener('dragleave', (e) => {
+            if (!container.contains(e.relatedTarget)) {
+                nodeCanvas.classList.remove('drop-active');
+            }
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            nodeCanvas.classList.remove('drop-active');
+
+            const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+            if (!files.length) return;
+
+            const rect = container.getBoundingClientRect();
+            const zoom = this.canvasManager.zoom;
+            const panX = this.canvasManager.panX;
+            const panY = this.canvasManager.panY;
+
+            files.forEach((file, i) => {
+                const canvasX = (e.clientX - rect.left) / zoom - panX + i * 30;
+                const canvasY = (e.clientY - rect.top) / zoom - panY + i * 30;
+                const node = this.nodeManager.createNode('image', canvasX, canvasY);
+                if (node) this.nodeManager.handleImageFile(file, node);
+            });
+        });
     }
 
     setupToolbar() {
