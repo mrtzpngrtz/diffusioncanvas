@@ -38,12 +38,8 @@ body {
     height: calc(100vh - 62px);
     overflow: hidden;
     background: var(--bg);
-    background-image:
-        linear-gradient(rgba(0,0,0,0.07) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,0,0,0.07) 1px, transparent 1px),
-        linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
-    background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cline x1='40' y1='33' x2='40' y2='47' stroke='black' stroke-opacity='.1' stroke-width='1'/%3E%3Cline x1='33' y1='40' x2='47' y2='40' stroke='black' stroke-opacity='.1' stroke-width='1'/%3E%3C/svg%3E");
+    background-size: 80px 80px;
 }
 
 #connectionCanvas {
@@ -2321,12 +2317,8 @@ body.dark-mode {
 
 body.dark-mode .canvas-container {
     background: #111;
-    background-image:
-        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
-        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-    background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cline x1='40' y1='33' x2='40' y2='47' stroke='white' stroke-opacity='.15' stroke-width='1'/%3E%3Cline x1='33' y1='40' x2='47' y2='40' stroke='white' stroke-opacity='.15' stroke-width='1'/%3E%3C/svg%3E");
+    background-size: 80px 80px;
 }
 
 body.dark-mode .lightbox {
