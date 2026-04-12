@@ -117,10 +117,14 @@ class App {
             if (e.target === e.currentTarget) this.closeBoardsModal();
         });
 
-        document.getElementById('toggleHistoryBtn').addEventListener('click', () => this.toggleHistoryPanel());
-        document.getElementById('historySnapshotBtn').addEventListener('click', () => {
-            this._pushHistory('Manual snapshot');
-            this._renderHistoryPanel();
+        // Ctrl+Z — undo last history entry
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                const active = document.activeElement;
+                if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) return;
+                e.preventDefault();
+                if (this.historyStack.length > 0) this._restoreHistory(0);
+            }
         });
     }
 
@@ -623,7 +627,6 @@ Object.assign(App.prototype, {
             this.currentBoardName = saved.name;
             this._updateBoardUI();
             this._pushHistory(`Saved: ${saved.name}`);
-            this._renderHistoryPanel();
             this.uiManager.updateStatus(`"${saved.name}" saved`, '#27ae60');
             this.closeBoardsModal();
         } catch (err) {
@@ -667,7 +670,6 @@ Object.assign(App.prototype, {
             this.currentBoardId = boardId;
             this.currentBoardName = meta ? meta.name : 'Board';
             this._updateBoardUI();
-            this._renderHistoryPanel();
             this.uiManager.updateStatus(`"${this.currentBoardName}" loaded`, '#27ae60');
         } catch (err) {
             console.error('Load board error:', err);
@@ -917,15 +919,6 @@ Object.assign(App.prototype, {
 
 Object.assign(App.prototype, {
 
-    toggleHistoryPanel() {
-        const panel = document.getElementById('historyPanel');
-        const btn = document.getElementById('toggleHistoryBtn');
-        if (!panel) return;
-        const isOpen = panel.classList.toggle('open');
-        btn.classList.toggle('active', isOpen);
-        if (isOpen) this._renderHistoryPanel();
-    },
-
     _pushHistory(label) {
         if (!this.nodeManager) return;
         const nodeCount = this.nodeManager.nodes.length;
@@ -961,47 +954,12 @@ Object.assign(App.prototype, {
             this._clearCanvasImmediate();
             await this.deserializeCanvas(entry.state);
             this.historyCurrentIdx = idx;
-            this.uiManager.updateStatus(`Restored: "${entry.label}"`, '#667eea');
-            this._renderHistoryPanel();
+            this.uiManager.updateStatus(`Restored: "${entry.label}"`);
         } catch (e) {
             this.uiManager.updateStatus('Restore failed', '#e74c3c');
         } finally {
             this._hideLoading();
         }
-    },
-
-    _renderHistoryPanel() {
-        const listEl = document.getElementById('historyList');
-        if (!listEl) return;
-
-        if (!this.historyStack.length) {
-            listEl.innerHTML = '<div class="history-empty">No history yet</div>';
-            return;
-        }
-
-        listEl.innerHTML = this.historyStack.map((entry, idx) => {
-            const isCurrent = idx === this.historyCurrentIdx;
-            const time = new Date(entry.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const date = new Date(entry.timestamp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-            return `
-                <div class="history-entry${isCurrent ? ' current' : ''}" data-idx="${idx}">
-                    <div class="history-entry-label">${this._escHtml(entry.label)}</div>
-                    <div class="history-entry-meta">
-                        <span>${date} ${time}</span>
-                        <span>${entry.nodeCount} node${entry.nodeCount !== 1 ? 's' : ''}</span>
-                    </div>
-                    <button class="history-entry-restore">↺ Restore</button>
-                </div>
-            `;
-        }).join('');
-
-        listEl.querySelectorAll('.history-entry-restore').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const idx = parseInt(btn.closest('.history-entry').dataset.idx);
-                this._restoreHistory(idx);
-            });
-        });
     }
 
 });
