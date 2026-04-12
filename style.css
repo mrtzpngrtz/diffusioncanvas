@@ -9,7 +9,7 @@
     --text:         #111111;
     --text-muted:   #777777;
     --border:       #111111;
-    --border-light: #CCCCCC;
+    --border-light: #D0D0D0;
     --accent:       #FF4500;
     --font-sans:    'DM Sans', 'Helvetica Neue', Arial, sans-serif;
     --font-mono:    'JetBrains Mono', 'Courier New', Courier, monospace;
@@ -39,9 +39,11 @@ body {
     overflow: hidden;
     background: var(--bg);
     background-image:
-        radial-gradient(circle, rgba(0,0,0,0.22) 1px, transparent 1px),
-        radial-gradient(circle, rgba(0,0,0,0.08) 0.5px, transparent 0.5px);
-    background-size: 80px 80px, 16px 16px;
+        linear-gradient(rgba(0,0,0,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.07) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
 }
 
 #connectionCanvas {
@@ -71,7 +73,7 @@ body {
     justify-content: center;
     font-size: 2rem;
     color: var(--accent, #888);
-    border: 3px dashed var(--accent, #888);
+    border: 2px solid var(--accent, #888);
     background: rgba(0,0,0,0.15);
     pointer-events: none;
     z-index: 9999;
@@ -159,9 +161,9 @@ body {
     transition: opacity 0.4s;
 }
 .autosave-badge.visible { opacity: 1; }
-.autosave-badge.saving  { color: #667eea; }
-.autosave-badge.saved   { color: #48bb78; }
-.autosave-badge.error   { color: #fc8181; }
+.autosave-badge.saving  { color: var(--text-muted); }
+.autosave-badge.saved   { color: var(--text-muted); }
+.autosave-badge.error   { color: var(--accent); }
 
 .top-bar-right {
     display: flex;
@@ -310,6 +312,14 @@ body {
     text-align: center;
 }
 
+.status::before {
+    content: '+';
+    margin-right: 10px;
+    opacity: 0.35;
+    font-size: 14px;
+    font-family: var(--font-mono);
+}
+
 /* ============ NODES ============ */
 
 .node {
@@ -345,7 +355,7 @@ body {
     padding: 3px 6px;
     border-bottom: 1px solid var(--border-light);
     background: var(--surface);
-    opacity: 0.4;
+    opacity: 0.3;
     transition: opacity 0.15s;
 }
 
@@ -580,9 +590,8 @@ body {
     right: 0;
     width: 260px;
     background: var(--surface);
-    border: 1px solid var(--border-light);
-    border-radius: 6px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    border: 1px solid var(--border);
+    border-radius: 0;
     z-index: 1000;
     overflow: hidden;
 }
@@ -601,7 +610,7 @@ body {
     font-family: inherit;
     background: var(--bg);
     border: 1px solid var(--border-light);
-    border-radius: 4px;
+    border-radius: 0;
     color: var(--text);
     outline: none;
 }
@@ -617,7 +626,7 @@ body {
     background: var(--text);
     color: var(--surface);
     border: none;
-    border-radius: 4px;
+    border-radius: 0;
     cursor: pointer;
     white-space: nowrap;
 }
@@ -817,7 +826,7 @@ body {
     height: 10px;
     background: var(--text);
     border: 2px solid var(--surface);
-    border-radius: 50%;
+    border-radius: 0;
     cursor: crosshair;
     z-index: 10;
     transition: background 0.1s, transform 0.1s;
@@ -1626,6 +1635,21 @@ body {
     position: relative;
 }
 
+/* Large ghosted version mark — editorial hero numeral */
+.login-hero::before {
+    content: 'v1';
+    position: absolute;
+    top: -10px; right: -4px;
+    font-size: 140px;
+    font-weight: 800;
+    color: rgba(0,0,0,0.04);
+    line-height: 1;
+    letter-spacing: -0.05em;
+    pointer-events: none;
+    font-family: var(--font-sans);
+    user-select: none;
+}
+
 /* Technical coordinate micro-data */
 .login-hero::after {
     content: '48°12\'N // 16°22\'E';
@@ -1641,7 +1665,7 @@ body {
 
 .login-headline {
     font-family: var(--font-sans);
-    font-size: clamp(26px, 4vw, 40px);
+    font-size: clamp(32px, 5vw, 52px);
     font-weight: 800;
     line-height: 1;
     color: var(--text);
@@ -2259,7 +2283,7 @@ body {
     height: 28px;
     border: 2px solid rgba(255,255,255,0.2);
     border-top-color: #fff;
-    border-radius: 50%;
+    border-radius: 0;
     animation: spin 0.7s linear infinite;
 }
 
@@ -2298,9 +2322,11 @@ body.dark-mode {
 body.dark-mode .canvas-container {
     background: #111;
     background-image:
-        radial-gradient(circle, rgba(255,255,255,0.14) 1px, transparent 1px),
-        radial-gradient(circle, rgba(255,255,255,0.05) 0.5px, transparent 0.5px);
-    background-size: 80px 80px, 16px 16px;
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
 }
 
 body.dark-mode .lightbox {
