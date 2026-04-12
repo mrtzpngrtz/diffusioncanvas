@@ -284,12 +284,12 @@ class App {
         show('saving', '● saving…');
         try {
             const state = this.serializeCanvas();
-            state.preview = this._generatePreview();
-            const res = await fetch(`/api/boards/${this.currentBoardId}`, {
+            const preview = this._generatePreview();
+            const res = await fetch('/api/boards', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ name: this.currentBoardName, state, preview: state.preview })
+                body: JSON.stringify({ id: this.currentBoardId, name: this.currentBoardName, state, preview })
             });
             if (!res.ok) throw new Error(res.statusText);
             const now = new Date();
@@ -432,13 +432,16 @@ class App {
                 });
                 promises.push(p);
             }
-             // Result node image loading
-             if (nodeData.type === 'result' && nodeData.data.imageData) {
-                  // ... similar logic or handled by createNode passing data
-                  // createNode for result takes imageUrl.
-                  // But createNode uses existing NodeManager logic which expects imageUrl
-                  // But we passed data object.
-             }
+            // Result node image loading — track load so minimap updates after render
+            if (nodeData.type === 'result' && nodeData.data.imageData && tempNode) {
+                const img = tempNode.element.querySelector('img');
+                if (img && !img.complete) {
+                    promises.push(new Promise(resolve => {
+                        img.addEventListener('load', resolve, { once: true });
+                        img.addEventListener('error', resolve, { once: true });
+                    }));
+                }
+            }
         }
 
         // Restore links
