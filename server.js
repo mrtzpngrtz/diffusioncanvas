@@ -46,7 +46,7 @@ app.use(cors({
     origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:3000',
     credentials: true
 }));
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ limit: '30mb', extended: true }));
 app.use(express.static(__dirname)); 
