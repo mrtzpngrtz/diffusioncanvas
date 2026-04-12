@@ -555,6 +555,135 @@ body {
     color: var(--surface) !important;
 }
 
+/* ── PROMPT LIBRARY ── */
+.prompt-library-wrap {
+    position: relative;
+}
+
+.prompt-library-btn {
+    flex: unset !important;
+    padding: 3px 7px !important;
+    font-size: 13px !important;
+    border: 1px solid var(--border-light) !important;
+    background: var(--surface) !important;
+    color: var(--text-muted) !important;
+}
+
+.prompt-library-btn:hover {
+    background: var(--text) !important;
+    color: var(--surface) !important;
+}
+
+.prompt-library-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    width: 260px;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.prompt-library-save {
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.prompt-library-name {
+    flex: 1;
+    padding: 4px 7px;
+    font-size: 12px;
+    font-family: inherit;
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    color: var(--text);
+    outline: none;
+}
+
+.prompt-library-name:focus {
+    border-color: var(--text-muted);
+}
+
+.prompt-library-save-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    background: var(--text);
+    color: var(--surface);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.prompt-library-save-btn:hover {
+    opacity: 0.8;
+}
+
+.prompt-library-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.prompt-library-empty {
+    padding: 12px 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.prompt-library-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+}
+
+.prompt-library-item:last-child {
+    border-bottom: none;
+}
+
+.prompt-library-item:hover {
+    background: var(--bg);
+}
+
+.prompt-library-item-name {
+    flex: 1;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+}
+
+.prompt-library-del {
+    flex: unset;
+    padding: 1px 5px;
+    font-size: 11px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.prompt-library-item:hover .prompt-library-del {
+    opacity: 1;
+}
+
+.prompt-library-del:hover {
+    color: #e74c3c;
+}
+
 /* ── SELECTS ── */
 
 .aspect-ratio-select,
