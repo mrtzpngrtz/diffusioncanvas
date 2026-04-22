@@ -323,6 +323,7 @@ export class NodeManager {
         canvas.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
             if (this.connectionManager.isConnecting) return;
+            if (this.canvasManager.isSpaceDown) return;
             e.preventDefault();
             this.isMarquee = true;
             this.marqueeStart = { x: e.clientX, y: e.clientY };
