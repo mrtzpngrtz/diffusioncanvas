@@ -19,6 +19,11 @@ export class CanvasManager {
         this.isMiddlePanning = false;
         this.middlePanStart = { x: 0, y: 0 };
 
+        // Space + left click pan
+        this.isSpacePanning = false;
+        this.spacePanStart = { x: 0, y: 0 };
+        this.isSpaceDown = false;
+
         // Minimap
         this.minimapCanvas = document.getElementById('minimapCanvas');
         this.minimapCtx = this.minimapCanvas.getContext('2d');
@@ -92,11 +97,34 @@ export class CanvasManager {
 
     setupPanning() {
         if (this.container) {
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && !e.target.matches('input, textarea, [contenteditable]')) {
+                    e.preventDefault();
+                    this.isSpaceDown = true;
+                    if (!this.isSpacePanning) {
+                        this.container.style.cursor = 'grab';
+                    }
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    this.isSpaceDown = false;
+                    this.isSpacePanning = false;
+                    this.container.style.cursor = '';
+                }
+            });
+
             this.container.addEventListener('mousedown', (e) => {
                 if (e.button === 1) { // Middle mouse button
                     e.preventDefault();
                     this.isMiddlePanning = true;
                     this.middlePanStart = { x: e.clientX, y: e.clientY };
+                    this.container.style.cursor = 'grabbing';
+                } else if (e.button === 0 && this.isSpaceDown) { // Space + left click
+                    e.preventDefault();
+                    this.isSpacePanning = true;
+                    this.spacePanStart = { x: e.clientX, y: e.clientY };
                     this.container.style.cursor = 'grabbing';
                 }
             });
@@ -105,11 +133,20 @@ export class CanvasManager {
                 if (this.isMiddlePanning) {
                     const dx = (e.clientX - this.middlePanStart.x) / this.zoom;
                     const dy = (e.clientY - this.middlePanStart.y) / this.zoom;
-                    
+
                     this.panX += dx;
                     this.panY += dy;
-                    
+
                     this.middlePanStart = { x: e.clientX, y: e.clientY };
+                    this.applyZoom();
+                } else if (this.isSpacePanning) {
+                    const dx = (e.clientX - this.spacePanStart.x) / this.zoom;
+                    const dy = (e.clientY - this.spacePanStart.y) / this.zoom;
+
+                    this.panX += dx;
+                    this.panY += dy;
+
+                    this.spacePanStart = { x: e.clientX, y: e.clientY };
                     this.applyZoom();
                 }
             });
@@ -118,6 +155,9 @@ export class CanvasManager {
                 if (e.button === 1 && this.isMiddlePanning) {
                     this.isMiddlePanning = false;
                     this.container.style.cursor = '';
+                } else if (e.button === 0 && this.isSpacePanning) {
+                    this.isSpacePanning = false;
+                    this.container.style.cursor = this.isSpaceDown ? 'grab' : '';
                 }
             });
         }
