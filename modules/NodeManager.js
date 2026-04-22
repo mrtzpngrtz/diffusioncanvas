@@ -433,28 +433,21 @@ export class NodeManager {
             const resultX = node.position.x + node.element.offsetWidth + 50;
             const resultY = node.position.y;
 
-            // Check if there's already a result node for this prompt/action
-            const existingResult = this.nodes.find(n => 
+            // Count existing result nodes for this source to offset new ones
+            const existingResults = this.nodes.filter(n =>
                 n.type === 'result' && n.data.sourcePromptNode === node
             );
-            
-            if (existingResult) {
-                // Update existing result node image
-                const img = existingResult.data.image;
-                img.src = result.image;
-                existingResult.data.imageData = result.image;
-                this.uiManager.updateStatus('Image regenerated successfully!', '#27ae60');
-            } else {
-                // Create new result node and link it to prompt/action
-                const resultNode = this.createNode('result', resultX, resultY, {
-                    imageUrl: result.image,
-                    sourceNode: node
-                });
-                node.data.resultNode = resultNode;
-                
-                // Auto-connect
-                this.connectionManager.createConnection(node.id, resultNode.id, 'output', 'input');
-            }
+            const offsetY = existingResults.length * 20;
+
+            // Always create a new result node
+            const resultNode = this.createNode('result', resultX, resultY + offsetY, {
+                imageUrl: result.image,
+                sourceNode: node
+            });
+            node.data.resultNode = resultNode;
+
+            // Auto-connect
+            this.connectionManager.createConnection(node.id, resultNode.id, 'output', 'input');
             
             // Update credits display
             if (result.creditsRemaining !== undefined) {
@@ -464,7 +457,7 @@ export class NodeManager {
                 }
             }
             
-            this.uiManager.updateStatus('Image generated successfully!', '#27ae60');
+            this.uiManager.updateStatus('Image generated!', '#27ae60');
         }
     }
 
