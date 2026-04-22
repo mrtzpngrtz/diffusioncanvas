@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import { GoogleGenAI } from '@google/genai';
@@ -11,6 +13,16 @@ import bcrypt from 'bcryptjs';
 import { setAuthCookie, getAuthUser, clearAuthCookie } from './jwt-auth.js';
 import { storage } from './storage.js';
 
+// Fail fast if required secrets are missing
+if (!process.env.SESSION_SECRET) {
+    console.error('FATAL: SESSION_SECRET environment variable is not set');
+    process.exit(1);
+}
+if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+    console.error('FATAL: FRONTEND_URL environment variable is not set');
+    process.exit(1);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -18,7 +30,7 @@ const app = express();
 
 // Session configuration (still needed for OAuth flow)
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -34,8 +46,9 @@ app.use(cors({
     origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:3000',
     credentials: true
 }));
-app.use(express.json({ limit: '200mb' }));
-app.use(express.urlencoded({ limit: '200mb', extended: true }));
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(express.json({ limit: '30mb' }));
+app.use(express.urlencoded({ limit: '30mb', extended: true }));
 app.use(express.static(__dirname)); 
 
 // Initialize Passport
@@ -132,7 +145,13 @@ if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
 }
 
 // Local Auth
-app.post('/auth/local/login', (req, res, next) => {
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { error: 'Too many login attempts, please try again later.' }
+});
+
+app.post('/auth/local/login', loginLimiter, (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
         if (err) {
             return next(err);
@@ -473,9 +492,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Error generating content:', error);
-        res.status(500).json({ 
-            error: error.message || 'Failed to generate content'
-        });
+        res.status(500).json({ error: 'Failed to generate image. Please try again.' });
     }
 });
 

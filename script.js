@@ -50,12 +50,52 @@ class App {
         this.setupToolbar();
         this.setupStorage();
         this.setupContextMenu();
-        
+        this.setupCanvasDrop();
+
         // Start auto-save
         this.startAutoSave();
-        
+
         // Restore auto-save
         this.restoreAutoSavedCanvas();
+    }
+
+    setupCanvasDrop() {
+        const container = document.querySelector('.canvas-container');
+        const nodeCanvas = document.getElementById('nodeCanvas');
+
+        container.addEventListener('dragover', (e) => {
+            if (e.dataTransfer.types.includes('Files')) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                nodeCanvas.classList.add('drop-active');
+            }
+        });
+
+        container.addEventListener('dragleave', (e) => {
+            if (!container.contains(e.relatedTarget)) {
+                nodeCanvas.classList.remove('drop-active');
+            }
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            nodeCanvas.classList.remove('drop-active');
+
+            const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+            if (!files.length) return;
+
+            const rect = container.getBoundingClientRect();
+            const zoom = this.canvasManager.zoom;
+            const panX = this.canvasManager.panX;
+            const panY = this.canvasManager.panY;
+
+            files.forEach((file, i) => {
+                const canvasX = (e.clientX - rect.left) / zoom - panX + i * 30;
+                const canvasY = (e.clientY - rect.top) / zoom - panY + i * 30;
+                const node = this.nodeManager.createNode('image', canvasX, canvasY);
+                if (node) this.nodeManager.handleImageFile(file, node);
+            });
+        });
     }
 
     setupToolbar() {
@@ -77,10 +117,14 @@ class App {
             if (e.target === e.currentTarget) this.closeBoardsModal();
         });
 
-        document.getElementById('toggleHistoryBtn').addEventListener('click', () => this.toggleHistoryPanel());
-        document.getElementById('historySnapshotBtn').addEventListener('click', () => {
-            this._pushHistory('Manual snapshot');
-            this._renderHistoryPanel();
+        // Ctrl+Z — undo last history entry
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                const active = document.activeElement;
+                if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) return;
+                e.preventDefault();
+                if (this.historyStack.length > 0) this._restoreHistory(0);
+            }
         });
     }
 
@@ -244,12 +288,12 @@ class App {
         show('saving', '● saving…');
         try {
             const state = this.serializeCanvas();
-            state.preview = this._generatePreview();
-            const res = await fetch(`/api/boards/${this.currentBoardId}`, {
+            const preview = this._generatePreview();
+            const res = await fetch('/api/boards', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ name: this.currentBoardName, state, preview: state.preview })
+                body: JSON.stringify({ id: this.currentBoardId, name: this.currentBoardName, state, preview })
             });
             if (!res.ok) throw new Error(res.statusText);
             const now = new Date();
@@ -392,13 +436,16 @@ class App {
                 });
                 promises.push(p);
             }
-             // Result node image loading
-             if (nodeData.type === 'result' && nodeData.data.imageData) {
-                  // ... similar logic or handled by createNode passing data
-                  // createNode for result takes imageUrl.
-                  // But createNode uses existing NodeManager logic which expects imageUrl
-                  // But we passed data object.
-             }
+            // Result node image loading — track load so minimap updates after render
+            if (nodeData.type === 'result' && nodeData.data.imageData && tempNode) {
+                const img = tempNode.element.querySelector('img');
+                if (img && !img.complete) {
+                    promises.push(new Promise(resolve => {
+                        img.addEventListener('load', resolve, { once: true });
+                        img.addEventListener('error', resolve, { once: true });
+                    }));
+                }
+            }
         }
 
         // Restore links
@@ -580,7 +627,6 @@ Object.assign(App.prototype, {
             this.currentBoardName = saved.name;
             this._updateBoardUI();
             this._pushHistory(`Saved: ${saved.name}`);
-            this._renderHistoryPanel();
             this.uiManager.updateStatus(`"${saved.name}" saved`, '#27ae60');
             this.closeBoardsModal();
         } catch (err) {
@@ -624,7 +670,6 @@ Object.assign(App.prototype, {
             this.currentBoardId = boardId;
             this.currentBoardName = meta ? meta.name : 'Board';
             this._updateBoardUI();
-            this._renderHistoryPanel();
             this.uiManager.updateStatus(`"${this.currentBoardName}" loaded`, '#27ae60');
         } catch (err) {
             console.error('Load board error:', err);
@@ -874,15 +919,6 @@ Object.assign(App.prototype, {
 
 Object.assign(App.prototype, {
 
-    toggleHistoryPanel() {
-        const panel = document.getElementById('historyPanel');
-        const btn = document.getElementById('toggleHistoryBtn');
-        if (!panel) return;
-        const isOpen = panel.classList.toggle('open');
-        btn.classList.toggle('active', isOpen);
-        if (isOpen) this._renderHistoryPanel();
-    },
-
     _pushHistory(label) {
         if (!this.nodeManager) return;
         const nodeCount = this.nodeManager.nodes.length;
@@ -918,47 +954,12 @@ Object.assign(App.prototype, {
             this._clearCanvasImmediate();
             await this.deserializeCanvas(entry.state);
             this.historyCurrentIdx = idx;
-            this.uiManager.updateStatus(`Restored: "${entry.label}"`, '#667eea');
-            this._renderHistoryPanel();
+            this.uiManager.updateStatus(`Restored: "${entry.label}"`);
         } catch (e) {
             this.uiManager.updateStatus('Restore failed', '#e74c3c');
         } finally {
             this._hideLoading();
         }
-    },
-
-    _renderHistoryPanel() {
-        const listEl = document.getElementById('historyList');
-        if (!listEl) return;
-
-        if (!this.historyStack.length) {
-            listEl.innerHTML = '<div class="history-empty">No history yet</div>';
-            return;
-        }
-
-        listEl.innerHTML = this.historyStack.map((entry, idx) => {
-            const isCurrent = idx === this.historyCurrentIdx;
-            const time = new Date(entry.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const date = new Date(entry.timestamp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-            return `
-                <div class="history-entry${isCurrent ? ' current' : ''}" data-idx="${idx}">
-                    <div class="history-entry-label">${this._escHtml(entry.label)}</div>
-                    <div class="history-entry-meta">
-                        <span>${date} ${time}</span>
-                        <span>${entry.nodeCount} node${entry.nodeCount !== 1 ? 's' : ''}</span>
-                    </div>
-                    <button class="history-entry-restore">↺ Restore</button>
-                </div>
-            `;
-        }).join('');
-
-        listEl.querySelectorAll('.history-entry-restore').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const idx = parseInt(btn.closest('.history-entry').dataset.idx);
-                this._restoreHistory(idx);
-            });
-        });
     }
 
 });

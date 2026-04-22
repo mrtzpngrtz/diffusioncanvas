@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production';
+const JWT_SECRET = process.env.SESSION_SECRET;
 const JWT_EXPIRES_IN = '24h';
 
 export function generateToken(user) {

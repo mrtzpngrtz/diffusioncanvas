@@ -1,5 +1,16 @@
 import { NodeBase } from './NodeBase.js';
 
+const LIBRARY_KEY = 'promptLibrary';
+
+function loadLibrary() {
+    try { return JSON.parse(localStorage.getItem(LIBRARY_KEY)) || []; }
+    catch { return []; }
+}
+
+function saveLibrary(entries) {
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(entries));
+}
+
 export class PromptNode extends NodeBase {
     create(nodeId, x, y, callbacks) {
         const nodeEl = document.createElement('div');
@@ -14,6 +25,16 @@ export class PromptNode extends NodeBase {
                 <textarea placeholder="Enter your prompt here..." spellcheck="false"></textarea>
                 <div class="prompt-meta">
                     <span class="prompt-char-count">0 chars · 0 words</span>
+                    <div class="prompt-library-wrap">
+                        <button class="icon-btn prompt-library-btn" title="Prompt Library">☰</button>
+                        <div class="prompt-library-panel" style="display:none">
+                            <div class="prompt-library-save">
+                                <input class="prompt-library-name" type="text" placeholder="Name…" maxlength="60">
+                                <button class="prompt-library-save-btn">Save</button>
+                            </div>
+                            <div class="prompt-library-list"></div>
+                        </div>
+                    </div>
                     <button class="icon-btn node-clone prompt-clone-btn" title="Clone Node">⎘</button>
                 </div>
                 <select class="model-select">
@@ -92,6 +113,71 @@ export class PromptNode extends NodeBase {
         cloneBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             callbacks.cloneNode(node.id);
+        });
+
+        // Prompt library
+        const libraryBtn = nodeEl.querySelector('.prompt-library-btn');
+        const libraryPanel = nodeEl.querySelector('.prompt-library-panel');
+        const libraryList = nodeEl.querySelector('.prompt-library-list');
+        const libraryNameInput = nodeEl.querySelector('.prompt-library-name');
+        const librarySaveBtn = nodeEl.querySelector('.prompt-library-save-btn');
+
+        const renderLibrary = () => {
+            const entries = loadLibrary();
+            if (!entries.length) {
+                libraryList.innerHTML = '<div class="prompt-library-empty">No saved prompts</div>';
+                return;
+            }
+            libraryList.innerHTML = '';
+            entries.forEach((entry, idx) => {
+                const row = document.createElement('div');
+                row.className = 'prompt-library-item';
+                row.innerHTML = `<span class="prompt-library-item-name" title="${entry.text}">${entry.name}</span><button class="prompt-library-del" data-idx="${idx}" title="Delete">✕</button>`;
+                row.querySelector('.prompt-library-item-name').addEventListener('click', () => {
+                    textarea.value = entry.text;
+                    node.data.prompt = entry.text;
+                    updateCounter(entry.text);
+                    callbacks.updateGenerateButton(node);
+                    libraryPanel.style.display = 'none';
+                });
+                row.querySelector('.prompt-library-del').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const lib = loadLibrary();
+                    lib.splice(idx, 1);
+                    saveLibrary(lib);
+                    renderLibrary();
+                });
+                libraryList.appendChild(row);
+            });
+        };
+
+        libraryBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = libraryPanel.style.display !== 'none';
+            libraryPanel.style.display = open ? 'none' : 'block';
+            if (!open) { renderLibrary(); libraryNameInput.focus(); }
+        });
+
+        librarySaveBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const text = node.data.prompt.trim();
+            if (!text) return;
+            const name = libraryNameInput.value.trim() || text.slice(0, 40);
+            const lib = loadLibrary();
+            lib.unshift({ name, text });
+            saveLibrary(lib);
+            libraryNameInput.value = '';
+            renderLibrary();
+        });
+
+        libraryNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') librarySaveBtn.click();
+            e.stopPropagation();
+        });
+
+        // Close panel on outside click
+        document.addEventListener('click', (e) => {
+            if (!nodeEl.contains(e.target)) libraryPanel.style.display = 'none';
         });
 
         // Generate button
