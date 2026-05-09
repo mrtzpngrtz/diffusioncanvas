@@ -574,6 +574,7 @@ app.post('/api/boards', isAuthenticated, async (req, res) => {
         const board = { id, name: name.trim(), createdAt, updatedAt: now, preview: preview || null, state };
 
         if (existing >= 0) {
+            await storage.pushVersion(req.user.id, id, boards[existing].state);
             boards[existing] = board;
         } else {
             boards.push(board);
@@ -612,6 +613,29 @@ app.get('/api/boards/:id/export', isAuthenticated, async (req, res) => {
         res.json({ name, createdAt, updatedAt, state });
     } catch (error) {
         res.status(500).json({ error: 'Failed to export board' });
+    }
+});
+
+// GET /api/boards/:id/versions — list version timestamps (no state payloads)
+app.get('/api/boards/:id/versions', isAuthenticated, async (req, res) => {
+    try {
+        const versions = await storage.getVersions(req.user.id, req.params.id);
+        res.json(versions);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to load versions' });
+    }
+});
+
+// GET /api/boards/:id/versions/:idx — restore a specific version state
+app.get('/api/boards/:id/versions/:idx', isAuthenticated, async (req, res) => {
+    try {
+        const idx = parseInt(req.params.idx, 10);
+        if (isNaN(idx) || idx < 0) return res.status(400).json({ error: 'Invalid version index' });
+        const state = await storage.getVersionState(req.user.id, req.params.id, idx);
+        if (!state) return res.status(404).json({ error: 'Version not found' });
+        res.json(state);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to load version' });
     }
 });
 

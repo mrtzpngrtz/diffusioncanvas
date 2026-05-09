@@ -552,8 +552,10 @@ Object.assign(App.prototype, {
                         <div class="board-card-actions">
                             <button class="board-btn board-load-btn" data-id="${b.id}">↑ Load</button>
                             <button class="board-btn board-download-btn" data-id="${b.id}">↓ Download</button>
+                            <button class="board-btn board-versions-btn" data-id="${b.id}" data-name="${this._escHtml(b.name)}">↩ Versions</button>
                             <button class="board-btn board-delete-btn" data-id="${b.id}">✕</button>
                         </div>
+                        <div class="board-versions-panel" id="vp-${b.id}" style="display:none;"></div>
                     </div>
                 </div>
             `).join('')}</div>`;
@@ -570,10 +572,80 @@ Object.assign(App.prototype, {
             listEl.querySelectorAll('.board-delete-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => { e.stopPropagation(); this._deleteBoardFromServer(btn.dataset.id); });
             });
+            listEl.querySelectorAll('.board-versions-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => { e.stopPropagation(); this._toggleBoardVersions(btn.dataset.id, btn.dataset.name); });
+            });
         } catch (err) {
             listEl.innerHTML = '<div class="boards-empty">Failed to load</div>';
         }
     },
+
+    async _toggleBoardVersions(boardId, boardName) {
+        const panel = document.getElementById(`vp-${boardId}`);
+        if (!panel) return;
+        if (panel.style.display !== 'none') {
+            panel.style.display = 'none';
+            return;
+        }
+        panel.style.display = 'block';
+        panel.innerHTML = '<div class="board-versions-loading">Loading versions...</div>';
+
+        try {
+            const res = await fetch(`/api/boards/${boardId}/versions`, { credentials: 'include' });
+            if (!res.ok) throw new Error('Failed');
+            const versions = await res.json();
+
+            if (versions.length === 0) {
+                panel.innerHTML = '<div class="board-versions-empty">No versions saved yet — versions are created each time a board is saved.</div>';
+                return;
+            }
+
+            panel.innerHTML = `<div class="board-versions-list">
+                ${versions.map((v, i) => `
+                    <div class="board-version-row">
+                        <span class="board-version-date">${this._fmtDateFull(v.savedAt)}</span>
+                        <button class="board-btn board-version-restore-btn" data-id="${boardId}" data-idx="${i}" data-name="${this._escHtml(boardName)}" data-date="${this._escHtml(v.savedAt)}">↩ Restore</button>
+                    </div>
+                `).join('')}
+            </div>`;
+
+            panel.querySelectorAll('.board-version-restore-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this._restoreBoardVersion(btn.dataset.id, parseInt(btn.dataset.idx), btn.dataset.name, btn.dataset.date);
+                });
+            });
+        } catch (err) {
+            panel.innerHTML = '<div class="board-versions-empty">Failed to load versions.</div>';
+        }
+    },
+
+    async _restoreBoardVersion(boardId, versionIdx, boardName, savedAt) {
+        const dateStr = this._fmtDateFull(savedAt);
+        if (!await this._confirm(`Restore "${boardName}" to the version saved at ${dateStr}?\n\nThis will load that version onto the canvas. The current canvas will not be overwritten until you save.`)) return;
+
+        this.closeBoardsModal();
+        this._showLoading('Restoring version...');
+        try {
+            const res = await fetch(`/api/boards/${boardId}/versions/${versionIdx}`, { credentials: 'include' });
+            if (!res.ok) throw new Error('Version not found');
+            const state = await res.json();
+
+            this._clearCanvasImmediate();
+            await this.deserializeCanvas(state);
+
+            this.currentBoardName = boardName;
+            this._updateBoardUI();
+            this.uiManager.updateStatus(`Restored to ${dateStr} — save to keep this version`, '#e67e22');
+        } catch (err) {
+            console.error('Restore version error:', err);
+            this.uiManager.updateStatus('Failed to restore version', '#e74c3c');
+        } finally {
+            this._hideLoading();
+        }
+    },
+
+    _fmtDateFull(iso) { return this._fmtDate(iso); },
 
     async saveBoard() {
         let name = this.currentBoardName;

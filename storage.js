@@ -5,10 +5,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_DIR    = path.join(__dirname, 'data');
-const USERS_FILE  = path.join(DATA_DIR, 'users.json');
+const DATA_DIR      = path.join(__dirname, 'data');
+const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
-const BOARDS_FILE = path.join(DATA_DIR, 'boards.json');
+const BOARDS_FILE   = path.join(DATA_DIR, 'boards.json');
+const VERSIONS_FILE = path.join(DATA_DIR, 'versions.json');
+
+const MAX_VERSIONS = 10;
 
 async function readJSON(file, fallback) {
     try {
@@ -60,11 +63,34 @@ export const storage = {
         await writeJSON(BOARDS_FILE, all);
     },
 
+    async getVersions(userId, boardId) {
+        const all = await readJSON(VERSIONS_FILE, {});
+        const key = `${userId}::${boardId}`;
+        return (all[key] || []).map(({ savedAt }) => ({ savedAt }));
+    },
+
+    async pushVersion(userId, boardId, snapshot) {
+        const all = await readJSON(VERSIONS_FILE, {});
+        const key = `${userId}::${boardId}`;
+        const versions = all[key] || [];
+        versions.unshift({ savedAt: new Date().toISOString(), state: snapshot });
+        all[key] = versions.slice(0, MAX_VERSIONS);
+        await writeJSON(VERSIONS_FILE, all);
+    },
+
+    async getVersionState(userId, boardId, index) {
+        const all = await readJSON(VERSIONS_FILE, {});
+        const key = `${userId}::${boardId}`;
+        const versions = all[key] || [];
+        return versions[index]?.state || null;
+    },
+
     async init() {
         await fs.mkdir(DATA_DIR, { recursive: true });
         for (const [file, fallback] of [
             [USERS_FILE, []],
             [BOARDS_FILE, {}],
+            [VERSIONS_FILE, {}],
         ]) {
             try { await fs.access(file); }
             catch { await writeJSON(file, fallback); }
