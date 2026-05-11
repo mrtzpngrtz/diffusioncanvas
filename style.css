@@ -1126,19 +1126,17 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 20px 10px 8px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.72));
-    display: flex;
+    padding: 24px 10px 8px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.82));
+    display: none;
     flex-direction: column;
     gap: 3px;
-    opacity: 0;
-    transition: opacity 0.15s;
     pointer-events: none;
     z-index: 4;
 }
 
-.node:hover .result-meta {
-    opacity: 1;
+.result-meta.result-meta-visible {
+    display: flex;
 }
 
 .result-meta-prompt {

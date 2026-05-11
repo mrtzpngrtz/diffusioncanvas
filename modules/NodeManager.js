@@ -447,8 +447,8 @@ export class NodeManager {
             const resultNode = this.createNode('result', resultX, resultY + offsetY, {
                 imageUrl: result.image,
                 sourceNode: node,
-                prompt: node.data.prompt,
-                model: node.data.model
+                prompt: result.prompt,
+                model: result.model
             });
             node.data.resultNode = resultNode;
 
@@ -671,7 +671,10 @@ export class NodeManager {
         out.set(bytes.slice(insertAt), off);
 
         let outBin = '';
-        for (let i = 0; i < out.length; i++) outBin += String.fromCharCode(out[i]);
+        const CHUNK = 65536;
+        for (let i = 0; i < out.length; i += CHUNK) {
+            outBin += String.fromCharCode.apply(null, out.subarray(i, i + CHUNK));
+        }
         return 'data:image/png;base64,' + btoa(outBin);
     }
 

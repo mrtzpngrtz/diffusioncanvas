@@ -53,9 +53,17 @@ export class ResultNode extends NodeBase {
         content.appendChild(wrapper);
 
         node.updateMeta = () => {
-            metaEl.querySelector('.result-meta-prompt').textContent = node.data.prompt || '';
-            metaEl.querySelector('.result-meta-model').textContent = node.data.model || '';
+            const p = node.data.prompt || '';
+            const m = node.data.model || '';
+            metaEl.querySelector('.result-meta-prompt').textContent = p;
+            metaEl.querySelector('.result-meta-model').textContent = m;
+            metaEl.classList.toggle('result-meta-has-data', !!(p || m));
         };
+
+        img.addEventListener('click', () => {
+            if (!metaEl.classList.contains('result-meta-has-data')) return;
+            metaEl.classList.toggle('result-meta-visible');
+        });
 
         img.onload = () => {
             node.data.originalWidth = img.naturalWidth;

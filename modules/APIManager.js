@@ -149,7 +149,9 @@ export class APIManager {
                 return {
                     success: true,
                     image: result.image,
-                    creditsRemaining: result.creditsRemaining
+                    creditsRemaining: result.creditsRemaining,
+                    prompt,
+                    model: node.data.model
                 };
 
             } else if (result.text) {
