@@ -574,7 +574,9 @@ app.post('/api/boards', isAuthenticated, async (req, res) => {
         const board = { id, name: name.trim(), createdAt, updatedAt: now, preview: preview || null, state };
 
         if (existing >= 0) {
-            await storage.pushVersion(req.user.id, id, boards[existing].state);
+            storage.pushVersion(req.user.id, id, boards[existing].state).catch(e =>
+                console.warn('pushVersion failed (non-fatal):', e.message)
+            );
             boards[existing] = board;
         } else {
             boards.push(board);

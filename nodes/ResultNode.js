@@ -49,20 +49,12 @@ export class ResultNode extends NodeBase {
             <div class="result-meta-prompt"></div>
             <div class="result-meta-model"></div>
         `;
-        metaEl.style.display = 'none';
+        wrapper.appendChild(metaEl);
         content.appendChild(wrapper);
-        content.appendChild(metaEl);
 
         node.updateMeta = () => {
-            const p = node.data.prompt || '';
-            const m = node.data.model || '';
-            if (p || m) {
-                metaEl.querySelector('.result-meta-prompt').textContent = p;
-                metaEl.querySelector('.result-meta-model').textContent = m;
-                metaEl.style.display = '';
-            } else {
-                metaEl.style.display = 'none';
-            }
+            metaEl.querySelector('.result-meta-prompt').textContent = node.data.prompt || '';
+            metaEl.querySelector('.result-meta-model').textContent = node.data.model || '';
         };
 
         img.onload = () => {

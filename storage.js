@@ -136,12 +136,12 @@ export const storage = {
     },
 
     async init() {
+        await fs.mkdir(DATA_DIR, { recursive: true });
         if (useRedis()) {
             await getRedis();
             console.log('✓ Redis storage ready');
             return;
         }
-        await fs.mkdir(DATA_DIR, { recursive: true });
         for (const [file, fallback] of [
             [USERS_FILE, []],
             [BOARDS_FILE, {}],
