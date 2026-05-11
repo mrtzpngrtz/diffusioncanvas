@@ -496,6 +496,11 @@ export class NodeManager {
                 node.data.imageWidth = null;
                 node.element.style.width = '400px';
 
+                // Read embedded iTXt metadata (prompt/model) if present
+                const meta = this._readPNGMetadata(e.target.result);
+                if (meta.prompt) { node.data.prompt = meta.prompt; console.log('[imgLoad] recovered prompt from PNG metadata:', meta.prompt.slice(0, 60)); }
+                if (meta.model)  node.data.model = meta.model;
+
                 // Update DOM
                 const content = node.element.querySelector('.node-content');
                 content.innerHTML = ''; // Clear dropzone
@@ -543,7 +548,10 @@ export class NodeManager {
 
         downloadBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.downloadImage(node.data.imageData, 'image.png');
+            this.downloadImage(node.data.imageData, 'image.png', {
+                prompt: node.data.prompt,
+                model: node.data.model
+            });
         });
 
         stdBtn.addEventListener('click', (e) => {
@@ -676,6 +684,42 @@ export class NodeManager {
             outBin += String.fromCharCode.apply(null, out.subarray(i, i + CHUNK));
         }
         return 'data:image/png;base64,' + btoa(outBin);
+    }
+
+    _readPNGMetadata(dataUrl) {
+        if (!dataUrl || !dataUrl.startsWith('data:image/png')) return {};
+        try {
+            const b64 = dataUrl.split(',')[1];
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const result = {};
+            let pos = 8; // skip PNG signature
+            const dec = new TextDecoder();
+            while (pos + 12 <= bytes.length) {
+                const len = ((bytes[pos] << 24) | (bytes[pos+1] << 16) | (bytes[pos+2] << 8) | bytes[pos+3]) >>> 0;
+                const type = String.fromCharCode(bytes[pos+4], bytes[pos+5], bytes[pos+6], bytes[pos+7]);
+                if (type === 'iTXt' && len > 0) {
+                    const data = bytes.subarray(pos + 8, pos + 8 + len);
+                    let kwEnd = data.indexOf(0);
+                    if (kwEnd >= 0) {
+                        const keyword = dec.decode(data.subarray(0, kwEnd));
+                        // header after keyword null: comp_flag(1) + comp_method(1) + lang\0(min 1) + translated_kw\0(min 1) = 4
+                        // our chunks always have empty lang + empty translated_kw → exactly 5 bytes (null + 4)
+                        const textStart = kwEnd + 5;
+                        if (textStart < data.length) {
+                            result[keyword] = dec.decode(data.subarray(textStart));
+                        }
+                    }
+                }
+                if (type === 'IEND') break;
+                pos += 12 + len;
+            }
+            return result;
+        } catch (e) {
+            console.warn('[readPNGMeta] failed:', e);
+            return {};
+        }
     }
 
     downloadImage(data, filename, metadata = {}) {
