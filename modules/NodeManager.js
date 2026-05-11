@@ -85,6 +85,7 @@ export class NodeManager {
                 if (node) {
                     if (data?.prompt) node.data.prompt = data.prompt;
                     if (data?.model)  node.data.model  = data.model;
+                    node.updateMeta?.();
                 }
                 break;
             }
