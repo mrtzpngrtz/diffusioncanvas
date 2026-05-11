@@ -509,10 +509,10 @@ export class NodeManager {
                 wrapper.className = 'image-wrapper';
                 wrapper.appendChild(img);
 
-                // Show metadata overlay if recovered from PNG
+                // Show metadata overlay if recovered from PNG — visible by default, click to hide
                 if (meta.prompt || meta.model) {
                     const metaEl = document.createElement('div');
-                    metaEl.className = 'result-meta result-meta-has-data';
+                    metaEl.className = 'result-meta result-meta-has-data result-meta-visible';
                     metaEl.innerHTML = `
                         <div class="result-meta-prompt">${meta.prompt || ''}</div>
                         <div class="result-meta-model">${meta.model || ''}</div>
