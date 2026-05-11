@@ -47,8 +47,8 @@ app.use(cors({
     credentials: true
 }));
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(express.json({ limit: '30mb' }));
-app.use(express.urlencoded({ limit: '30mb', extended: true }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use(express.static(__dirname)); 
 
 // Initialize Passport

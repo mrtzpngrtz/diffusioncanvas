@@ -289,21 +289,25 @@ class App {
         try {
             const state = this.serializeCanvas();
             const preview = this._generatePreview();
+            const body = JSON.stringify({ id: this.currentBoardId, name: this.currentBoardName, state, preview });
+            const sizeMB = (new TextEncoder().encode(body).length / 1048576).toFixed(1);
+            show('saving', `● saving… ${sizeMB} MB`);
             const res = await fetch('/api/boards', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ id: this.currentBoardId, name: this.currentBoardName, state, preview })
+                body
             });
             if (!res.ok) throw new Error(res.statusText);
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
             const mm = String(now.getMinutes()).padStart(2, '0');
             const ss = String(now.getSeconds()).padStart(2, '0');
-            show('saved', `✓ saved ${hh}:${mm}:${ss}`);
+            show('saved', `✓ ${hh}:${mm}:${ss} · ${sizeMB} MB`);
             // Fade out after 4s
             setTimeout(() => { if (badge) badge.classList.remove('visible'); }, 4000);
         } catch (e) {
+            console.error('Autosave failed:', e);
             show('error', '✕ save failed');
             setTimeout(() => { if (badge) badge.classList.remove('visible'); }, 5000);
         }
