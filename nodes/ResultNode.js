@@ -7,6 +7,7 @@ export class ResultNode extends NodeBase {
         nodeEl.id = nodeId;
         nodeEl.style.left = `${x}px`;
         nodeEl.style.top = `${y}px`;
+        nodeEl.style.width = '400px';
 
         const img = document.createElement('img');
         img.src = imageUrl;

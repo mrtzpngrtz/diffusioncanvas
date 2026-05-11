@@ -492,7 +492,8 @@ export class NodeManager {
                 node.data.imageData = e.target.result;
                 node.data.originalWidth = img.naturalWidth;
                 node.data.originalHeight = img.naturalHeight;
-                node.data.imageWidth = null; // let CSS control via width: 100%
+                node.data.imageWidth = null;
+                node.element.style.width = '400px';
 
                 // Update DOM
                 const content = node.element.querySelector('.node-content');
