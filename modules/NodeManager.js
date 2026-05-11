@@ -679,9 +679,17 @@ export class NodeManager {
     }
 
     downloadImage(data, filename, metadata = {}) {
-        const finalData = (metadata.prompt || metadata.model)
-            ? this._embedPNGMetadata(data, metadata)
-            : data;
+        let finalData = data;
+        if (metadata.prompt || metadata.model) {
+            try {
+                finalData = this._embedPNGMetadata(data, metadata);
+                console.log('[download] PNG metadata embedded — prompt:', metadata.prompt?.slice(0, 60));
+            } catch (e) {
+                console.warn('[download] PNG metadata embedding failed, downloading without:', e);
+            }
+        } else {
+            console.log('[download] No metadata to embed (prompt:', metadata.prompt, ', model:', metadata.model, ')');
+        }
         const link = document.createElement('a');
         link.href = finalData;
         link.download = filename;

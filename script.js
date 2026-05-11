@@ -472,6 +472,16 @@ class App {
             this.nodeManager.updateGenerateButton(node);
         }
 
+        // Update result node metadata now that source links are resolved
+        for (const node of nodeMap.values()) {
+            if (node.type !== 'result' || !node.updateMeta) continue;
+            if (!node.data.prompt && node.data.sourcePromptNode) {
+                node.data.prompt = node.data.sourcePromptNode.data.prompt;
+                node.data.model  = node.data.sourcePromptNode.data.model;
+            }
+            node.updateMeta();
+        }
+
         // Restore connections
         this.connectionManager.connections = state.connections || [];
         this.connectionManager.drawConnections();
