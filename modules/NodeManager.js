@@ -498,8 +498,8 @@ export class NodeManager {
 
                 // Read embedded iTXt metadata (prompt/model) if present
                 const meta = this._readPNGMetadata(e.target.result);
-                if (meta.prompt) { node.data.prompt = meta.prompt; console.log('[imgLoad] recovered prompt from PNG metadata:', meta.prompt.slice(0, 60)); }
-                if (meta.model)  node.data.model = meta.model;
+                if (meta.prompt) node.data.prompt = meta.prompt;
+                if (meta.model)  node.data.model  = meta.model;
 
                 // Update DOM
                 const content = node.element.querySelector('.node-content');
@@ -508,6 +508,19 @@ export class NodeManager {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'image-wrapper';
                 wrapper.appendChild(img);
+
+                // Show metadata overlay if recovered from PNG
+                if (meta.prompt || meta.model) {
+                    const metaEl = document.createElement('div');
+                    metaEl.className = 'result-meta result-meta-has-data';
+                    metaEl.innerHTML = `
+                        <div class="result-meta-prompt">${meta.prompt || ''}</div>
+                        <div class="result-meta-model">${meta.model || ''}</div>
+                    `;
+                    wrapper.appendChild(metaEl);
+                    img.addEventListener('click', () => metaEl.classList.toggle('result-meta-visible'));
+                }
+
                 content.appendChild(wrapper);
 
                 // Show clear button
@@ -687,34 +700,40 @@ export class NodeManager {
     }
 
     _readPNGMetadata(dataUrl) {
-        if (!dataUrl || !dataUrl.startsWith('data:image/png')) return {};
+        if (!dataUrl || !dataUrl.startsWith('data:image/png')) {
+            console.log('[readPNGMeta] skipped — not PNG:', dataUrl?.slice(0, 30));
+            return {};
+        }
         try {
             const b64 = dataUrl.split(',')[1];
-            const bin = atob(b64);
+            // Only decode first 2KB — our iTXt chunks sit right after IHDR (byte 33)
+            // 2KB covers prompts up to ~1900 chars which is plenty
+            const b64Slice = b64.slice(0, 2732); // 2048 bytes * 4/3 rounded up to mult of 4
+            const bin = atob(b64Slice);
             const bytes = new Uint8Array(bin.length);
             for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
             const result = {};
             let pos = 8; // skip PNG signature
             const dec = new TextDecoder();
             while (pos + 12 <= bytes.length) {
                 const len = ((bytes[pos] << 24) | (bytes[pos+1] << 16) | (bytes[pos+2] << 8) | bytes[pos+3]) >>> 0;
                 const type = String.fromCharCode(bytes[pos+4], bytes[pos+5], bytes[pos+6], bytes[pos+7]);
-                if (type === 'iTXt' && len > 0) {
+                if (type === 'iTXt' && len > 0 && pos + 8 + len <= bytes.length) {
                     const data = bytes.subarray(pos + 8, pos + 8 + len);
-                    let kwEnd = data.indexOf(0);
+                    const kwEnd = data.indexOf(0);
                     if (kwEnd >= 0) {
                         const keyword = dec.decode(data.subarray(0, kwEnd));
-                        // header after keyword null: comp_flag(1) + comp_method(1) + lang\0(min 1) + translated_kw\0(min 1) = 4
-                        // our chunks always have empty lang + empty translated_kw → exactly 5 bytes (null + 4)
-                        const textStart = kwEnd + 5;
+                        const textStart = kwEnd + 5; // null + comp_flag + comp_method + lang\0 + translated_kw\0
                         if (textStart < data.length) {
                             result[keyword] = dec.decode(data.subarray(textStart));
                         }
                     }
                 }
-                if (type === 'IEND') break;
+                if (type === 'IEND' || type === 'IDAT') break; // stop at image data
                 pos += 12 + len;
             }
+            console.log('[readPNGMeta] result:', result);
             return result;
         } catch (e) {
             console.warn('[readPNGMeta] failed:', e);
