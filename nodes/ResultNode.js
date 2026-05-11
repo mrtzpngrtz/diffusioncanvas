@@ -76,7 +76,10 @@ export class ResultNode extends NodeBase {
 
         downloadBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            callbacks.downloadImage(node.data.imageData, 'generated-result.png');
+            callbacks.downloadImage(node.data.imageData, 'generated-result.png', {
+                prompt: node.data.prompt,
+                model: node.data.model
+            });
         });
 
         stdBtn.addEventListener('click', (e) => {

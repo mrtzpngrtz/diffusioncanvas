@@ -62,7 +62,7 @@ export class NodeManager {
             updateGenerateButton: (n) => this.updateGenerateButton(n),
             generateImage: (n) => this.handleGenerateImage(n),
             openLightbox: (src) => this.uiManager.openLightbox(src),
-            downloadImage: (src, name) => this.downloadImage(src, name),
+            downloadImage: (src, name, meta) => this.downloadImage(src, name, meta),
             updateDrawNodeImage: (n) => this.updateDrawNodeImage(n)
         };
 
@@ -80,9 +80,12 @@ export class NodeManager {
                 node = new DrawNode().create(nodeId, x, y, callbacks);
                 break;
             case 'result': {
-                // Handle both imageUrl (from generation) and imageData (from save/load)
                 const imgData = data?.imageUrl || data?.imageData;
                 node = new ResultNode().create(nodeId, x, y, imgData, data?.sourceNode, callbacks);
+                if (node) {
+                    if (data?.prompt) node.data.prompt = data.prompt;
+                    if (data?.model)  node.data.model  = data.model;
+                }
                 break;
             }
         }
@@ -442,7 +445,9 @@ export class NodeManager {
             // Always create a new result node
             const resultNode = this.createNode('result', resultX, resultY + offsetY, {
                 imageUrl: result.image,
-                sourceNode: node
+                sourceNode: node,
+                prompt: node.data.prompt,
+                model: node.data.model
             });
             node.data.resultNode = resultNode;
 
@@ -612,9 +617,68 @@ export class NodeManager {
         }
     }
 
-    downloadImage(data, filename) {
+    _crc32(buf) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < buf.length; i++) {
+            crc ^= buf[i];
+            for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    _makePNGiTXtChunk(keyword, text) {
+        const enc = new TextEncoder();
+        const kw = enc.encode(keyword);
+        const tx = enc.encode(text);
+        // iTXt: keyword + \0 + comp_flag(0) + comp_method(0) + lang\0 + translated_kw\0 + text
+        const data = new Uint8Array(kw.length + 5 + tx.length);
+        data.set(kw, 0);
+        // bytes kw.length+0..+4 are already 0 (null, flags, empty lang, empty translated kw)
+        data.set(tx, kw.length + 5);
+        const type = new Uint8Array([0x69, 0x54, 0x58, 0x74]); // "iTXt"
+        const chunk = new Uint8Array(4 + 4 + data.length + 4);
+        const view = new DataView(chunk.buffer);
+        view.setUint32(0, data.length, false);
+        chunk.set(type, 4);
+        chunk.set(data, 8);
+        const crcInput = new Uint8Array(type.length + data.length);
+        crcInput.set(type, 0); crcInput.set(data, 4);
+        view.setUint32(8 + data.length, this._crc32(crcInput), false);
+        return chunk;
+    }
+
+    _embedPNGMetadata(dataUrl, metadata) {
+        if (!dataUrl || !dataUrl.startsWith('data:image/png')) return dataUrl;
+        const b64 = dataUrl.split(',')[1];
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+        const chunks = [];
+        if (metadata.prompt) chunks.push(this._makePNGiTXtChunk('prompt', metadata.prompt));
+        if (metadata.model)  chunks.push(this._makePNGiTXtChunk('model',  metadata.model));
+        if (!chunks.length) return dataUrl;
+
+        // Insert after IHDR (8 sig + 4 len + 4 type + 13 data + 4 crc = 33 bytes)
+        const insertAt = 33;
+        const extra = chunks.reduce((s, c) => s + c.length, 0);
+        const out = new Uint8Array(bytes.length + extra);
+        out.set(bytes.slice(0, insertAt), 0);
+        let off = insertAt;
+        for (const c of chunks) { out.set(c, off); off += c.length; }
+        out.set(bytes.slice(insertAt), off);
+
+        let outBin = '';
+        for (let i = 0; i < out.length; i++) outBin += String.fromCharCode(out[i]);
+        return 'data:image/png;base64,' + btoa(outBin);
+    }
+
+    downloadImage(data, filename, metadata = {}) {
+        const finalData = (metadata.prompt || metadata.model)
+            ? this._embedPNGMetadata(data, metadata)
+            : data;
         const link = document.createElement('a');
-        link.href = data;
+        link.href = finalData;
         link.download = filename;
         document.body.appendChild(link);
         link.click();
