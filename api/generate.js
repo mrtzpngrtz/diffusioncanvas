@@ -92,7 +92,8 @@ export default async function handler(req, res) {
                     result.text = part.text;
                 } else if (part.inlineData) {
                     const imageData = part.inlineData.data;
-                    result.image = `data:image/png;base64,${imageData}`;
+                    const mime = part.inlineData.mimeType || 'image/png';
+                    result.image = `data:${mime};base64,${imageData}`;
                 }
             }
 

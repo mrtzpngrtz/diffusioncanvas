@@ -751,25 +751,52 @@ export class NodeManager {
         }
     }
 
-    downloadImage(data, filename, metadata = {}) {
-        let finalData = data;
+    async downloadImage(data, filename, metadata = {}) {
+        // Convert to PNG via canvas if not already PNG (Gemini returns JPEG)
+        let pngData = data;
+        if (!data.startsWith('data:image/png')) {
+            pngData = await new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = img.naturalWidth; c.height = img.naturalHeight;
+                    c.getContext('2d').drawImage(img, 0, 0);
+                    resolve(c.toDataURL('image/png'));
+                };
+                img.src = data;
+            });
+        }
+
+        let finalData = pngData;
         if (metadata.prompt || metadata.model) {
             try {
-                finalData = this._embedPNGMetadata(data, metadata);
-                const verify = this._readPNGMetadata(finalData);
-                console.log('[download] embed verify prompt:', JSON.stringify(verify.prompt?.slice(0,60)), 'model:', JSON.stringify(verify.model));
+                finalData = this._embedPNGMetadata(pngData, metadata);
             } catch (e) {
-                console.warn('[download] PNG metadata embedding failed, downloading without:', e);
+                console.warn('[download] metadata embed failed:', e);
             }
-        } else {
-            console.log('[download] No metadata to embed (prompt:', metadata.prompt, ', model:', metadata.model, ')');
         }
-        const link = document.createElement('a');
-        link.href = finalData;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+
+        // Use Blob URL — data URLs can be saved as text in Chrome for large files
+        try {
+            const b64 = finalData.split(',')[1];
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename.replace(/\.[^.]+$/, '') + '.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch (e) {
+            console.warn('[download] blob fallback:', e);
+            const link = document.createElement('a');
+            link.href = finalData;
+            link.download = filename;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
     }
 
     updateDrawNodeImage(node) {
