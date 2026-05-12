@@ -9,8 +9,7 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR      = path.join(__dirname, 'data');
 const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
-const BOARDS_FILE   = path.join(DATA_DIR, 'boards.json');
-const VERSIONS_FILE = path.join(DATA_DIR, 'versions.json');
+const BOARDS_FILE   = path.join(DATA_DIR, 'boards.json');  // metadata only — no state
 
 const MAX_VERSIONS = 10;
 
@@ -28,6 +27,9 @@ async function readJSON(file, fallback) {
 async function writeJSON(file, data) {
     await fs.writeFile(file, JSON.stringify(data, null, 2));
 }
+
+function stateFile(boardId)    { return path.join(DATA_DIR, `state_${boardId}.json`); }
+function versionsFile(boardId) { return path.join(DATA_DIR, `versions_${boardId}.json`); }
 
 // ── Redis client (lazy) ───────────────────────────────────────────────────────
 
@@ -92,6 +94,7 @@ export const storage = {
         await writeJSON(SETTINGS_FILE, settings);
     },
 
+    // Returns board metadata only (no state) — fast, small file
     async getBoards(userId) {
         if (useRedis()) {
             const r = await getRedis();
@@ -99,40 +102,80 @@ export const storage = {
             return val ? JSON.parse(val) : [];
         }
         const all = await readJSON(BOARDS_FILE, {});
-        return all[userId] || [];
+        return (all[userId] || []).map(({ state, ...meta }) => meta); // strip state if still embedded
     },
 
+    // Saves metadata to boards.json; state to separate per-board file
     async setBoards(userId, boards) {
+        const meta = [];
+        for (const board of boards) {
+            const { state, ...rest } = board;
+            meta.push(rest);
+            if (state !== undefined) {
+                if (useRedis()) {
+                    const r = await getRedis();
+                    await r.set(`state:${board.id}`, JSON.stringify(state));
+                } else {
+                    await writeJSON(stateFile(board.id), state);
+                }
+            }
+        }
+
         if (useRedis()) {
             const r = await getRedis();
-            await r.set(`boards:${userId}`, JSON.stringify(boards));
+            await r.set(`boards:${userId}`, JSON.stringify(meta));
             return;
         }
         const all = await readJSON(BOARDS_FILE, {});
-        all[userId] = boards;
+        all[userId] = meta;
         await writeJSON(BOARDS_FILE, all);
     },
 
+    // Read full state for a single board — per-board file, never touches boards.json
+    async getBoardState(boardId) {
+        if (useRedis()) {
+            const r = await getRedis();
+            const val = await r.get(`state:${boardId}`);
+            return val ? JSON.parse(val) : null;
+        }
+        return readJSON(stateFile(boardId), null);
+    },
+
     async getVersions(userId, boardId) {
-        const all = await readJSON(VERSIONS_FILE, {});
-        const key = `${userId}::${boardId}`;
-        return (all[key] || []).map(({ savedAt }) => ({ savedAt }));
+        if (useRedis()) {
+            const r = await getRedis();
+            const val = await r.get(`versions:${userId}:${boardId}`);
+            const list = val ? JSON.parse(val) : [];
+            return list.map(({ savedAt }) => ({ savedAt }));
+        }
+        const list = await readJSON(versionsFile(boardId), []);
+        return list.map(({ savedAt }) => ({ savedAt }));
     },
 
     async pushVersion(userId, boardId, snapshot) {
-        const all = await readJSON(VERSIONS_FILE, {});
-        const key = `${userId}::${boardId}`;
-        const versions = all[key] || [];
-        versions.unshift({ savedAt: new Date().toISOString(), state: snapshot });
-        all[key] = versions.slice(0, MAX_VERSIONS);
-        await writeJSON(VERSIONS_FILE, all);
+        if (useRedis()) {
+            const r = await getRedis();
+            const val = await r.get(`versions:${userId}:${boardId}`);
+            const list = val ? JSON.parse(val) : [];
+            list.unshift({ savedAt: new Date().toISOString(), state: snapshot });
+            await r.set(`versions:${userId}:${boardId}`, JSON.stringify(list.slice(0, MAX_VERSIONS)));
+            return;
+        }
+        const file = versionsFile(boardId);
+        const list = await readJSON(file, []);
+        list.unshift({ savedAt: new Date().toISOString(), state: snapshot });
+        await writeJSON(file, list.slice(0, MAX_VERSIONS));
     },
 
     async getVersionState(userId, boardId, index) {
-        const all = await readJSON(VERSIONS_FILE, {});
-        const key = `${userId}::${boardId}`;
-        const versions = all[key] || [];
-        return versions[index]?.state || null;
+        if (useRedis()) {
+            const r = await getRedis();
+            const val = await r.get(`versions:${userId}:${boardId}`);
+            const list = val ? JSON.parse(val) : [];
+            return list[index]?.state || null;
+        }
+        const list = await readJSON(versionsFile(boardId), []);
+        return list[index]?.state || null;
     },
 
     async init() {
@@ -145,13 +188,44 @@ export const storage = {
         for (const [file, fallback] of [
             [USERS_FILE, []],
             [BOARDS_FILE, {}],
-            [VERSIONS_FILE, {}],
         ]) {
             try { await fs.access(file); }
             catch { await writeJSON(file, fallback); }
         }
         try { await fs.access(SETTINGS_FILE); }
         catch { await this.setSettings({}); }
+
+        // One-time migration: extract state from old boards.json and versions.json
+        await this._migrate();
         console.log('✓ Local file storage ready');
+    },
+
+    async _migrate() {
+        // Migrate boards.json: move embedded state to per-board files
+        const all = await readJSON(BOARDS_FILE, {});
+        let boardsDirty = false;
+        for (const boards of Object.values(all)) {
+            for (const board of boards) {
+                if (board.state) {
+                    const sf = stateFile(board.id);
+                    try { await fs.access(sf); }
+                    catch { await writeJSON(sf, board.state); }
+                    delete board.state;
+                    boardsDirty = true;
+                }
+            }
+        }
+        if (boardsDirty) await writeJSON(BOARDS_FILE, all);
+
+        // Migrate versions.json: move per-key version lists to per-board files
+        const VERSIONS_FILE = path.join(DATA_DIR, 'versions.json');
+        const oldVersions = await readJSON(VERSIONS_FILE, {});
+        for (const [key, list] of Object.entries(oldVersions)) {
+            const boardId = key.split('::')[1];
+            if (!boardId) continue;
+            const vf = versionsFile(boardId);
+            try { await fs.access(vf); }
+            catch { await writeJSON(vf, list); }
+        }
     }
 };

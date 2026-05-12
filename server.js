@@ -574,9 +574,10 @@ app.post('/api/boards', isAuthenticated, async (req, res) => {
         const board = { id, name: name.trim(), createdAt, updatedAt: now, preview: preview || null, state };
 
         if (existing >= 0) {
-            storage.pushVersion(req.user.id, id, boards[existing].state).catch(e =>
-                console.warn('pushVersion failed (non-fatal):', e.message)
-            );
+            storage.getBoardState(id).then(oldState => {
+                if (oldState) storage.pushVersion(req.user.id, id, oldState)
+                    .catch(e => console.warn('pushVersion failed (non-fatal):', e.message));
+            }).catch(() => {});
             boards[existing] = board;
         } else {
             boards.push(board);
@@ -596,7 +597,9 @@ app.get('/api/boards/:id', isAuthenticated, async (req, res) => {
         const boards = await storage.getBoards(req.user.id);
         const board = boards.find(b => b.id === req.params.id);
         if (!board) return res.status(404).json({ error: 'Board not found' });
-        res.json(board.state);
+        const state = await storage.getBoardState(req.params.id);
+        if (!state) return res.status(404).json({ error: 'Board state not found' });
+        res.json(state);
     } catch (error) {
         console.error('Error loading board:', error);
         res.status(500).json({ error: 'Failed to load board' });
