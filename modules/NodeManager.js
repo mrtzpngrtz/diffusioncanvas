@@ -738,53 +738,37 @@ export class NodeManager {
     }
 
     _readPNGMetadata(dataUrl) {
-        if (!dataUrl || !dataUrl.startsWith('data:image/png')) {
-            console.log('[readPNGMeta] skipped — not PNG:', dataUrl?.slice(0, 30));
-            return {};
-        }
+        if (!dataUrl || !dataUrl.startsWith('data:image/png')) return {};
         try {
             const b64 = dataUrl.split(',')[1];
             const bin = atob(b64);
             const bytes = new Uint8Array(bin.length);
             for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 
-            console.log('[readPNGMeta] total bytes:', bytes.length);
-
-            // Verify PNG signature
             const sig = [137,80,78,71,13,10,26,10];
-            const validSig = sig.every((b, i) => bytes[i] === b);
-            console.log('[readPNGMeta] valid PNG sig:', validSig);
+            if (!sig.every((b, i) => bytes[i] === b)) return {};
 
             const result = {};
             let pos = 8;
             const dec = new TextDecoder();
-            let chunkCount = 0;
             while (pos + 12 <= bytes.length) {
                 const len = ((bytes[pos] << 24) | (bytes[pos+1] << 16) | (bytes[pos+2] << 8) | bytes[pos+3]) >>> 0;
                 const type = String.fromCharCode(bytes[pos+4], bytes[pos+5], bytes[pos+6], bytes[pos+7]);
-                console.log(`[readPNGMeta] chunk @${pos}: type=${type} len=${len}`);
-                chunkCount++;
-                if (chunkCount > 30) { console.log('[readPNGMeta] too many chunks, stopping'); break; }
-
+                if (type === 'IDAT' || type === 'IEND') break; // metadata always precedes image data
                 if (type === 'iTXt' && len > 0) {
                     const data = bytes.subarray(pos + 8, pos + 8 + len);
                     const kwEnd = data.indexOf(0);
-                    console.log('[readPNGMeta] iTXt kwEnd:', kwEnd, 'dataLen:', data.length);
                     if (kwEnd >= 0) {
                         const keyword = dec.decode(data.subarray(0, kwEnd));
                         const textStart = kwEnd + 5;
                         const text = textStart < data.length ? dec.decode(data.subarray(textStart)) : '';
-                        console.log('[readPNGMeta] iTXt keyword:', JSON.stringify(keyword), 'text:', JSON.stringify(text.slice(0,80)));
                         result[keyword] = text;
                     }
                 }
-                if (type === 'IEND') break;
                 pos += 12 + len;
             }
-            console.log('[readPNGMeta] final result:', result);
             return result;
         } catch (e) {
-            console.warn('[readPNGMeta] failed:', e);
             return {};
         }
     }
@@ -809,9 +793,12 @@ export class NodeManager {
         if (metadata.prompt || metadata.model) {
             try {
                 finalData = this._embedPNGMetadata(pngData, metadata);
+                console.log('[download] embedded metadata — prompt:', metadata.prompt?.slice(0, 40), '| bytes:', pngData.length, '->', finalData.length);
             } catch (e) {
                 console.warn('[download] metadata embed failed:', e);
             }
+        } else {
+            console.warn('[download] no metadata to embed — prompt:', metadata.prompt, 'model:', metadata.model);
         }
 
         // Use Blob URL — data URLs can be saved as text in Chrome for large files

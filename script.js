@@ -110,6 +110,9 @@ class App {
         document.getElementById('saveBoardBtn').addEventListener('click', () => this.saveBoard());
         document.getElementById('openBoardsBtn').addEventListener('click', () => this.toggleBoardsPanel());
         document.getElementById('newBoardBtn').addEventListener('click', () => this.saveBoardAsNew());
+        document.getElementById('downloadBoardBtn').addEventListener('click', () => {
+            if (this.currentBoardId) this._downloadBoard(this.currentBoardId);
+        });
         document.getElementById('boardsModalClose').addEventListener('click', () => this.closeBoardsModal());
         document.getElementById('boardsModalNew').addEventListener('click', () => this.newEmptyBoard());
         document.getElementById('boardsModalImport').addEventListener('click', () => this._importBoardFromFile());
@@ -904,6 +907,8 @@ Object.assign(App.prototype, {
         if (sidebarEl) sidebarEl.textContent = name;
         const topBarEl = document.getElementById('topBarBoardName');
         if (topBarEl) topBarEl.textContent = name;
+        const dlBtn = document.getElementById('downloadBoardBtn');
+        if (dlBtn) dlBtn.style.display = this.currentBoardId ? '' : 'none';
         if (this.currentBoardId) {
             sessionStorage.setItem('diffusionCanvas_sessionBoardId', this.currentBoardId);
         } else {
