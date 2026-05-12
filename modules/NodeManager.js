@@ -780,20 +780,20 @@ export class NodeManager {
     }
 
     async downloadImage(data, filename, metadata = {}) {
-        // Convert to PNG via canvas if not already PNG (Gemini returns JPEG)
-        let pngData = data;
-        if (!data.startsWith('data:image/png')) {
-            pngData = await new Promise(resolve => {
-                const img = new Image();
-                img.onload = () => {
-                    const c = document.createElement('canvas');
-                    c.width = img.naturalWidth; c.height = img.naturalHeight;
-                    c.getContext('2d').drawImage(img, 0, 0);
-                    resolve(c.toDataURL('image/png'));
-                };
-                img.src = data;
-            });
-        }
+        // Always re-encode through canvas to guarantee valid PNG bytes.
+        // Skipping this when header says image/png is unsafe — server historically
+        // returned JPEG bytes with a image/png MIME type (now fixed), so old result
+        // nodes may have mismatched headers that corrupt the downloaded file.
+        const pngData = await new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth; c.height = img.naturalHeight;
+                c.getContext('2d').drawImage(img, 0, 0);
+                resolve(c.toDataURL('image/png'));
+            };
+            img.src = data;
+        });
 
         let finalData = pngData;
         if (metadata.prompt || metadata.model) {
