@@ -10,7 +10,7 @@ export class ResultNode extends NodeBase {
         nodeEl.style.width = '400px';
 
         const img = document.createElement('img');
-        img.src = imageUrl;
+        if (imageUrl) img.src = imageUrl;
         img.addEventListener('dragstart', (e) => e.preventDefault());
 
         nodeEl.innerHTML = `
