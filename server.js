@@ -612,7 +612,8 @@ app.get('/api/boards/:id/export', isAuthenticated, async (req, res) => {
         const boards = await storage.getBoards(req.user.id);
         const board = boards.find(b => b.id === req.params.id);
         if (!board) return res.status(404).json({ error: 'Board not found' });
-        const { state, name, createdAt, updatedAt } = board;
+        const state = await storage.getBoardState(req.params.id);
+        const { name, createdAt, updatedAt } = board;
         const filename = `${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.dc.json`;
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.json({ name, createdAt, updatedAt, state });
