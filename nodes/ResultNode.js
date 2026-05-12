@@ -48,9 +48,21 @@ export class ResultNode extends NodeBase {
         metaEl.innerHTML = `
             <div class="result-meta-prompt"></div>
             <div class="result-meta-model"></div>
+            <button class="result-meta-copy" title="Copy prompt">copy</button>
         `;
         wrapper.appendChild(metaEl);
         content.appendChild(wrapper);
+
+        metaEl.querySelector('.result-meta-copy').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const text = node.data.prompt || '';
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = e.currentTarget;
+                btn.textContent = 'copied';
+                setTimeout(() => { btn.textContent = 'copy'; }, 1500);
+            });
+        });
 
         node.updateMeta = () => {
             const p = node.data.prompt || '';

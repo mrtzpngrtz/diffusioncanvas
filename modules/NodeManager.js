@@ -554,7 +554,16 @@ export class NodeManager {
                     metaEl.innerHTML = `
                         <div class="result-meta-prompt">${meta.prompt || ''}</div>
                         <div class="result-meta-model">${meta.model || ''}</div>
+                        <button class="result-meta-copy" title="Copy prompt">copy</button>
                     `;
+                    metaEl.querySelector('.result-meta-copy').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(meta.prompt || '').then(() => {
+                            const btn = e.currentTarget;
+                            btn.textContent = 'copied';
+                            setTimeout(() => { btn.textContent = 'copy'; }, 1500);
+                        });
+                    });
                     wrapper.appendChild(metaEl);
                     img.addEventListener('click', () => metaEl.classList.toggle('result-meta-visible'));
                 }

@@ -1135,6 +1135,24 @@ body {
     z-index: 4;
 }
 
+.result-meta-copy {
+    pointer-events: all;
+    align-self: flex-start;
+    margin-top: 4px;
+    padding: 2px 7px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: rgba(255,255,255,0.8);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+}
+.result-meta-copy:hover {
+    background: rgba(255,255,255,0.22);
+}
+
 .result-meta.result-meta-visible {
     display: flex;
 }
