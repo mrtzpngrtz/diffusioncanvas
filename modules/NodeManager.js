@@ -751,10 +751,13 @@ export class NodeManager {
             const result = {};
             let pos = 8;
             const dec = new TextDecoder();
+            let chunkIdx = 0;
             while (pos + 12 <= bytes.length) {
                 const len = ((bytes[pos] << 24) | (bytes[pos+1] << 16) | (bytes[pos+2] << 8) | bytes[pos+3]) >>> 0;
                 const type = String.fromCharCode(bytes[pos+4], bytes[pos+5], bytes[pos+6], bytes[pos+7]);
-                if (type === 'IDAT' || type === 'IEND') break; // metadata always precedes image data
+                if (chunkIdx < 6) console.log(`[readPNG] #${chunkIdx} @${pos} type="${type}" len=${len}`);
+                chunkIdx++;
+                if (type === 'IDAT' || type === 'IEND') break;
                 if (type === 'iTXt' && len > 0) {
                     const data = bytes.subarray(pos + 8, pos + 8 + len);
                     const kwEnd = data.indexOf(0);
@@ -767,8 +770,11 @@ export class NodeManager {
                 }
                 pos += 12 + len;
             }
+            if (Object.keys(result).length) console.log('[readPNG] found:', result.prompt?.slice(0,40));
+            else console.warn('[readPNG] no iTXt found, stopped at chunk #' + chunkIdx);
             return result;
         } catch (e) {
+            console.warn('[readPNG] error:', e);
             return {};
         }
     }
