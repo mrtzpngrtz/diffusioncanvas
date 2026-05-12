@@ -490,7 +490,6 @@ export class NodeManager {
                 apiResult.model = node.data.model;
 
                 const resultNode = this._placeResultNode(prevNode, apiResult, i === 0 ? 0 : 0);
-                currentImageDatas = [apiResult.image];
                 prevNode = resultNode;
             }
             this.uiManager.updateStatus('Chain complete!', '#27ae60');

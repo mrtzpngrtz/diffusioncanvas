@@ -529,6 +529,36 @@ app.delete('/api/user/delete', isAuthenticated, async (req, res) => {
     }
 });
 
+// ── IMAGE BLOB API ────────────────────────────────────────────────────────────
+
+// POST /api/images — upload image blob, returns {id}
+app.post('/api/images', isAuthenticated, async (req, res) => {
+    try {
+        const { data } = req.body; // base64 data URL
+        if (!data || !data.startsWith('data:')) return res.status(400).json({ error: 'Invalid image data' });
+        const { createHash } = await import('crypto');
+        const id = createHash('sha256').update(data).digest('hex').slice(0, 24);
+        await storage.saveImage(id, data);
+        res.json({ id });
+    } catch (e) {
+        console.error('Image save error:', e);
+        res.status(500).json({ error: 'Failed to save image' });
+    }
+});
+
+// GET /api/images/:id — serve image binary
+app.get('/api/images/:id', isAuthenticated, async (req, res) => {
+    try {
+        const img = await storage.getImage(req.params.id);
+        if (!img) return res.status(404).send();
+        res.setHeader('Content-Type', img.mimeType);
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.send(img.buffer);
+    } catch (e) {
+        res.status(500).send();
+    }
+});
+
 // ── BOARDS API ─────────────────────────────────────────────────────────────
 
 // GET /api/boards — list board metadata for current user (no state payload)

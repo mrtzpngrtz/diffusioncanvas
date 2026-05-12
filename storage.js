@@ -178,6 +178,44 @@ export const storage = {
         return list[index]?.state || null;
     },
 
+    // ── Image blob storage (keeps board state lean) ───────────────────────────
+
+    async saveImage(id, dataUrl) {
+        if (useRedis()) {
+            const r = await getRedis();
+            await r.set(`image:${id}`, dataUrl);
+            return;
+        }
+        const dir = path.join(DATA_DIR, 'images');
+        await fs.mkdir(dir, { recursive: true });
+        // Store raw binary to avoid double-base64 waste
+        const base64 = dataUrl.split(',')[1] || '';
+        const mime   = (dataUrl.split(';')[0] || 'data:image/png').slice(5);
+        const ext    = mime.split('/')[1] || 'png';
+        await fs.writeFile(path.join(dir, `${id}.${ext}`), Buffer.from(base64, 'base64'));
+        await fs.writeFile(path.join(dir, `${id}.mime`), mime, 'utf-8');
+    },
+
+    async getImage(id) {
+        if (useRedis()) {
+            const r = await getRedis();
+            const val = await r.get(`image:${id}`);
+            if (!val) return null;
+            const mime = (val.split(';')[0] || 'data:image/png').slice(5);
+            const base64 = val.split(',')[1] || '';
+            return { buffer: Buffer.from(base64, 'base64'), mimeType: mime };
+        }
+        const dir = path.join(DATA_DIR, 'images');
+        try {
+            const files = await fs.readdir(dir);
+            const imgFile = files.find(f => f.startsWith(id + '.') && !f.endsWith('.mime'));
+            if (!imgFile) return null;
+            const mime = await fs.readFile(path.join(dir, `${id}.mime`), 'utf-8').catch(() => 'image/png');
+            const buffer = await fs.readFile(path.join(dir, imgFile));
+            return { buffer, mimeType: mime };
+        } catch { return null; }
+    },
+
     async init() {
         await fs.mkdir(DATA_DIR, { recursive: true });
         if (useRedis()) {

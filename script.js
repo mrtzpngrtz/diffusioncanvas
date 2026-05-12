@@ -269,6 +269,28 @@ class App {
         // Nothing specific needed here, methods are available
     }
 
+    async _uploadPendingImages(show) {
+        const nodes = this.nodeManager.nodes.filter(n => n.data.imageData && !n.data.imageRef);
+        if (!nodes.length) return;
+        show('saving', `● uploading ${nodes.length} image${nodes.length > 1 ? 's' : ''}…`);
+        await Promise.all(nodes.map(async node => {
+            try {
+                const res = await fetch('/api/images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ data: node.data.imageData })
+                });
+                if (res.ok) {
+                    const { id } = await res.json();
+                    node.data.imageRef = id;
+                }
+            } catch (e) {
+                console.warn('[upload] image upload failed:', e);
+            }
+        }));
+    }
+
     startAutoSave() {
         // Server autosave every 30s
         setInterval(() => {
@@ -287,6 +309,9 @@ class App {
         };
         show('saving', '● saving…');
         try {
+            // Upload any images that don't have a server ref yet (one-time per image)
+            await this._uploadPendingImages(show);
+
             const state = this.serializeCanvas();
             const preview = this._generatePreview();
             const body = JSON.stringify({ id: this.currentBoardId, name: this.currentBoardName, state, preview });
@@ -359,7 +384,7 @@ class App {
                 type: node.type,
                 position: node.position,
                 data: {
-                    imageData: node.data.imageData,
+                    imageRef: node.data.imageRef || null,  // server ID — never store raw imageData
                     imageWidth: node.data.imageWidth,
                     nodeWidth: node.element ? node.element.offsetWidth : null,
                     nodeHeight: node.element ? node.element.offsetHeight : null,
@@ -418,37 +443,65 @@ class App {
                 tempNode.element.style.height = nodeData.data.nodeHeight + 'px';
             }
             
-            // Handle image loading
-            if (nodeData.type === 'image' && nodeData.data.imageData) {
-                // Load image async
-                const p = new Promise(resolve => {
-                    const img = document.createElement('img');
-                    img.src = nodeData.data.imageData;
-                    img.onload = () => {
-                         tempNode.data.image = img;
-                         // Update DOM
-                         const content = tempNode.element.querySelector('.node-content');
-                         content.innerHTML = '';
-                         const wrapper = document.createElement('div');
-                         wrapper.className = 'image-wrapper';
-                         wrapper.appendChild(img);
-                         content.appendChild(wrapper);
-                         this.nodeManager.addNodeActionButtons(tempNode, content);
-                         resolve();
-                    };
-                    img.onerror = resolve;
-                });
+            // Handle image loading — imageRef (server) or imageData (legacy/local)
+            const hasImage = nodeData.data.imageRef || nodeData.data.imageData;
+            if ((nodeData.type === 'image' || nodeData.type === 'result') && hasImage) {
+                const p = (async () => {
+                    let src = nodeData.data.imageData || null;
+
+                    if (nodeData.data.imageRef) {
+                        try {
+                            const res = await fetch(`/api/images/${nodeData.data.imageRef}`, { credentials: 'include' });
+                            if (res.ok) {
+                                const blob = await res.blob();
+                                src = await new Promise(r => {
+                                    const fr = new FileReader();
+                                    fr.onload = () => r(fr.result);
+                                    fr.readAsDataURL(blob);
+                                });
+                                tempNode.data.imageRef = nodeData.data.imageRef;
+                            }
+                        } catch (e) {
+                            console.warn('[deserialize] image fetch failed:', e);
+                        }
+                    }
+
+                    if (!src) return;
+                    tempNode.data.imageData = src;
+
+                    if (nodeData.type === 'image') {
+                        await new Promise(resolve => {
+                            const img = document.createElement('img');
+                            img.src = src;
+                            img.onload = () => {
+                                tempNode.data.image = img;
+                                const content = tempNode.element.querySelector('.node-content');
+                                content.innerHTML = '';
+                                const wrapper = document.createElement('div');
+                                wrapper.className = 'image-wrapper';
+                                wrapper.appendChild(img);
+                                content.appendChild(wrapper);
+                                this.nodeManager.addNodeActionButtons(tempNode, content);
+                                resolve();
+                            };
+                            img.onerror = resolve;
+                        });
+                    } else {
+                        // result node — img already in DOM, update src if fetched from server
+                        const img = tempNode.element.querySelector('img');
+                        if (img) {
+                            if (nodeData.data.imageRef) img.src = src;
+                            if (!img.complete) {
+                                await new Promise(resolve => {
+                                    img.addEventListener('load', resolve, { once: true });
+                                    img.addEventListener('error', resolve, { once: true });
+                                });
+                            }
+                            tempNode.data.image = img;
+                        }
+                    }
+                })();
                 promises.push(p);
-            }
-            // Result node image loading — track load so minimap updates after render
-            if (nodeData.type === 'result' && nodeData.data.imageData && tempNode) {
-                const img = tempNode.element.querySelector('img');
-                if (img && !img.complete) {
-                    promises.push(new Promise(resolve => {
-                        img.addEventListener('load', resolve, { once: true });
-                        img.addEventListener('error', resolve, { once: true });
-                    }));
-                }
             }
         }
 
