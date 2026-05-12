@@ -402,8 +402,12 @@ export class NodeManager {
         // Enable button if there's content (with or without images)
         generateBtn.disabled = !hasContent;
         
-        // Update button text to show image count
-        if (hasImages) {
+        // Update button text
+        const ownText = node.type === 'prompt' ? (node.data.prompt || '') : (node.data.action || '');
+        const chainSteps = ownText.split('#').map(s => s.trim()).filter(Boolean).length;
+        if (chainSteps > 1) {
+            generateBtn.textContent = `Generate chain (${chainSteps} steps)`;
+        } else if (hasImages) {
             generateBtn.textContent = `Generate (${totalImages} image${totalImages > 1 ? 's' : ''})`;
         } else {
             generateBtn.textContent = 'Generate Image';
@@ -420,50 +424,85 @@ export class NodeManager {
         }
     }
 
+    _placeResultNode(sourceNode, apiResult, offsetSteps = 0) {
+        const existingResults = this.nodes.filter(n =>
+            n.type === 'result' && n.data.sourcePromptNode === sourceNode
+        );
+        const resultX = sourceNode.position.x + sourceNode.element.offsetWidth + 50 + offsetSteps * (400 + 50);
+        const resultY = sourceNode.position.y + existingResults.length * 20;
+        const resultNode = this.createNode('result', resultX, resultY, {
+            imageUrl: apiResult.image,
+            sourceNode,
+            prompt: apiResult.prompt,
+            model: apiResult.model
+        });
+        this.connectionManager.createConnection(sourceNode.id, resultNode.id, 'output', 'input');
+        if (apiResult.creditsRemaining !== undefined) {
+            const el = document.getElementById('userCredits');
+            if (el) el.textContent = `${apiResult.creditsRemaining} credit${apiResult.creditsRemaining !== 1 ? 's' : ''}`;
+        }
+        return resultNode;
+    }
+
     async handleGenerateImage(node) {
-        const result = await this.apiManager.generateImage(node);
-        
-        if (result.success && result.image) {
-            // Calculate position for result node
-            // Place it to the right of the prompt node
-            const nodeRect = node.element.getBoundingClientRect();
-            const container = this.nodeCanvas.getBoundingClientRect();
-            const zoom = this.canvasManager.zoom;
-            const panX = this.canvasManager.panX;
-            const panY = this.canvasManager.panY;
-            
-            // Current node position in canvas coords
-            // We can just use node.position since we track it
-            const resultX = node.position.x + node.element.offsetWidth + 50;
-            const resultY = node.position.y;
+        // Detect # chain separator in the node's own prompt/action text
+        const ownText = node.type === 'prompt' ? (node.data.prompt || '') : (node.data.action || '');
+        const chainParts = ownText.split('#').map(s => s.trim()).filter(Boolean);
 
-            // Count existing result nodes for this source to offset new ones
-            const existingResults = this.nodes.filter(n =>
-                n.type === 'result' && n.data.sourcePromptNode === node
-            );
-            const offsetY = existingResults.length * 20;
-
-            // Always create a new result node
-            const resultNode = this.createNode('result', resultX, resultY + offsetY, {
-                imageUrl: result.image,
-                sourceNode: node,
-                prompt: result.prompt,
-                model: result.model
-            });
-            node.data.resultNode = resultNode;
-
-            // Auto-connect
-            this.connectionManager.createConnection(node.id, resultNode.id, 'output', 'input');
-            
-            // Update credits display
-            if (result.creditsRemaining !== undefined) {
-                const userCredits = document.getElementById('userCredits');
-                if (userCredits) {
-                    userCredits.textContent = `${result.creditsRemaining} credit${result.creditsRemaining !== 1 ? 's' : ''}`;
-                }
+        if (chainParts.length <= 1) {
+            // Normal single generation
+            const result = await this.apiManager.generateImage(node);
+            if (result.success && result.image) {
+                this._placeResultNode(node, result);
+                this.uiManager.updateStatus('Image generated!', '#27ae60');
             }
-            
-            this.uiManager.updateStatus('Image generated!', '#27ae60');
+            return;
+        }
+
+        // --- Chained generation ---
+        const generateBtn = node.element.querySelector('.generate-btn');
+        generateBtn.disabled = true;
+
+        // Build prefix from connected prompts (applied to first step only)
+        const connectedPrefix = (node.data.connectedPrompts || [])
+            .map(p => p.data.prompt?.trim()).filter(Boolean).join(', ');
+
+        // Seed images from connected image nodes
+        let currentImageDatas = (node.data.connectedImages || [])
+            .map(n => n.data.imageData).filter(Boolean);
+
+        let prevNode = node;
+        try {
+            for (let i = 0; i < chainParts.length; i++) {
+                const stepPrompt = (i === 0 && connectedPrefix)
+                    ? `${connectedPrefix}, ${chainParts[i]}`
+                    : chainParts[i];
+
+                this.uiManager.updateStatus(
+                    `Chain ${i + 1}/${chainParts.length}: ${stepPrompt.slice(0, 50)}…`, '#667eea');
+                generateBtn.innerHTML = `<span class="loading"></span> ${i + 1}/${chainParts.length}`;
+
+                const apiResult = await this.apiManager.callAPI(
+                    stepPrompt, currentImageDatas,
+                    node.data.model, node.data.aspectRatio || '1:1'
+                );
+                apiResult.prompt = stepPrompt;
+                apiResult.model = node.data.model;
+
+                const resultNode = this._placeResultNode(prevNode, apiResult, i === 0 ? 0 : 0);
+                currentImageDatas = [apiResult.image];
+                prevNode = resultNode;
+            }
+            this.uiManager.updateStatus('Chain complete!', '#27ae60');
+        } catch (err) {
+            this.uiManager.updateStatus(`Chain failed: ${err.message}`, '#e74c3c');
+            alert(`Chain generation failed: ${err.message}`);
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.textContent = chainParts.length > 1
+                ? `Generate (${chainParts.length} steps)`
+                : 'Generate Image';
+            this.updateGenerateButton(node);
         }
     }
 

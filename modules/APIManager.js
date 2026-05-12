@@ -31,6 +31,26 @@ export class APIManager {
         });
     }
 
+    async callAPI(prompt, images = [], model, aspectRatio = '1:1') {
+        const compressed = [];
+        for (const imgData of images) {
+            if (imgData) compressed.push(await this.compressImage(imgData, 1024));
+        }
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, images: compressed, model, aspectRatio })
+        });
+        if (!response.ok) {
+            let msg = `HTTP ${response.status}`;
+            try { msg = (await response.json()).error || msg; } catch {}
+            throw new Error(msg);
+        }
+        const result = await response.json();
+        if (!result.image) throw new Error('No image returned');
+        return result;
+    }
+
     async generateImage(node) {
         // Only collect images DIRECTLY connected to this node
         // Don't inherit images from chained prompts to avoid payload size issues
