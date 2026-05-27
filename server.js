@@ -387,8 +387,12 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
             let responseData;
             if (images && images.length > 0) {
-                const rawB64 = images[0].includes('base64,') ? images[0].split('base64,')[1] : images[0];
-                const imageFile = await toFile(Buffer.from(rawB64, 'base64'), 'image.png', { type: 'image/png' });
+                const src = images[0];
+                const mimeMatch = src.match(/^data:([^;]+);base64,/);
+                const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                const ext = mimeType.split('/')[1] || 'jpg';
+                const rawB64 = src.includes('base64,') ? src.split('base64,')[1] : src;
+                const imageFile = await toFile(Buffer.from(rawB64, 'base64'), `image.${ext}`, { type: mimeType });
                 const response = await openai.images.edit({
                     model: selectedModel,
                     image: imageFile,
