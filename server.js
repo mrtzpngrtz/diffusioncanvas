@@ -394,8 +394,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                     image: imageFile,
                     prompt,
                     n: 1,
-                    size,
-                    response_format: 'b64_json'
+                    size
                 });
                 responseData = response.data[0];
             } else {
@@ -403,13 +402,19 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                     model: selectedModel,
                     prompt,
                     n: 1,
-                    size,
-                    response_format: 'b64_json'
+                    size
                 });
                 responseData = response.data[0];
             }
 
-            result.image = `data:image/png;base64,${responseData.b64_json}`;
+            if (responseData.b64_json) {
+                result.image = `data:image/png;base64,${responseData.b64_json}`;
+            } else {
+                const imgRes = await fetch(responseData.url);
+                const mimeType = imgRes.headers.get('content-type') || 'image/png';
+                const buf = Buffer.from(await imgRes.arrayBuffer());
+                result.image = `data:${mimeType};base64,${buf.toString('base64')}`;
+            }
             console.log('GPT Image 2 response received');
 
         } else if (selectedModel === 'imagen-4.0-ultra-generate-001' || selectedModel === 'imagen-4.0-fast-generate-001') {
