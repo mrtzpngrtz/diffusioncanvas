@@ -383,7 +383,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         if (selectedModel === 'gpt-image-2-2026-04-21') {
             // GPT Image 2: text-to-image or image editing
             const sizeMap = { '1:1': '1024x1024', '16:9': '1536x1024', '9:16': '1024x1536' };
-            const size = sizeMap[userAspectRatio] || 'auto';
+            const size = sizeMap[userAspectRatio] || '1024x1024';
 
             let responseData;
             if (images && images.length > 0) {
@@ -532,7 +532,8 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Error generating content:', error);
-        res.status(500).json({ error: 'Failed to generate image. Please try again.' });
+        const message = error?.error?.message || error?.message || 'Failed to generate image. Please try again.';
+        res.status(500).json({ error: message });
     }
 });
 
