@@ -420,6 +420,7 @@ export class NodeManager {
             else if (node.data.model === 'gemini-3-pro-image-preview') modelIndicator.textContent = 'Nano Banana Pro';
             else if (node.data.model === 'imagen-4.0-ultra-generate-001') modelIndicator.textContent = 'Imagen Ultra';
             else if (node.data.model === 'imagen-4.0-fast-generate-001') modelIndicator.textContent = 'Imagen Fast';
+            else if (node.data.model === 'gpt-image-2-2026-04-21') modelIndicator.textContent = 'GPT Image 2';
             else modelIndicator.textContent = node.data.model;
         }
     }

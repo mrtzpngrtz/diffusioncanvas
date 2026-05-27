@@ -72,7 +72,8 @@ export const storage = {
                 'gemini-3.1-flash-image-preview': 4,
                 'gemini-3-pro-image-preview': 6,
                 'imagen-4.0-ultra-generate-001': 3,
-                'imagen-4.0-fast-generate-001': 2
+                'imagen-4.0-fast-generate-001': 2,
+                'gpt-image-2-2026-04-21': 3
             }
         };
         if (useRedis()) {
