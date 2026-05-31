@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import { GoogleGenAI } from '@google/genai';
+import OpenAI, { toFile } from 'openai';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import passport from './auth.js';
@@ -346,6 +347,8 @@ const ai = new GoogleGenAI({
     apiKey: process.env.GOOGLE_API_KEY
 });
 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 // Protect the generate endpoint with authentication
 app.post('/api/generate', isAuthenticated, async (req, res) => {
     try {
@@ -377,7 +380,48 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             image: null
         };
 
-        if (selectedModel === 'imagen-4.0-ultra-generate-001' || selectedModel === 'imagen-4.0-fast-generate-001') {
+        if (selectedModel === 'gpt-image-2-2026-04-21') {
+            // GPT Image 2: text-to-image or image editing
+            const sizeMap = { '1:1': '1024x1024', '16:9': '1536x1024', '9:16': '1024x1536' };
+            const size = sizeMap[userAspectRatio] || '1024x1024';
+
+            let responseData;
+            if (images && images.length > 0) {
+                const src = images[0];
+                const mimeMatch = src.match(/^data:([^;]+);base64,/);
+                const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                const ext = mimeType.split('/')[1] || 'jpg';
+                const rawB64 = src.includes('base64,') ? src.split('base64,')[1] : src;
+                const imageFile = await toFile(Buffer.from(rawB64, 'base64'), `image.${ext}`, { type: mimeType });
+                const response = await openai.images.edit({
+                    model: selectedModel,
+                    image: imageFile,
+                    prompt,
+                    n: 1,
+                    size
+                });
+                responseData = response.data[0];
+            } else {
+                const response = await openai.images.generate({
+                    model: selectedModel,
+                    prompt,
+                    n: 1,
+                    size
+                });
+                responseData = response.data[0];
+            }
+
+            if (responseData.b64_json) {
+                result.image = `data:image/png;base64,${responseData.b64_json}`;
+            } else {
+                const imgRes = await fetch(responseData.url);
+                const mimeType = imgRes.headers.get('content-type') || 'image/png';
+                const buf = Buffer.from(await imgRes.arrayBuffer());
+                result.image = `data:${mimeType};base64,${buf.toString('base64')}`;
+            }
+            console.log('GPT Image 2 response received');
+
+        } else if (selectedModel === 'imagen-4.0-ultra-generate-001' || selectedModel === 'imagen-4.0-fast-generate-001') {
             // TEXT-TO-IMAGE: Use Imagen with aspect ratio support
             console.log(`Using ${selectedModel} for text-to-image generation`);
             
@@ -492,7 +536,8 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Error generating content:', error);
-        res.status(500).json({ error: 'Failed to generate image. Please try again.' });
+        const message = error?.error?.message || error?.message || 'Failed to generate image. Please try again.';
+        res.status(500).json({ error: message });
     }
 });
 

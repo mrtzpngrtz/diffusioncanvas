@@ -42,6 +42,7 @@ export class PromptNode extends NodeBase {
                     <option value="gemini-3-pro-image-preview">Nano Banana Pro (image edit)</option>
                     <option value="imagen-4.0-ultra-generate-001">Imagen Ultra (text to image)</option>
                     <option value="imagen-4.0-fast-generate-001">Imagen Fast (text to image)</option>
+                    <option value="gpt-image-2-2026-04-21">GPT Image 2 (text &amp; edit)</option>
                 </select>
                 <select class="aspect-ratio-select">
                     <option value="1:1">1:1 — 1024×1024</option>
