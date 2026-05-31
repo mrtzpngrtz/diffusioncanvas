@@ -3,6 +3,28 @@ export class APIManager {
         this.uiManager = uiManager;
     }
 
+    async _compositeText(imageData, text) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth;
+                c.height = img.naturalHeight;
+                const ctx = c.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const fontSize = Math.max(20, Math.round(img.naturalWidth * 0.05));
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                ctx.shadowBlur = fontSize * 0.5;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(text, img.naturalWidth / 2, img.naturalHeight - fontSize * 0.8);
+                resolve(c.toDataURL('image/jpeg', 0.92));
+            };
+            img.src = imageData;
+        });
+    }
+
     async compressImage(imageData, maxWidth = 1024) {
         return new Promise((resolve) => {
             const img = new Image();
@@ -102,7 +124,11 @@ export class APIManager {
                 this.uiManager.updateStatus('Compressing images...', '#667eea');
                 for (const imageNode of imageNodes) {
                     if (imageNode.data.imageData) {
-                        const compressed = await this.compressImage(imageNode.data.imageData, 1024);
+                        let imgData = imageNode.data.imageData;
+                        if (imageNode.data.overlayText?.trim()) {
+                            imgData = await this._compositeText(imgData, imageNode.data.overlayText);
+                        }
+                        const compressed = await this.compressImage(imgData, 1024);
                         images.push(compressed);
                     }
                 }

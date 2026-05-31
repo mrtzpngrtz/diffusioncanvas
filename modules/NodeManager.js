@@ -569,6 +569,7 @@ export class NodeManager {
                 }
 
                 content.appendChild(wrapper);
+                this._setupImageTextInput(node, content, node.data.overlayText);
 
                 // Show clear button
                 const clearBtn = node.element.querySelector('.clear-button');
@@ -620,6 +621,44 @@ export class NodeManager {
         });
     }
 
+    copySelectedNodes() {
+        const ids = this.selectedNodes.size > 0
+            ? [...this.selectedNodes]
+            : (this.draggedNode ? [this.draggedNode.id] : []);
+        if (!ids.length) return;
+        this._clipboard = ids.map(id => {
+            const n = this.nodes.find(nd => nd.id === id);
+            return n ? { id, x: n.position.x, y: n.position.y } : null;
+        }).filter(Boolean);
+        this._pasteOffset = 1;
+        this.uiManager.updateStatus(`Copied ${this._clipboard.length} node${this._clipboard.length > 1 ? 's' : ''}`, '#667eea');
+    }
+
+    pasteNodes() {
+        if (!this._clipboard?.length) return;
+        const offset = 30 * this._pasteOffset;
+        this.clearSelection();
+        for (const entry of this._clipboard) {
+            const original = this.nodes.find(n => n.id === entry.id);
+            if (!original) continue;
+            // Temporarily move original to paste position, clone, then restore
+            const savedX = original.position.x;
+            const savedY = original.position.y;
+            original.position.x = entry.x + offset;
+            original.position.y = entry.y + offset;
+            this.cloneNode(entry.id);
+            original.position.x = savedX;
+            original.position.y = savedY;
+            // Select the new node (last created)
+            const newNode = this.nodes[this.nodes.length - 1];
+            if (newNode) {
+                this.selectedNodes.add(newNode.id);
+                newNode.element.classList.add('selected');
+            }
+        }
+        this._pasteOffset++;
+    }
+
     cloneNode(nodeId) {
         const originalNode = this.nodes.find(n => n.id === nodeId);
         if (!originalNode) return;
@@ -657,6 +696,10 @@ export class NodeManager {
                     newNode.data.image.style.width = `${newNode.data.imageWidth}px`;
                     wrapper.appendChild(newNode.data.image);
                     content.appendChild(wrapper);
+                    if (originalNode.data.overlayText) {
+                        newNode.data.overlayText = originalNode.data.overlayText;
+                    }
+                    this._setupImageTextInput(newNode, content, newNode.data.overlayText);
                     this.addNodeActionButtons(newNode, content);
                 }
                 break;
@@ -685,6 +728,47 @@ export class NodeManager {
         if (newNode) {
             this.uiManager.updateStatus(`Node cloned`, '#27ae60');
         }
+    }
+
+    _setupImageTextInput(node, content, initialText = '') {
+        // Remove any existing text row
+        const existing = content.querySelector('.image-text-row');
+        if (existing) existing.remove();
+
+        const row = document.createElement('div');
+        row.className = 'image-text-row';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'image-text-input';
+        input.placeholder = 'Add text overlay…';
+        input.value = initialText || '';
+        row.appendChild(input);
+        content.appendChild(row);
+
+        if (initialText) this._updateTextOverlay(content, initialText);
+
+        input.addEventListener('input', (e) => {
+            node.data.overlayText = e.target.value;
+            this._updateTextOverlay(content, e.target.value);
+        });
+        // Prevent canvas drag when typing
+        input.addEventListener('mousedown', (e) => e.stopPropagation());
+    }
+
+    _updateTextOverlay(content, text) {
+        const wrapper = content.querySelector('.image-wrapper');
+        if (!wrapper) return;
+        let overlay = wrapper.querySelector('.image-text-preview');
+        if (!text?.trim()) {
+            if (overlay) overlay.remove();
+            return;
+        }
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'image-text-preview';
+            wrapper.appendChild(overlay);
+        }
+        overlay.textContent = text;
     }
 
     _crc32(buf) {

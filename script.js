@@ -120,13 +120,24 @@ class App {
             if (e.target === e.currentTarget) this.closeBoardsModal();
         });
 
-        // Ctrl+Z — undo last history entry
+        // Ctrl+Z / Ctrl+C / Ctrl+V — undo, copy, paste nodes
         document.addEventListener('keydown', (e) => {
+            const active = document.activeElement;
+            const inInput = active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT');
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-                const active = document.activeElement;
-                if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) return;
+                if (inInput) return;
                 e.preventDefault();
                 if (this.historyStack.length > 0) this._restoreHistory(0);
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                if (inInput) return;
+                e.preventDefault();
+                this.nodeManager.copySelectedNodes();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                if (inInput) return;
+                e.preventDefault();
+                this.nodeManager.pasteNodes();
             }
         });
     }
@@ -388,6 +399,7 @@ class App {
                 position: node.position,
                 data: {
                     imageRef: node.data.imageRef || null,  // server ID — never store raw imageData
+                    overlayText: node.data.overlayText || null,
                     imageWidth: node.data.imageWidth,
                     nodeWidth: node.element ? node.element.offsetWidth : null,
                     nodeHeight: node.element ? node.element.offsetHeight : null,
@@ -473,6 +485,7 @@ class App {
                     tempNode.data.imageData = src;
 
                     if (nodeData.type === 'image') {
+                        if (nodeData.data.overlayText) tempNode.data.overlayText = nodeData.data.overlayText;
                         await new Promise(resolve => {
                             const img = document.createElement('img');
                             img.src = src;
@@ -484,6 +497,7 @@ class App {
                                 wrapper.className = 'image-wrapper';
                                 wrapper.appendChild(img);
                                 content.appendChild(wrapper);
+                                this.nodeManager._setupImageTextInput(tempNode, content, tempNode.data.overlayText);
                                 this.nodeManager.addNodeActionButtons(tempNode, content);
                                 resolve();
                             };

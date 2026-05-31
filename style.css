@@ -468,6 +468,52 @@ body {
     border-radius: 0;
 }
 
+/* ── Image text overlay ─────────────────────────────────────────────────────── */
+
+.image-text-row {
+    padding: 6px 8px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+}
+
+.image-text-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    padding: 3px 2px;
+    outline: none;
+}
+
+.image-text-input::placeholder {
+    color: var(--text-muted);
+}
+
+.image-text-input:focus {
+    border-bottom-color: var(--accent);
+}
+
+.image-text-preview {
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: var(--font-sans);
+    font-size: clamp(12px, 4%, 24px);
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.9);
+    pointer-events: none;
+    padding: 0 8px;
+    word-break: break-word;
+    z-index: 3;
+}
+
 /* Legacy .image-controls (kept for compat) */
 .image-controls {
     display: none;
