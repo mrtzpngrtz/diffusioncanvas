@@ -103,6 +103,14 @@ export class NodeManager {
                         const aspectRatioSelect = node.element.querySelector('.aspect-ratio-select');
                         if (aspectRatioSelect) aspectRatioSelect.value = data.aspectRatio;
                     }
+                    if (data.resolution) {
+                        const resolutionSelect = node.element.querySelector('.resolution-select');
+                        if (resolutionSelect) resolutionSelect.value = data.resolution;
+                    }
+                    if (data.outputFormat) {
+                        const outputFormatSelect = node.element.querySelector('.output-format-select');
+                        if (outputFormatSelect) outputFormatSelect.value = data.outputFormat;
+                    }
                     if (data.model) {
                         const modelSelect = node.element.querySelector('.model-select');
                         if (modelSelect) modelSelect.value = data.model;
@@ -485,7 +493,8 @@ export class NodeManager {
 
                 const apiResult = await this.apiManager.callAPI(
                     stepPrompt, currentImageDatas,
-                    node.data.model, node.data.aspectRatio || '1:1'
+                    node.data.model, node.data.aspectRatio || '1:1',
+                    node.data.resolution || 'hd', node.data.outputFormat || 'jpg'
                 );
                 apiResult.prompt = stepPrompt;
                 apiResult.model = node.data.model;
@@ -710,6 +719,16 @@ export class NodeManager {
                 newNode.element.querySelector('textarea').value = originalNode.data.prompt;
                 newNode.data.aspectRatio = originalNode.data.aspectRatio;
                 newNode.element.querySelector('.aspect-ratio-select').value = originalNode.data.aspectRatio;
+                if (originalNode.data.resolution) {
+                    newNode.data.resolution = originalNode.data.resolution;
+                    const resEl = newNode.element.querySelector('.resolution-select');
+                    if (resEl) resEl.value = originalNode.data.resolution;
+                }
+                if (originalNode.data.outputFormat) {
+                    newNode.data.outputFormat = originalNode.data.outputFormat;
+                    const fmtEl = newNode.element.querySelector('.output-format-select');
+                    if (fmtEl) fmtEl.value = originalNode.data.outputFormat;
+                }
                 if (originalNode.data.model) {
                     newNode.data.model = originalNode.data.model;
                     const modelSelect = newNode.element.querySelector('.model-select');

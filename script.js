@@ -405,6 +405,8 @@ class App {
                     nodeHeight: node.element ? node.element.offsetHeight : null,
                     prompt: node.data.prompt,
                     aspectRatio: node.data.aspectRatio,
+                    resolution: node.data.resolution,
+                    outputFormat: node.data.outputFormat,
                     model: node.data.model,
                     action: node.data.action,
                     connectedImageIds: node.data.connectedImages ? node.data.connectedImages.map(n => n.id) : [],

@@ -738,7 +738,9 @@ body {
 /* ── SELECTS ── */
 
 .aspect-ratio-select,
-.model-select {
+.model-select,
+.resolution-select,
+.output-format-select {
     width: 100%;
     padding: 7px 10px;
     border: none;
@@ -758,16 +760,29 @@ body {
 }
 
 .aspect-ratio-select option,
-.model-select option {
+.model-select option,
+.resolution-select option,
+.output-format-select option {
     background: var(--surface);
     color: var(--text);
     text-transform: none;
 }
 
 .aspect-ratio-select:focus,
-.model-select:focus {
+.model-select:focus,
+.resolution-select:focus,
+.output-format-select:focus {
     outline: none;
     border-color: var(--text);
+}
+
+.prompt-row-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.prompt-row-2col .resolution-select {
+    border-right: 1px solid var(--border-light);
 }
 
 .action-node select {

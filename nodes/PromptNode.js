@@ -45,17 +45,29 @@ export class PromptNode extends NodeBase {
                     <option value="gpt-image-2-2026-04-21">GPT Image 2 (text &amp; edit)</option>
                 </select>
                 <select class="aspect-ratio-select">
-                    <option value="1:1">1:1 — 1024×1024</option>
-                    <option value="2:3">2:3 — 832×1248</option>
-                    <option value="3:2">3:2 — 1248×832</option>
-                    <option value="3:4">3:4 — 864×1184</option>
-                    <option value="4:3">4:3 — 1184×864</option>
-                    <option value="4:5">4:5 — 896×1152</option>
-                    <option value="5:4">5:4 — 1152×896</option>
-                    <option value="9:16">9:16 — 768×1344</option>
-                    <option value="16:9" selected>16:9 — 1344×768</option>
-                    <option value="21:9">21:9 — 1536×672</option>
+                    <option value="1:1">1:1 — square</option>
+                    <option value="2:3">2:3 — portrait</option>
+                    <option value="3:2">3:2 — landscape</option>
+                    <option value="3:4">3:4 — portrait</option>
+                    <option value="4:3">4:3 — landscape</option>
+                    <option value="4:5">4:5 — portrait</option>
+                    <option value="5:4">5:4 — landscape</option>
+                    <option value="9:16">9:16 — tall</option>
+                    <option value="16:9" selected>16:9 — wide</option>
+                    <option value="21:9">21:9 — ultrawide</option>
                 </select>
+                <div class="prompt-row-2col">
+                    <select class="resolution-select">
+                        <option value="standard">Standard</option>
+                        <option value="hd" selected>HD</option>
+                        <option value="4k">4K</option>
+                    </select>
+                    <select class="output-format-select">
+                        <option value="jpg" selected>JPG</option>
+                        <option value="png">PNG</option>
+                        <option value="webp">WebP</option>
+                    </select>
+                </div>
             </div>
             ${this.createConnectionPoints(nodeId, true, true)}
             <div class="node-actions">
@@ -68,7 +80,7 @@ export class PromptNode extends NodeBase {
             id: nodeId,
             type: 'prompt',
             element: nodeEl,
-            data: { prompt: '', model: 'gemini-3.1-flash-image-preview', aspectRatio: '16:9', connectedImages: [] },
+            data: { prompt: '', model: 'gemini-3.1-flash-image-preview', aspectRatio: '16:9', resolution: 'hd', outputFormat: 'jpg', connectedImages: [] },
             position: { x, y }
         };
 
@@ -107,6 +119,16 @@ export class PromptNode extends NodeBase {
         const aspectRatioSelect = nodeEl.querySelector('.aspect-ratio-select');
         aspectRatioSelect.addEventListener('change', (e) => {
             node.data.aspectRatio = e.target.value;
+        });
+
+        const resolutionSelect = nodeEl.querySelector('.resolution-select');
+        resolutionSelect.addEventListener('change', (e) => {
+            node.data.resolution = e.target.value;
+        });
+
+        const outputFormatSelect = nodeEl.querySelector('.output-format-select');
+        outputFormatSelect.addEventListener('change', (e) => {
+            node.data.outputFormat = e.target.value;
         });
 
         // Clone button
