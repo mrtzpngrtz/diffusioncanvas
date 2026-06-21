@@ -356,7 +356,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         
         // Determine cost based on model
         const settings = await storage.getSettings();
-        const selectedModel = model || (images && images.length > 0 ? 'gemini-3.1-flash-image-preview' : 'imagen-4.0-fast-generate-001');
+        const selectedModel = model || (images && images.length > 0 ? 'gemini-3.1-flash-image' : 'imagen-4.0-fast-generate-001');
         const cost = settings.modelCosts[selectedModel] || 1;
 
         // Check if user has enough credits
@@ -472,34 +472,46 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
         } else {
             // GEMINI MODELS: Use generateContent (supports multimodal)
-            // This handles 'gemini-3.1-flash-image-preview', 'gemini-3-pro-image-preview', etc.
             console.log(`Using ${selectedModel} for generation`);
-            
+
+            // Map resolution → imageSize (Gemini 3 models support 1K/2K/4K natively)
+            const resolutionToImageSize = { standard: '1K', hd: '2K', '4k': '4K' };
+            const imageSizeParam = resolutionToImageSize[resolution] || '2K';
+
+            // Valid aspect ratios for Gemini image models
+            const GEMINI_ASPECT_RATIOS = new Set(['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9']);
+            const geminiAspectRatio = GEMINI_ASPECT_RATIOS.has(userAspectRatio) ? userAspectRatio : '1:1';
+
             // Build the contents array
             let contents = [];
             contents.push({ text: ` ${prompt}` });
-            
+
             // Add all images to the contents if present
             if (images && images.length > 0) {
-                images.forEach((image, index) => {
-                    let imageData = image;
-                    if (imageData.includes('base64,')) {
-                        imageData = imageData.split('base64,')[1];
-                    }
-                    
+                images.forEach((image) => {
+                    const mimeMatch = image.match(/^data:([^;]+);base64,/);
+                    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    const imageData = image.includes('base64,') ? image.split('base64,')[1] : image;
                     contents.push({
-                        inlineData: {
-                            mimeType: 'image/png',
-                            data: imageData
-                        }
+                        inlineData: { mimeType, data: imageData }
                     });
                 });
             }
 
+            // Gemini 3 models support imageSize; Gemini 2.5 only supports aspectRatio
+            const isGemini3 = selectedModel.startsWith('gemini-3');
+            const responseFormatImage = isGemini3
+                ? { aspectRatio: geminiAspectRatio, imageSize: imageSizeParam }
+                : { aspectRatio: geminiAspectRatio };
+
             // Generate using Gemini model
             const response = await ai.models.generateContent({
                 model: selectedModel,
-                contents: contents
+                contents,
+                config: {
+                    responseModalities: ['TEXT', 'IMAGE'],
+                    responseFormat: { image: responseFormatImage }
+                }
             });
 
             // Process response

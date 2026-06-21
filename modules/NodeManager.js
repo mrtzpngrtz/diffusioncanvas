@@ -424,8 +424,9 @@ export class NodeManager {
         // Update model indicator if present
         const modelIndicator = node.element.querySelector('.model-indicator');
         if (modelIndicator && node.data.model) {
-            if (node.data.model === 'gemini-3.1-flash-image-preview') modelIndicator.textContent = 'Nano Banana Flash';
-            else if (node.data.model === 'gemini-3-pro-image-preview') modelIndicator.textContent = 'Nano Banana Pro';
+            if (node.data.model === 'gemini-3.1-flash-image' || node.data.model === 'gemini-3.1-flash-image-preview') modelIndicator.textContent = 'Nano Banana Flash';
+            else if (node.data.model === 'gemini-3-pro-image' || node.data.model === 'gemini-3-pro-image-preview') modelIndicator.textContent = 'Nano Banana Pro';
+            else if (node.data.model === 'gemini-2.5-flash-image') modelIndicator.textContent = 'Nano Banana';
             else if (node.data.model === 'imagen-4.0-ultra-generate-001') modelIndicator.textContent = 'Imagen Ultra';
             else if (node.data.model === 'imagen-4.0-fast-generate-001') modelIndicator.textContent = 'Imagen Fast';
             else if (node.data.model === 'gpt-image-2-2026-04-21') modelIndicator.textContent = 'GPT Image 2';

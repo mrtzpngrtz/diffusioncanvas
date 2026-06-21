@@ -38,8 +38,9 @@ export class PromptNode extends NodeBase {
                     <button class="icon-btn node-clone prompt-clone-btn" title="Clone Node">⎘</button>
                 </div>
                 <select class="model-select">
-                    <option value="gemini-3.1-flash-image-preview">Nano Banana Flash (image edit)</option>
-                    <option value="gemini-3-pro-image-preview">Nano Banana Pro (image edit)</option>
+                    <option value="gemini-3.1-flash-image">Nano Banana Flash (image edit)</option>
+                    <option value="gemini-3-pro-image">Nano Banana Pro (image edit)</option>
+                    <option value="gemini-2.5-flash-image">Nano Banana (image edit)</option>
                     <option value="imagen-4.0-ultra-generate-001">Imagen Ultra (text to image)</option>
                     <option value="imagen-4.0-fast-generate-001">Imagen Fast (text to image)</option>
                     <option value="gpt-image-2-2026-04-21">GPT Image 2 (text &amp; edit)</option>
@@ -80,7 +81,7 @@ export class PromptNode extends NodeBase {
             id: nodeId,
             type: 'prompt',
             element: nodeEl,
-            data: { prompt: '', model: 'gemini-3.1-flash-image-preview', aspectRatio: '16:9', resolution: 'hd', outputFormat: 'jpg', connectedImages: [] },
+            data: { prompt: '', model: 'gemini-3.1-flash-image', aspectRatio: '16:9', resolution: 'hd', outputFormat: 'jpg', connectedImages: [] },
             position: { x, y }
         };
 
