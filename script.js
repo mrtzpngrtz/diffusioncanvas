@@ -136,8 +136,37 @@ class App {
             }
             if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
                 if (inInput) return;
-                e.preventDefault();
-                this.nodeManager.pasteNodes();
+                // Image paste is handled by the 'paste' event listener below
+                // Only paste nodes if no image data is in the clipboard items
+                const items = (window.event || e)?.clipboardData?.items;
+                const hasImage = items && [...items].some(i => i.type.startsWith('image/'));
+                if (!hasImage) {
+                    e.preventDefault();
+                    this.nodeManager.pasteNodes();
+                }
+            }
+        });
+
+        // Paste images from clipboard (Ctrl+V with image, or browser paste)
+        document.addEventListener('paste', (e) => {
+            const active = document.activeElement;
+            const inInput = active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT');
+            if (inInput) return;
+
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const blob = item.getAsFile();
+                    if (!blob) continue;
+                    const file = new File([blob], 'pasted-image.png', { type: blob.type || 'image/png' });
+                    const center = this.canvasManager.getViewportCenter();
+                    const node = this.nodeManager.createNode('image', center.x, center.y);
+                    if (node) this.nodeManager.handleImageFile(file, node);
+                    return;
+                }
             }
         });
     }
