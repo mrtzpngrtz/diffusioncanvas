@@ -44,6 +44,12 @@ export class PromptNode extends NodeBase {
                     <option value="imagen-4.0-ultra-generate-001">Imagen Ultra (text to image)</option>
                     <option value="imagen-4.0-fast-generate-001">Imagen Fast (text to image)</option>
                     <option value="gpt-image-2-2026-04-21">GPT Image 2 (text &amp; edit)</option>
+                    <option value="flux-2-pro-preview">FLUX.2 Pro (text &amp; edit)</option>
+                    <option value="flux-2-pro">FLUX.2 Pro · fixed (text &amp; edit)</option>
+                    <option value="flux-2-flex">FLUX.2 Flex (text &amp; edit)</option>
+                    <option value="flux-2-klein-9b-preview">FLUX.2 Klein (text &amp; edit)</option>
+                    <option value="flux-2-klein-9b">FLUX.2 Klein · fixed (text &amp; edit)</option>
+                    <option value="flux-2-max">FLUX.2 Max (text &amp; edit)</option>
                 </select>
                 <select class="aspect-ratio-select">
                     <option value="1:1">1:1 — square</option>
@@ -69,6 +75,16 @@ export class PromptNode extends NodeBase {
                         <option value="webp">WebP</option>
                     </select>
                 </div>
+                <div class="prompt-row-2col flux-flex-row" style="display:none">
+                    <label class="flux-param" title="Sampling steps (1–50). Higher = more detail, slower.">
+                        <span>Steps</span>
+                        <input type="number" class="flux-steps" min="1" max="50" step="1" value="50">
+                    </label>
+                    <label class="flux-param" title="Guidance (1.5–10). Higher = follows the prompt more closely.">
+                        <span>Guid</span>
+                        <input type="number" class="flux-guidance" min="1.5" max="10" step="0.5" value="5">
+                    </label>
+                </div>
             </div>
             ${this.createConnectionPoints(nodeId, true, true)}
             <div class="node-actions">
@@ -81,7 +97,7 @@ export class PromptNode extends NodeBase {
             id: nodeId,
             type: 'prompt',
             element: nodeEl,
-            data: { prompt: '', model: 'gemini-3.1-flash-image', aspectRatio: '16:9', resolution: 'hd', outputFormat: 'jpg', connectedImages: [] },
+            data: { prompt: '', model: 'gemini-3.1-flash-image', aspectRatio: '16:9', resolution: 'hd', outputFormat: 'jpg', steps: 50, guidance: 5, connectedImages: [] },
             position: { x, y }
         };
 
@@ -109,11 +125,32 @@ export class PromptNode extends NodeBase {
             }
         });
 
+        // FLUX.2 [flex]-only params (steps / guidance) — shown only for that model
+        const fluxFlexRow = nodeEl.querySelector('.flux-flex-row');
+        const fluxStepsInput = nodeEl.querySelector('.flux-steps');
+        const fluxGuidanceInput = nodeEl.querySelector('.flux-guidance');
+        const syncFluxParams = () => {
+            fluxFlexRow.style.display = node.data.model === 'flux-2-flex' ? '' : 'none';
+        };
+
         // Model select handling
         const modelSelect = nodeEl.querySelector('.model-select');
         modelSelect.addEventListener('change', (e) => {
             node.data.model = e.target.value;
+            syncFluxParams();
             callbacks.updateGenerateButton(node);
+        });
+        syncFluxParams();
+
+        fluxStepsInput.addEventListener('change', (e) => {
+            const v = Math.min(50, Math.max(1, Math.round(Number(e.target.value) || 50)));
+            node.data.steps = v;
+            e.target.value = v;
+        });
+        fluxGuidanceInput.addEventListener('change', (e) => {
+            const v = Math.min(10, Math.max(1.5, Number(e.target.value) || 5));
+            node.data.guidance = v;
+            e.target.value = v;
         });
 
         // Aspect ratio select handling

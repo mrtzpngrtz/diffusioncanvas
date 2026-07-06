@@ -92,6 +92,8 @@ cp .env.example .env
 
 Then edit `.env` and add your credentials:
 - Google GenAI API Key
+- OpenAI API Key (optional — enables the GPT Image 2 model)
+- Black Forest Labs API Key `BFL_API_KEY` (optional — enables the FLUX.2 models)
 - Session Secret (generate a random string)
 - OAuth credentials for Google (required)
 - OAuth credentials for Facebook and LinkedIn (optional)

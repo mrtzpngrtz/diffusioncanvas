@@ -349,10 +349,118 @@ const ai = new GoogleGenAI({
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// ── FLUX.2 (Black Forest Labs) generation ───────────────────────────────────
+const BFL_BASE_URL = 'https://api.bfl.ai/v1';
+const BFL_MODELS = new Set([
+    'flux-2-pro-preview',
+    'flux-2-pro',            // fixed reproducibility snapshot
+    'flux-2-flex',
+    'flux-2-klein-9b-preview',
+    'flux-2-klein-9b',       // fixed reproducibility snapshot
+    'flux-2-max'
+]);
+
+// Map an aspect ratio + resolution to pixel dimensions. FLUX requires each side
+// to be a multiple of 32 and >= 64; we keep the total area near a per-resolution
+// budget while preserving the requested aspect ratio.
+function bflDimensions(aspectRatio, resolution) {
+    const [w, h] = (aspectRatio || '1:1').split(':').map(Number);
+    const ar = (w > 0 && h > 0) ? w / h : 1;
+    const pixelBudget = {
+        standard: 1024 * 1024,   // ~1 MP
+        hd:       1536 * 1536,   // ~2.3 MP
+        '4k':     2048 * 2048    // ~4 MP (FLUX.2 upper bound)
+    };
+    const target = pixelBudget[resolution] || pixelBudget.hd;
+    const snap = (v) => Math.max(64, Math.min(4096, Math.round(v / 32) * 32));
+    return {
+        width: snap(Math.sqrt(target * ar)),
+        height: snap(Math.sqrt(target / ar))
+    };
+}
+
+// Submit a generation to BFL, poll until the result is ready, and return the
+// image as a base64 data URL (the API's `sample` URL is signed and expires ~10 min).
+async function generateWithBFL(model, prompt, images, aspectRatio, resolution, outputFormat, opts = {}) {
+    const apiKey = process.env.BFL_API_KEY;
+    if (!apiKey) throw new Error('FLUX models are not configured on this server (BFL_API_KEY is missing).');
+
+    const fmtMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', webp: 'webp' };
+    const { width, height } = bflDimensions(aspectRatio, resolution);
+
+    const body = {
+        prompt,
+        width,
+        height,
+        output_format: fmtMap[outputFormat] || 'jpeg'
+    };
+
+    // steps / guidance are only accepted by FLUX.2 [flex]; other models reject them.
+    if (model === 'flux-2-flex') {
+        if (opts.steps != null) body.steps = Math.min(50, Math.max(1, Math.round(Number(opts.steps))));
+        if (opts.guidance != null) body.guidance = Math.min(10, Math.max(1.5, Number(opts.guidance)));
+    }
+
+    // Attach up to 8 input images for editing (raw base64, no data URI prefix):
+    // input_image, input_image_2, … input_image_8.
+    if (images && images.length > 0) {
+        images.slice(0, 8).forEach((img, i) => {
+            const raw = img.includes('base64,') ? img.split('base64,')[1] : img;
+            body[i === 0 ? 'input_image' : `input_image_${i + 1}`] = raw;
+        });
+    }
+
+    // Submit the generation request → { id, polling_url }
+    const submitRes = await fetch(`${BFL_BASE_URL}/${model}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'accept': 'application/json', 'x-key': apiKey },
+        body: JSON.stringify(body)
+    });
+    if (!submitRes.ok) {
+        const errText = await submitRes.text().catch(() => '');
+        throw new Error(`FLUX request failed (${submitRes.status}): ${errText.slice(0, 300)}`);
+    }
+    const submit = await submitRes.json();
+    const pollingUrl = submit.polling_url || `${BFL_BASE_URL}/get_result?id=${submit.id}`;
+
+    // Poll until Ready (or a terminal/moderated/error state).
+    const deadline = Date.now() + 120000; // 2 min hard cap
+    let sampleUrl = null;
+    while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 1500));
+        const pollRes = await fetch(pollingUrl, { headers: { 'accept': 'application/json', 'x-key': apiKey } });
+        if (!pollRes.ok) continue;
+        const poll = await pollRes.json();
+        switch (poll.status) {
+            case 'Ready':
+                sampleUrl = poll.result?.sample;
+                break;
+            case 'Error':
+            case 'Failed':
+                throw new Error(`FLUX generation failed: ${JSON.stringify(poll.details || poll.result || poll.status)}`);
+            case 'Content Moderated':
+            case 'Request Moderated':
+                throw new Error('FLUX request was moderated (content policy).');
+            case 'Task not found':
+                throw new Error('FLUX task not found.');
+            // 'Pending' and any other transient status → keep polling
+        }
+        if (sampleUrl) break;
+    }
+    if (!sampleUrl) throw new Error('FLUX generation timed out. Please try again.');
+
+    // Download the signed sample URL and inline it as a base64 data URL.
+    const imgRes = await fetch(sampleUrl);
+    if (!imgRes.ok) throw new Error('Failed to download the generated FLUX image.');
+    const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+    const buf = Buffer.from(await imgRes.arrayBuffer());
+    return `data:${mimeType};base64,${buf.toString('base64')}`;
+}
+
 // Protect the generate endpoint with authentication
 app.post('/api/generate', isAuthenticated, async (req, res) => {
     try {
-        const { prompt, images, model, resolution, outputFormat } = req.body;
+        const { prompt, images, model, resolution, outputFormat, steps, guidance } = req.body;
         
         // Determine cost based on model
         const settings = await storage.getSettings();
@@ -384,7 +492,15 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         const fmtToMime = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
         const outputMime = fmtToMime[outputFormat] || 'image/jpeg';
 
-        if (selectedModel === 'gpt-image-2-2026-04-21') {
+        if (BFL_MODELS.has(selectedModel)) {
+            // FLUX.2 (Black Forest Labs): async submit → poll → download
+            console.log(`Using ${selectedModel} (FLUX.2 / BFL) for generation`);
+            result.image = await generateWithBFL(
+                selectedModel, prompt, images, userAspectRatio, resolution, outputFormat, { steps, guidance }
+            );
+            console.log('FLUX.2 image received');
+
+        } else if (selectedModel === 'gpt-image-2-2026-04-21') {
             // GPT Image 2: text-to-image or image editing
             // Resolution maps to size: standard→1024, hd→1536, 4k→1792 (max supported)
             const resolutionSizeMap = {

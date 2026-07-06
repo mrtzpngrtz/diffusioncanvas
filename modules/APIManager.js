@@ -53,7 +53,7 @@ export class APIManager {
         });
     }
 
-    async callAPI(prompt, images = [], model, aspectRatio = '1:1', resolution = 'hd', outputFormat = 'jpg') {
+    async callAPI(prompt, images = [], model, aspectRatio = '1:1', resolution = 'hd', outputFormat = 'jpg', steps, guidance) {
         const compressed = [];
         for (const imgData of images) {
             if (imgData) compressed.push(await this.compressImage(imgData, 1024));
@@ -61,7 +61,7 @@ export class APIManager {
         const response = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, images: compressed, model, aspectRatio, resolution, outputFormat })
+            body: JSON.stringify({ prompt, images: compressed, model, aspectRatio, resolution, outputFormat, steps, guidance })
         });
         if (!response.ok) {
             let msg = `HTTP ${response.status}`;
@@ -147,7 +147,9 @@ export class APIManager {
                     aspectRatio: node.data.aspectRatio || '16:9',
                     resolution: node.data.resolution || 'hd',
                     outputFormat: node.data.outputFormat || 'jpg',
-                    model: node.data.model
+                    model: node.data.model,
+                    steps: node.data.steps,
+                    guidance: node.data.guidance
                 })
             }); 
     

@@ -74,7 +74,13 @@ export const storage = {
                 'gemini-2.5-flash-image': 2,
                 'imagen-4.0-ultra-generate-001': 3,
                 'imagen-4.0-fast-generate-001': 2,
-                'gpt-image-2-2026-04-21': 3
+                'gpt-image-2-2026-04-21': 3,
+                'flux-2-max': 6,
+                'flux-2-pro-preview': 5,
+                'flux-2-pro': 5,
+                'flux-2-flex': 4,
+                'flux-2-klein-9b-preview': 3,
+                'flux-2-klein-9b': 3
             }
         };
         if (useRedis()) {

@@ -437,6 +437,8 @@ class App {
                     resolution: node.data.resolution,
                     outputFormat: node.data.outputFormat,
                     model: node.data.model,
+                    steps: node.data.steps,
+                    guidance: node.data.guidance,
                     action: node.data.action,
                     connectedImageIds: node.data.connectedImages ? node.data.connectedImages.map(n => n.id) : [],
                     connectedPromptIds: node.data.connectedPrompts ? node.data.connectedPrompts.map(n => n.id) : [],

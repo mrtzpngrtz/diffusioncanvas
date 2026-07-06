@@ -115,6 +115,15 @@ export class NodeManager {
                         const modelSelect = node.element.querySelector('.model-select');
                         if (modelSelect) modelSelect.value = data.model;
                     }
+                    // FLUX.2 [flex] params + row visibility
+                    const fluxFlexRow = node.element.querySelector('.flux-flex-row');
+                    if (fluxFlexRow) {
+                        const stepsInput = node.element.querySelector('.flux-steps');
+                        const guidanceInput = node.element.querySelector('.flux-guidance');
+                        if (stepsInput && data.steps != null) stepsInput.value = data.steps;
+                        if (guidanceInput && data.guidance != null) guidanceInput.value = data.guidance;
+                        fluxFlexRow.style.display = data.model === 'flux-2-flex' ? '' : 'none';
+                    }
                     this.updateGenerateButton(node);
                 } else if (type === 'action') {
                     if (data.action) {
@@ -430,6 +439,12 @@ export class NodeManager {
             else if (node.data.model === 'imagen-4.0-ultra-generate-001') modelIndicator.textContent = 'Imagen Ultra';
             else if (node.data.model === 'imagen-4.0-fast-generate-001') modelIndicator.textContent = 'Imagen Fast';
             else if (node.data.model === 'gpt-image-2-2026-04-21') modelIndicator.textContent = 'GPT Image 2';
+            else if (node.data.model === 'flux-2-pro-preview') modelIndicator.textContent = 'FLUX.2 Pro';
+            else if (node.data.model === 'flux-2-pro') modelIndicator.textContent = 'FLUX.2 Pro (fixed)';
+            else if (node.data.model === 'flux-2-flex') modelIndicator.textContent = 'FLUX.2 Flex';
+            else if (node.data.model === 'flux-2-klein-9b-preview') modelIndicator.textContent = 'FLUX.2 Klein';
+            else if (node.data.model === 'flux-2-klein-9b') modelIndicator.textContent = 'FLUX.2 Klein (fixed)';
+            else if (node.data.model === 'flux-2-max') modelIndicator.textContent = 'FLUX.2 Max';
             else modelIndicator.textContent = node.data.model;
         }
     }
@@ -495,7 +510,8 @@ export class NodeManager {
                 const apiResult = await this.apiManager.callAPI(
                     stepPrompt, currentImageDatas,
                     node.data.model, node.data.aspectRatio || '1:1',
-                    node.data.resolution || 'hd', node.data.outputFormat || 'jpg'
+                    node.data.resolution || 'hd', node.data.outputFormat || 'jpg',
+                    node.data.steps, node.data.guidance
                 );
                 apiResult.prompt = stepPrompt;
                 apiResult.model = node.data.model;
