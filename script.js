@@ -429,6 +429,7 @@ class App {
                 data: {
                     imageRef: node.data.imageRef || null,  // server ID — never store raw imageData
                     overlayText: node.data.overlayText || null,
+                    maskData: node.data.maskData || null,
                     imageWidth: node.data.imageWidth,
                     nodeWidth: node.element ? node.element.offsetWidth : null,
                     nodeHeight: node.element ? node.element.offsetHeight : null,
@@ -519,6 +520,7 @@ class App {
 
                     if (nodeData.type === 'image') {
                         if (nodeData.data.overlayText) tempNode.data.overlayText = nodeData.data.overlayText;
+                        if (nodeData.data.maskData) tempNode.data.maskData = nodeData.data.maskData;
                         await new Promise(resolve => {
                             const img = document.createElement('img');
                             img.src = src;
@@ -530,6 +532,7 @@ class App {
                                 wrapper.className = 'image-wrapper';
                                 wrapper.appendChild(img);
                                 content.appendChild(wrapper);
+                                this.nodeManager._setupDrawOverlay(tempNode, wrapper);
                                 this.nodeManager._setupImageTextInput(tempNode, content, tempNode.data.overlayText);
                                 this.nodeManager.addNodeActionButtons(tempNode, content);
                                 resolve();

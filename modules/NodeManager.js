@@ -600,6 +600,7 @@ export class NodeManager {
                 }
 
                 content.appendChild(wrapper);
+                this._setupDrawOverlay(node, wrapper);
                 this._setupImageTextInput(node, content, node.data.overlayText);
 
                 // Show clear button
@@ -622,6 +623,7 @@ export class NodeManager {
             <button class="icon-btn" title="View Full Size">⛶</button>
             <button class="icon-btn" title="Download">↓</button>
             <button class="icon-btn icon-btn-std" title="Reset to standard size">⊡</button>
+            <button class="icon-btn draw-toggle-btn" title="Draw / Annotate">✏</button>
             <button class="icon-btn node-clone" title="Clone Node">⎘</button>
         `;
         // Append inside image-wrapper so the overlay sits on the image
@@ -632,6 +634,7 @@ export class NodeManager {
         const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
         const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
         const stdBtn = actionButtons.querySelector('.icon-btn-std');
+        const drawBtn = actionButtons.querySelector('.draw-toggle-btn');
 
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -650,6 +653,135 @@ export class NodeManager {
             e.stopPropagation();
             node.element.style.width = '400px';
         });
+
+        drawBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const on = drawBtn.classList.toggle('active');
+            if (node._drawToggle) node._drawToggle(on);
+        });
+    }
+
+    _setupDrawOverlay(node, wrapper) {
+        const img = wrapper.querySelector('img') || node.data.image;
+        if (!img) return;
+
+        const oc = document.createElement('canvas');
+        oc.className = 'draw-overlay';
+        oc.width = img.naturalWidth || 800;
+        oc.height = img.naturalHeight || 600;
+        wrapper.appendChild(oc);
+        node.data.drawCanvas = oc;
+
+        // Restore saved mask
+        if (node.data.maskData) {
+            const mi = new Image();
+            mi.onload = () => oc.getContext('2d').drawImage(mi, 0, 0);
+            mi.src = node.data.maskData;
+        }
+
+        // Toolbar
+        const tb = document.createElement('div');
+        tb.className = 'draw-toolbar';
+        tb.innerHTML = `
+            <button class="draw-tool active" data-tool="brush" title="Brush">✏</button>
+            <button class="draw-tool" data-tool="text" title="Text">T</button>
+            <button class="draw-tool" data-tool="eraser" title="Eraser">◫</button>
+            <input class="draw-color" type="color" value="#ff3300">
+            <input class="draw-size" type="range" min="2" max="80" value="12">
+            <button class="draw-clear" title="Clear all">✕</button>
+        `;
+        wrapper.appendChild(tb);
+
+        let drawing = false, tool = 'brush', color = '#ff3300', size = 12, lx, ly;
+        const ctx = oc.getContext('2d');
+
+        const canvasPos = (e) => {
+            const r = oc.getBoundingClientRect();
+            return { x: (e.clientX - r.left) * oc.width / r.width, y: (e.clientY - r.top) * oc.height / r.height };
+        };
+        const save = () => { node.data.maskData = oc.toDataURL('image/png'); };
+
+        const placeText = (e) => {
+            const p = canvasPos(e);
+            const r = oc.getBoundingClientRect();
+            const scaleX = r.width / oc.width, scaleY = r.height / oc.height;
+            const inp = document.createElement('input');
+            inp.className = 'draw-text-input';
+            inp.style.cssText = `left:${r.left + p.x * scaleX}px;top:${r.top + p.y * scaleY}px;font-size:${size * 2 * scaleX}px;color:${color};`;
+            document.body.appendChild(inp);
+            inp.focus();
+            const commit = () => {
+                const t = inp.value.trim();
+                if (t) {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.font = `bold ${size * 2}px sans-serif`;
+                    ctx.fillStyle = color;
+                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                    ctx.shadowBlur = size * 0.5;
+                    ctx.fillText(t, p.x, p.y);
+                    ctx.shadowBlur = 0;
+                    save();
+                }
+                inp.remove();
+            };
+            inp.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') commit(); if (ev.key === 'Escape') inp.remove(); });
+            inp.addEventListener('blur', commit, { once: true });
+        };
+
+        oc.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            if (tool === 'text') { placeText(e); return; }
+            drawing = true;
+            const p = canvasPos(e);
+            lx = p.x; ly = p.y;
+            ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
+            ctx.beginPath();
+            ctx.arc(lx, ly, size / 2, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+        });
+
+        oc.addEventListener('mousemove', (e) => {
+            if (!drawing) return;
+            const p = canvasPos(e);
+            ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
+            ctx.beginPath();
+            ctx.moveTo(lx, ly);
+            ctx.lineTo(p.x, p.y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+            lx = p.x; ly = p.y;
+        });
+
+        const endDraw = () => { if (drawing) { drawing = false; save(); } };
+        oc.addEventListener('mouseup', endDraw);
+        oc.addEventListener('mouseleave', endDraw);
+
+        tb.querySelectorAll('.draw-tool').forEach(b => b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            tool = b.dataset.tool;
+            tb.querySelectorAll('.draw-tool').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            oc.style.cursor = tool === 'text' ? 'text' : tool === 'eraser' ? 'cell' : 'crosshair';
+        }));
+
+        tb.querySelector('.draw-color').addEventListener('input', (e) => { color = e.target.value; e.stopPropagation(); });
+        tb.querySelector('.draw-size').addEventListener('input', (e) => { size = +e.target.value; e.stopPropagation(); });
+        tb.querySelector('.draw-clear').addEventListener('click', (e) => {
+            e.stopPropagation();
+            ctx.clearRect(0, 0, oc.width, oc.height);
+            node.data.maskData = null;
+        });
+
+        // Called by the draw toggle button
+        node._drawToggle = (on) => {
+            oc.style.pointerEvents = on ? 'all' : 'none';
+            oc.style.cursor = on ? 'crosshair' : '';
+            tb.classList.toggle('active', on);
+        };
     }
 
     copySelectedNodes() {

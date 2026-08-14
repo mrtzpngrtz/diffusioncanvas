@@ -3,6 +3,26 @@ export class APIManager {
         this.uiManager = uiManager;
     }
 
+    async _compositeMask(baseData, maskData) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth;
+                c.height = img.naturalHeight;
+                const ctx = c.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const mask = new Image();
+                mask.onload = () => {
+                    ctx.drawImage(mask, 0, 0, c.width, c.height);
+                    resolve(c.toDataURL('image/jpeg', 0.92));
+                };
+                mask.src = maskData;
+            };
+            img.src = baseData;
+        });
+    }
+
     async _compositeText(imageData, text) {
         return new Promise((resolve) => {
             const img = new Image();
@@ -138,6 +158,9 @@ export class APIManager {
                         let imgData = imageNode.data.imageData;
                         if (imageNode.data.overlayText?.trim()) {
                             imgData = await this._compositeText(imgData, imageNode.data.overlayText);
+                        }
+                        if (imageNode.data.maskData) {
+                            imgData = await this._compositeMask(imgData, imageNode.data.maskData);
                         }
                         const compressed = await this.compressImage(imgData, 1024);
                         images.push(compressed);
