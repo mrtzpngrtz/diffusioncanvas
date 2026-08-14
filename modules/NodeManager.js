@@ -102,6 +102,8 @@ export class NodeManager {
                     if (data.aspectRatio) {
                         const aspectRatioSelect = node.element.querySelector('.aspect-ratio-select');
                         if (aspectRatioSelect) aspectRatioSelect.value = data.aspectRatio;
+                        const aspectRestoreBtn = node.element.querySelector('.aspect-restore-btn');
+                        if (aspectRestoreBtn) aspectRestoreBtn.style.display = data.aspectRatio === 'original' ? 'none' : '';
                     }
                     if (data.resolution) {
                         const resolutionSelect = node.element.querySelector('.resolution-select');
@@ -507,11 +509,13 @@ export class NodeManager {
                     `Chain ${i + 1}/${chainParts.length}: ${stepPrompt.slice(0, 50)}…`, '#667eea');
                 generateBtn.innerHTML = `<span class="loading"></span> ${i + 1}/${chainParts.length}`;
 
+                const { sourceWidth, sourceHeight } = this.apiManager._sourceDimensions(node);
                 const apiResult = await this.apiManager.callAPI(
                     stepPrompt, currentImageDatas,
-                    node.data.model, node.data.aspectRatio || '1:1',
+                    node.data.model, node.data.aspectRatio || 'original',
                     node.data.resolution || 'hd', node.data.outputFormat || 'jpg',
-                    node.data.steps, node.data.guidance
+                    node.data.steps, node.data.guidance,
+                    sourceWidth, sourceHeight
                 );
                 apiResult.prompt = stepPrompt;
                 apiResult.model = node.data.model;
@@ -736,6 +740,8 @@ export class NodeManager {
                 newNode.element.querySelector('textarea').value = originalNode.data.prompt;
                 newNode.data.aspectRatio = originalNode.data.aspectRatio;
                 newNode.element.querySelector('.aspect-ratio-select').value = originalNode.data.aspectRatio;
+                const clonedRestoreBtn = newNode.element.querySelector('.aspect-restore-btn');
+                if (clonedRestoreBtn) clonedRestoreBtn.style.display = originalNode.data.aspectRatio === 'original' ? 'none' : '';
                 if (originalNode.data.resolution) {
                     newNode.data.resolution = originalNode.data.resolution;
                     const resEl = newNode.element.querySelector('.resolution-select');

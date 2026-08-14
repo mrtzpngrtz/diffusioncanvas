@@ -53,7 +53,18 @@ export class APIManager {
         });
     }
 
-    async callAPI(prompt, images = [], model, aspectRatio = '1:1', resolution = 'hd', outputFormat = 'jpg', steps, guidance) {
+    // Native pixel size of the first connected medium (image / result / drawing).
+    // Used server-side to honour aspectRatio 'original'.
+    _sourceDimensions(node) {
+        const source = (node.data.connectedImages || [])
+            .find(n => n.data.originalWidth > 0 && n.data.originalHeight > 0);
+        return {
+            sourceWidth: source ? source.data.originalWidth : null,
+            sourceHeight: source ? source.data.originalHeight : null
+        };
+    }
+
+    async callAPI(prompt, images = [], model, aspectRatio = '1:1', resolution = 'hd', outputFormat = 'jpg', steps, guidance, sourceWidth = null, sourceHeight = null) {
         const compressed = [];
         for (const imgData of images) {
             if (imgData) compressed.push(await this.compressImage(imgData, 1024));
@@ -61,7 +72,7 @@ export class APIManager {
         const response = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, images: compressed, model, aspectRatio, resolution, outputFormat, steps, guidance })
+            body: JSON.stringify({ prompt, images: compressed, model, aspectRatio, resolution, outputFormat, steps, guidance, sourceWidth, sourceHeight })
         });
         if (!response.ok) {
             let msg = `HTTP ${response.status}`;
@@ -144,12 +155,13 @@ export class APIManager {
                 body: JSON.stringify({
                     prompt,
                     images,
-                    aspectRatio: node.data.aspectRatio || '16:9',
+                    aspectRatio: node.data.aspectRatio || 'original',
                     resolution: node.data.resolution || 'hd',
                     outputFormat: node.data.outputFormat || 'jpg',
                     model: node.data.model,
                     steps: node.data.steps,
-                    guidance: node.data.guidance
+                    guidance: node.data.guidance,
+                    ...this._sourceDimensions(node)
                 })
             }); 
     

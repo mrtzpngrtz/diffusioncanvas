@@ -785,6 +785,33 @@ body {
     border-right: 1px solid var(--border-light);
 }
 
+.aspect-ratio-row {
+    display: flex;
+    align-items: stretch;
+}
+
+.aspect-ratio-row .aspect-ratio-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.aspect-restore-btn {
+    flex: 0 0 auto;
+    padding: 0 10px;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    border-left: 1px solid var(--border-light);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.aspect-restore-btn:hover {
+    background: var(--border-light);
+}
+
 .flux-param {
     display: flex;
     align-items: center;

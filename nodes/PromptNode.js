@@ -51,7 +51,9 @@ export class PromptNode extends NodeBase {
                     <option value="flux-2-klein-9b">FLUX.2 Klein · fixed (text &amp; edit)</option>
                     <option value="flux-2-max">FLUX.2 Max (text &amp; edit)</option>
                 </select>
+                <div class="aspect-ratio-row">
                 <select class="aspect-ratio-select">
+                    <option value="original" selected>Original — keep source ratio</option>
                     <option value="1:1">1:1 — square</option>
                     <option value="2:3">2:3 — portrait</option>
                     <option value="3:2">3:2 — landscape</option>
@@ -60,9 +62,11 @@ export class PromptNode extends NodeBase {
                     <option value="4:5">4:5 — portrait</option>
                     <option value="5:4">5:4 — landscape</option>
                     <option value="9:16">9:16 — tall</option>
-                    <option value="16:9" selected>16:9 — wide</option>
+                    <option value="16:9">16:9 — wide</option>
                     <option value="21:9">21:9 — ultrawide</option>
                 </select>
+                <button class="aspect-restore-btn" title="Restore original ratio" style="display:none">↺</button>
+                </div>
                 <div class="prompt-row-2col">
                     <select class="resolution-select">
                         <option value="standard">Standard</option>
@@ -97,7 +101,7 @@ export class PromptNode extends NodeBase {
             id: nodeId,
             type: 'prompt',
             element: nodeEl,
-            data: { prompt: '', model: 'gemini-3.1-flash-image', aspectRatio: '16:9', resolution: 'hd', outputFormat: 'jpg', steps: 50, guidance: 5, connectedImages: [] },
+            data: { prompt: '', model: 'gemini-3.1-flash-image', aspectRatio: 'original', resolution: 'hd', outputFormat: 'jpg', steps: 50, guidance: 5, connectedImages: [] },
             position: { x, y }
         };
 
@@ -155,9 +159,25 @@ export class PromptNode extends NodeBase {
 
         // Aspect ratio select handling
         const aspectRatioSelect = nodeEl.querySelector('.aspect-ratio-select');
+        const aspectRestoreBtn = nodeEl.querySelector('.aspect-restore-btn');
+
+        // The restore button only appears once the ratio deviates from the source
+        const syncAspectRestore = () => {
+            aspectRestoreBtn.style.display = node.data.aspectRatio === 'original' ? 'none' : '';
+        };
+
         aspectRatioSelect.addEventListener('change', (e) => {
             node.data.aspectRatio = e.target.value;
+            syncAspectRestore();
         });
+
+        aspectRestoreBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            node.data.aspectRatio = 'original';
+            aspectRatioSelect.value = 'original';
+            syncAspectRestore();
+        });
+        syncAspectRestore();
 
         const resolutionSelect = nodeEl.querySelector('.resolution-select');
         resolutionSelect.addEventListener('change', (e) => {

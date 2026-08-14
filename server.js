@@ -349,6 +349,35 @@ const ai = new GoogleGenAI({
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// ── Aspect ratio helpers ────────────────────────────────────────────────────
+
+// The client sends aspectRatio 'original' plus the true pixel size of the source
+// medium (sourceWidth/sourceHeight). Providers only accept a fixed list of
+// ratios, so pick the closest supported one to avoid distorting the image.
+function nearestSupportedRatio(sourceWidth, sourceHeight, supported, fallback = '1:1') {
+    if (!sourceWidth || !sourceHeight) return fallback;
+    const target = sourceWidth / sourceHeight;
+    let best = fallback;
+    let bestDelta = Infinity;
+    for (const ratio of supported) {
+        const [w, h] = ratio.split(':').map(Number);
+        if (!(w > 0 && h > 0)) continue;
+        // Compare in log space so 2× too wide and 2× too tall are penalised equally.
+        const delta = Math.abs(Math.log((w / h) / target));
+        if (delta < bestDelta) { bestDelta = delta; best = ratio; }
+    }
+    return best;
+}
+
+// Resolve the client's aspectRatio for one provider. 'original' (the default)
+// maps to whichever supported ratio is closest to the source medium.
+function resolveAspectRatio(requested, sourceWidth, sourceHeight, supported, fallback = '1:1') {
+    if (requested === 'original') {
+        return nearestSupportedRatio(sourceWidth, sourceHeight, supported, fallback);
+    }
+    return supported.includes(requested) ? requested : fallback;
+}
+
 // ── FLUX.2 (Black Forest Labs) generation ───────────────────────────────────
 const BFL_BASE_URL = 'https://api.bfl.ai/v1';
 const BFL_MODELS = new Set([
@@ -363,9 +392,15 @@ const BFL_MODELS = new Set([
 // Map an aspect ratio + resolution to pixel dimensions. FLUX requires each side
 // to be a multiple of 32 and >= 64; we keep the total area near a per-resolution
 // budget while preserving the requested aspect ratio.
-function bflDimensions(aspectRatio, resolution) {
-    const [w, h] = (aspectRatio || '1:1').split(':').map(Number);
-    const ar = (w > 0 && h > 0) ? w / h : 1;
+function bflDimensions(aspectRatio, resolution, sourceWidth, sourceHeight) {
+    let ar;
+    if (aspectRatio === 'original' && sourceWidth > 0 && sourceHeight > 0) {
+        // FLUX accepts arbitrary dimensions, so keep the exact source ratio.
+        ar = sourceWidth / sourceHeight;
+    } else {
+        const [w, h] = (aspectRatio || '1:1').split(':').map(Number);
+        ar = (w > 0 && h > 0) ? w / h : 1;
+    }
     const pixelBudget = {
         standard: 1024 * 1024,   // ~1 MP
         hd:       1536 * 1536,   // ~2.3 MP
@@ -386,7 +421,7 @@ async function generateWithBFL(model, prompt, images, aspectRatio, resolution, o
     if (!apiKey) throw new Error('FLUX models are not configured on this server (BFL_API_KEY is missing).');
 
     const fmtMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', webp: 'webp' };
-    const { width, height } = bflDimensions(aspectRatio, resolution);
+    const { width, height } = bflDimensions(aspectRatio, resolution, opts.sourceWidth, opts.sourceHeight);
 
     const body = {
         prompt,
@@ -460,7 +495,7 @@ async function generateWithBFL(model, prompt, images, aspectRatio, resolution, o
 // Protect the generate endpoint with authentication
 app.post('/api/generate', isAuthenticated, async (req, res) => {
     try {
-        const { prompt, images, model, resolution, outputFormat, steps, guidance } = req.body;
+        const { prompt, images, model, resolution, outputFormat, steps, guidance, sourceWidth, sourceHeight } = req.body;
         
         // Determine cost based on model
         const settings = await storage.getSettings();
@@ -496,7 +531,8 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             // FLUX.2 (Black Forest Labs): async submit → poll → download
             console.log(`Using ${selectedModel} (FLUX.2 / BFL) for generation`);
             result.image = await generateWithBFL(
-                selectedModel, prompt, images, userAspectRatio, resolution, outputFormat, { steps, guidance }
+                selectedModel, prompt, images, userAspectRatio, resolution, outputFormat,
+                { steps, guidance, sourceWidth, sourceHeight }
             );
             console.log('FLUX.2 image received');
 
@@ -509,7 +545,10 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                 '4k':     { '1:1': '1024x1024', '16:9': '1536x1024', '9:16': '1024x1536' }
             };
             const sizeMap = resolutionSizeMap[resolution] || resolutionSizeMap.hd;
-            const size = sizeMap[userAspectRatio] || '1024x1024';
+            // GPT Image 2 only offers square / landscape / portrait
+            const gptRatio = resolveAspectRatio(userAspectRatio, sourceWidth, sourceHeight, ['1:1', '16:9', '9:16']);
+            const size = sizeMap[gptRatio] || '1024x1024';
+            console.log('Requested aspect ratio:', userAspectRatio, '→ using:', gptRatio, `(${size})`);
 
             let responseData;
             if (images && images.length > 0) {
@@ -552,9 +591,9 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             console.log(`Using ${selectedModel} for text-to-image generation`);
             
             // Define the set of valid aspect ratios for Imagen
-            const SUPPORTED_ASPECT_RATIOS = new Set(['1:1', '16:9', '9:16', '4:3', '3:4']);
-            const aspectRatio = SUPPORTED_ASPECT_RATIOS.has(userAspectRatio) ? userAspectRatio : '1:1';
-            
+            const SUPPORTED_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'];
+            const aspectRatio = resolveAspectRatio(userAspectRatio, sourceWidth, sourceHeight, SUPPORTED_ASPECT_RATIOS);
+
             console.log('Requested aspect ratio:', userAspectRatio);
             console.log('Using aspect ratio:', aspectRatio);
 
@@ -595,8 +634,9 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             const imageSizeParam = resolutionToImageSize[resolution] || '2K';
 
             // Valid aspect ratios for Gemini image models
-            const GEMINI_ASPECT_RATIOS = new Set(['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9']);
-            const geminiAspectRatio = GEMINI_ASPECT_RATIOS.has(userAspectRatio) ? userAspectRatio : '1:1';
+            const GEMINI_ASPECT_RATIOS = ['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'];
+            const geminiAspectRatio = resolveAspectRatio(userAspectRatio, sourceWidth, sourceHeight, GEMINI_ASPECT_RATIOS);
+            console.log('Requested aspect ratio:', userAspectRatio, '→ using:', geminiAspectRatio);
 
             // Build the contents array
             let contents = [];
