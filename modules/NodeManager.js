@@ -39,8 +39,8 @@ export class NodeManager {
     }
 
     setupGlobalEvents() {
-        document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        document.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+        document.addEventListener('pointermove', (e) => this.handleMouseMove(e));
+        document.addEventListener('pointerup', (e) => this.handleMouseUp(e));
     }
 
     createNode(type, x, y, data = null, id = null) {
@@ -204,6 +204,8 @@ export class NodeManager {
 
         this.isDragging = true;
         this.draggedNode = node;
+        // Capture pointer so move/up fire even when finger leaves the element
+        try { node.element.setPointerCapture(e.pointerId); } catch {}
 
         const container = this.canvasManager.container.getBoundingClientRect();
         const zoom = this.canvasManager.zoom;
@@ -343,8 +345,9 @@ export class NodeManager {
         this.marqueeEl.className = 'marquee-rect';
         container.appendChild(this.marqueeEl);
 
-        canvas.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
+        canvas.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0 && e.pointerType === 'mouse') return;
+            if (e.pointerType === 'touch' && e.isPrimary === false) return; // ignore extra fingers
             if (this.connectionManager.isConnecting) return;
             if (this.canvasManager.isSpaceDown) return;
             e.preventDefault();
@@ -743,10 +746,11 @@ export class NodeManager {
             placeText(e);
         });
 
-        oc.addEventListener('mousedown', (e) => {
+        oc.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             if (tool === 'text') return;
             drawing = true;
+            oc.setPointerCapture(e.pointerId);
             const p = canvasPos(e);
             lx = p.x; ly = p.y;
             ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
@@ -756,7 +760,7 @@ export class NodeManager {
             ctx.fill();
         });
 
-        oc.addEventListener('mousemove', (e) => {
+        oc.addEventListener('pointermove', (e) => {
             if (!drawing) return;
             const p = canvasPos(e);
             ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
@@ -772,8 +776,8 @@ export class NodeManager {
         });
 
         const endDraw = () => { if (drawing) { drawing = false; save(); } };
-        oc.addEventListener('mouseup', endDraw);
-        oc.addEventListener('mouseleave', endDraw);
+        oc.addEventListener('pointerup', endDraw);
+        oc.addEventListener('pointercancel', endDraw);
 
         tb.querySelectorAll('.draw-tool').forEach(b => b.addEventListener('click', (e) => {
             e.stopPropagation();

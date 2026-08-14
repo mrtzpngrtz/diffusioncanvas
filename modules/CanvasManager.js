@@ -96,71 +96,130 @@ export class CanvasManager {
     }
 
     setupPanning() {
-        if (this.container) {
-            document.addEventListener('keydown', (e) => {
-                if (e.code === 'Space' && !e.target.matches('input, textarea, [contenteditable]')) {
-                    e.preventDefault();
-                    this.isSpaceDown = true;
-                    if (!this.isSpacePanning) {
-                        this.container.style.cursor = 'grab';
-                    }
-                }
-            });
+        if (!this.container) return;
 
-            document.addEventListener('keyup', (e) => {
-                if (e.code === 'Space') {
-                    this.isSpaceDown = false;
-                    this.isSpacePanning = false;
-                    this.container.style.cursor = '';
-                }
-            });
+        // Prevent native touch scroll/zoom on the canvas
+        this.container.style.touchAction = 'none';
 
-            this.container.addEventListener('mousedown', (e) => {
-                if (e.button === 1) { // Middle mouse button
-                    e.preventDefault();
-                    this.isMiddlePanning = true;
-                    this.middlePanStart = { x: e.clientX, y: e.clientY };
-                    this.container.style.cursor = 'grabbing';
-                } else if (e.button === 0 && this.isSpaceDown) { // Space + left click
-                    e.preventDefault();
-                    this.isSpacePanning = true;
-                    this.spacePanStart = { x: e.clientX, y: e.clientY };
-                    this.container.style.cursor = 'grabbing';
-                }
-            });
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !e.target.matches('input, textarea, [contenteditable]')) {
+                e.preventDefault();
+                this.isSpaceDown = true;
+                if (!this.isSpacePanning) this.container.style.cursor = 'grab';
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                this.isSpaceDown = false;
+                this.isSpacePanning = false;
+                this.container.style.cursor = '';
+            }
+        });
 
-            document.addEventListener('mousemove', (e) => {
-                if (this.isMiddlePanning) {
-                    const dx = (e.clientX - this.middlePanStart.x) / this.zoom;
-                    const dy = (e.clientY - this.middlePanStart.y) / this.zoom;
+        // Pointer tracking for pinch-to-zoom and 1-finger pan
+        const pts = new Map();      // pointerId → {x, y}  (current positions)
+        let pinchDist = 0;          // last known pinch distance
+        let touchPanId = null;      // pointer used for 1-finger canvas pan
+        let touchPanPrev = null;    // last position of that pointer
 
-                    this.panX += dx;
-                    this.panY += dy;
+        this.container.addEventListener('pointerdown', (e) => {
+            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-                    this.middlePanStart = { x: e.clientX, y: e.clientY };
+            if (e.button === 1) {
+                e.preventDefault();
+                this.isMiddlePanning = true;
+                this.middlePanStart = { x: e.clientX, y: e.clientY };
+                this.container.style.cursor = 'grabbing';
+                this.container.setPointerCapture(e.pointerId);
+                return;
+            }
+
+            if (e.button === 0 && this.isSpaceDown) {
+                e.preventDefault();
+                this.isSpacePanning = true;
+                this.spacePanStart = { x: e.clientX, y: e.clientY };
+                this.container.style.cursor = 'grabbing';
+                this.container.setPointerCapture(e.pointerId);
+                return;
+            }
+
+            // 1-finger touch/pen pan on canvas background (not on a node)
+            if ((e.pointerType === 'touch' || e.pointerType === 'pen') &&
+                !e.target.closest('.node') && pts.size === 1) {
+                touchPanId = e.pointerId;
+                touchPanPrev = { x: e.clientX, y: e.clientY };
+                this.container.setPointerCapture(e.pointerId);
+            }
+        });
+
+        this.container.addEventListener('pointermove', (e) => {
+            const prev = pts.get(e.pointerId);
+            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+            // 2-finger pinch-to-zoom
+            if (pts.size >= 2) {
+                const [p1, p2] = [...pts.values()];
+                const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                if (pinchDist > 0) {
+                    const scale = dist / pinchDist;
+                    const midX = (p1.x + p2.x) / 2;
+                    const midY = (p1.y + p2.y) / 2;
+                    const rect = this.container.getBoundingClientRect();
+                    const cx = (midX - rect.left) / this.zoom - this.panX;
+                    const cy = (midY - rect.top) / this.zoom - this.panY;
+                    const nz = Math.max(0.1, Math.min(3, this.zoom * scale));
+                    this.panX = (midX - rect.left) / nz - cx;
+                    this.panY = (midY - rect.top) / nz - cy;
+                    this.zoom = nz;
                     this.applyZoom();
-                } else if (this.isSpacePanning) {
-                    const dx = (e.clientX - this.spacePanStart.x) / this.zoom;
-                    const dy = (e.clientY - this.spacePanStart.y) / this.zoom;
-
-                    this.panX += dx;
-                    this.panY += dy;
-
-                    this.spacePanStart = { x: e.clientX, y: e.clientY };
-                    this.applyZoom();
                 }
-            });
+                pinchDist = dist;
+                touchPanId = null; // cancel 1-finger pan while pinching
+                return;
+            }
+            pinchDist = 0;
 
-            document.addEventListener('mouseup', (e) => {
-                if (e.button === 1 && this.isMiddlePanning) {
-                    this.isMiddlePanning = false;
-                    this.container.style.cursor = '';
-                } else if (e.button === 0 && this.isSpacePanning) {
-                    this.isSpacePanning = false;
-                    this.container.style.cursor = this.isSpaceDown ? 'grab' : '';
-                }
-            });
-        }
+            // Middle mouse pan
+            if (this.isMiddlePanning) {
+                this.panX += (e.clientX - this.middlePanStart.x) / this.zoom;
+                this.panY += (e.clientY - this.middlePanStart.y) / this.zoom;
+                this.middlePanStart = { x: e.clientX, y: e.clientY };
+                this.applyZoom();
+                return;
+            }
+
+            // Space-drag pan
+            if (this.isSpacePanning) {
+                this.panX += (e.clientX - this.spacePanStart.x) / this.zoom;
+                this.panY += (e.clientY - this.spacePanStart.y) / this.zoom;
+                this.spacePanStart = { x: e.clientX, y: e.clientY };
+                this.applyZoom();
+                return;
+            }
+
+            // 1-finger canvas pan
+            if (e.pointerId === touchPanId && touchPanPrev && !this.nodeManager?.isDragging) {
+                this.panX += (e.clientX - touchPanPrev.x) / this.zoom;
+                this.panY += (e.clientY - touchPanPrev.y) / this.zoom;
+                this.applyZoom();
+                touchPanPrev = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        const onPointerEnd = (e) => {
+            pts.delete(e.pointerId);
+            if (pts.size < 2) pinchDist = 0;
+            if (e.pointerId === touchPanId) { touchPanId = null; touchPanPrev = null; }
+            if (e.button === 1 && this.isMiddlePanning) {
+                this.isMiddlePanning = false;
+                this.container.style.cursor = '';
+            } else if (this.isSpacePanning && e.button === 0) {
+                this.isSpacePanning = false;
+                this.container.style.cursor = this.isSpaceDown ? 'grab' : '';
+            }
+        };
+        document.addEventListener('pointerup', onPointerEnd);
+        document.addEventListener('pointercancel', onPointerEnd);
     }
 
     applyZoom() {
@@ -238,35 +297,28 @@ export class CanvasManager {
         });
 
         // Dragging viewport
-        this.minimapViewport.addEventListener('mousedown', (e) => {
+        this.minimapViewport.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
             this.isDraggingMinimap = true;
             this.minimapDragStart.x = e.clientX;
             this.minimapDragStart.y = e.clientY;
             this.minimapViewport.style.cursor = 'grabbing';
+            this.minimapViewport.setPointerCapture(e.pointerId);
         });
 
-        document.addEventListener('mousemove', (e) => {
-            if (this.isDraggingMinimap) {
-                const scale = parseFloat(this.minimapViewport.dataset.scale);
-                const dx = (e.clientX - this.minimapDragStart.x) / scale;
-                const dy = (e.clientY - this.minimapDragStart.y) / scale;
-                
-                this.panX -= dx;
-                this.panY -= dy;
-                
-                this.minimapDragStart.x = e.clientX;
-                this.minimapDragStart.y = e.clientY;
-                
-                this.applyZoom();
-            }
+        this.minimapViewport.addEventListener('pointermove', (e) => {
+            if (!this.isDraggingMinimap) return;
+            const scale = parseFloat(this.minimapViewport.dataset.scale);
+            this.panX -= (e.clientX - this.minimapDragStart.x) / scale;
+            this.panY -= (e.clientY - this.minimapDragStart.y) / scale;
+            this.minimapDragStart.x = e.clientX;
+            this.minimapDragStart.y = e.clientY;
+            this.applyZoom();
         });
 
-        document.addEventListener('mouseup', () => {
-            if (this.isDraggingMinimap) {
-                this.isDraggingMinimap = false;
-                this.minimapViewport.style.cursor = '';
-            }
+        this.minimapViewport.addEventListener('pointerup', () => {
+            this.isDraggingMinimap = false;
+            this.minimapViewport.style.cursor = '';
         });
     }
 

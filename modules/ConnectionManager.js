@@ -16,15 +16,12 @@ export class ConnectionManager {
     }
 
     setupGlobalEvents() {
-        document.addEventListener('mousemove', (e) => {
-            // Update temporary connection while dragging
+        document.addEventListener('pointermove', (e) => {
             if (this.isConnecting && this.connectionStart) {
                 const container = this.canvasManager.container.getBoundingClientRect();
                 const zoom = this.canvasManager.zoom;
                 const panX = this.canvasManager.panX;
                 const panY = this.canvasManager.panY;
-                
-                // Convert mouse position to canvas space
                 const mouseX = (e.clientX - container.left) / zoom - panX;
                 const mouseY = (e.clientY - container.top) / zoom - panY;
                 this.tempConnectionEnd.x = mouseX;
@@ -33,8 +30,7 @@ export class ConnectionManager {
             }
         });
 
-        document.addEventListener('mouseup', (e) => {
-            // Fallback to cancel connection
+        document.addEventListener('pointerup', (e) => {
             if (this.isConnecting) {
                 const endPoint = document.elementFromPoint(e.clientX, e.clientY);
                 if (!endPoint || (endPoint.id !== 'connectionCanvas' && !endPoint.classList.contains('connection-point'))) {
@@ -61,7 +57,6 @@ export class ConnectionManager {
             element 
         };
         
-        // Add a one-time mouseup listener to the whole canvas to handle this connection attempt
         const connectionMouseUp = (upEvent) => {
             if (this.isConnecting && this.connectionStart) {
                 const endPoint = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
@@ -98,10 +93,10 @@ export class ConnectionManager {
                 
                 this.drawConnections();
             }
-            document.removeEventListener('mouseup', connectionMouseUp);
+            document.removeEventListener('pointerup', connectionMouseUp);
         };
-        
-        document.addEventListener('mouseup', connectionMouseUp);
+
+        document.addEventListener('pointerup', connectionMouseUp);
     }
 
     createConnection(fromNodeId, toNodeId, fromType, toType) {

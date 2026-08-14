@@ -7,39 +7,34 @@ export class NodeBase {
 
     // Setup node dragging
     setupNodeDragging(nodeEl, node, dragCallback) {
-        nodeEl.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.connection-point') || 
-                e.target.tagName === 'TEXTAREA' || 
+        nodeEl.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.connection-point') ||
+                e.target.tagName === 'TEXTAREA' ||
                 e.target.tagName === 'BUTTON' ||
                 e.target.tagName === 'INPUT' ||
                 e.target.tagName === 'SELECT' ||
-                e.target.closest('.draw-canvas')) {
+                e.target.closest('.draw-canvas') ||
+                e.target.closest('.draw-overlay') ||
+                e.target.closest('.draw-toolbar')) {
                 return;
             }
-
-            if (dragCallback) {
-                dragCallback(e, node);
-            }
+            if (dragCallback) dragCallback(e, node);
         });
     }
 
     // Setup connection point
     setupConnectionPoint(pointEl, nodeId, connectionCallback) {
-        pointEl.addEventListener('mousedown', (e) => {
+        pointEl.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
-            if (connectionCallback) {
-                connectionCallback(e, nodeId, pointEl);
-            }
+            if (connectionCallback) connectionCallback(e, nodeId, pointEl);
         });
     }
 
     // Setup node resize
     setupNodeResize(nodeEl, node, resizeHandle, resizeCallback) {
-        resizeHandle.addEventListener('mousedown', (e) => {
+        resizeHandle.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
-            if (resizeCallback) {
-                resizeCallback(e, node);
-            }
+            if (resizeCallback) resizeCallback(e, node);
         });
     }
 
