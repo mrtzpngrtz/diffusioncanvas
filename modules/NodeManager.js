@@ -709,8 +709,10 @@ export class NodeManager {
             inp.className = 'draw-text-input';
             inp.style.cssText = `left:${r.left + p.x * scaleX}px;top:${r.top + p.y * scaleY}px;font-size:${size * 2 * scaleX}px;color:${color};`;
             document.body.appendChild(inp);
-            inp.focus();
+            let committed = false;
             const commit = () => {
+                if (committed) return;
+                committed = true;
                 const t = inp.value.trim();
                 if (t) {
                     ctx.globalCompositeOperation = 'source-over';
@@ -724,13 +726,26 @@ export class NodeManager {
                 }
                 inp.remove();
             };
-            inp.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') commit(); if (ev.key === 'Escape') inp.remove(); });
-            inp.addEventListener('blur', commit, { once: true });
+            inp.addEventListener('keydown', (ev) => {
+                ev.stopPropagation();
+                if (ev.key === 'Enter') commit();
+                if (ev.key === 'Escape') { committed = true; inp.remove(); }
+            });
+            // Delay blur listener so focus events settle before we attach it
+            setTimeout(() => inp.addEventListener('blur', commit, { once: true }), 50);
+            inp.focus();
         };
+
+        // Text tool uses 'click' (fires after mouseup) to avoid immediate-blur from canvas mouseup
+        oc.addEventListener('click', (e) => {
+            if (tool !== 'text') return;
+            e.stopPropagation();
+            placeText(e);
+        });
 
         oc.addEventListener('mousedown', (e) => {
             e.stopPropagation();
-            if (tool === 'text') { placeText(e); return; }
+            if (tool === 'text') return;
             drawing = true;
             const p = canvasPos(e);
             lx = p.x; ly = p.y;
