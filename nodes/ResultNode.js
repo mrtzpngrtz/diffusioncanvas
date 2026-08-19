@@ -90,6 +90,7 @@ export class ResultNode extends NodeBase {
             <button class="icon-btn" title="View Full Size">⛶</button>
             <button class="icon-btn" title="Download">↓</button>
             <button class="icon-btn icon-btn-std" title="Reset to standard size">⊡</button>
+            <button class="icon-btn draw-toggle-btn" title="Draw / Annotate">✏</button>
             <button class="icon-btn node-clone" title="Clone Node">⎘</button>
         `;
         wrapper.appendChild(actionButtons);
@@ -101,6 +102,7 @@ export class ResultNode extends NodeBase {
         const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
         const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
         const stdBtn = actionButtons.querySelector('.icon-btn-std');
+        const drawBtn = actionButtons.querySelector('.draw-toggle-btn');
 
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -119,6 +121,22 @@ export class ResultNode extends NodeBase {
             e.stopPropagation();
             nodeEl.style.width = '400px';
         });
+
+        drawBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const on = drawBtn.classList.toggle('active');
+            if (node._drawToggle) node._drawToggle(on);
+        });
+
+        // Set up draw overlay once image dimensions are known.
+        // Always defer (even if img is already complete) so createNode's Object.assign
+        // can restore node.data (e.g. maskData) before _setupDrawOverlay reads it.
+        const initDraw = () => callbacks.setupDraw?.(node, wrapper);
+        if (img.complete && img.naturalWidth > 0) {
+            setTimeout(initDraw, 0);
+        } else {
+            img.addEventListener('load', initDraw, { once: true });
+        }
 
         // Close button
         nodeEl.querySelector('.node-close').addEventListener('click', () => 

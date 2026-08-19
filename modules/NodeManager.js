@@ -63,7 +63,8 @@ export class NodeManager {
             generateImage: (n) => this.handleGenerateImage(n),
             openLightbox: (src) => this.uiManager.openLightbox(src),
             downloadImage: (src, name, meta) => this.downloadImage(src, name, meta),
-            updateDrawNodeImage: (n) => this.updateDrawNodeImage(n)
+            updateDrawNodeImage: (n) => this.updateDrawNodeImage(n),
+            setupDraw: (n, w) => this._setupDrawOverlay(n, w)
         };
 
         switch (type) {
@@ -346,8 +347,8 @@ export class NodeManager {
         container.appendChild(this.marqueeEl);
 
         canvas.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0 && e.pointerType === 'mouse') return;
-            if (e.pointerType === 'touch' && e.isPrimary === false) return; // ignore extra fingers
+            if (e.pointerType === 'touch' || e.pointerType === 'pen') return; // touch: pan, not marquee
+            if (e.button !== 0) return;
             if (this.connectionManager.isConnecting) return;
             if (this.canvasManager.isSpaceDown) return;
             e.preventDefault();

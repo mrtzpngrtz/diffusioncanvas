@@ -24,6 +24,10 @@ export class CanvasManager {
         this.spacePanStart = { x: 0, y: 0 };
         this.isSpaceDown = false;
 
+        // Touch state
+        this.pinchEnabled = true;   // can be toggled by user
+        this._touchActive = false;  // true while any background touch is down
+
         // Minimap
         this.minimapCanvas = document.getElementById('minimapCanvas');
         this.minimapCtx = this.minimapCanvas.getContext('2d');
@@ -68,27 +72,35 @@ export class CanvasManager {
             this.applyZoom();
         });
 
-        // Mouse wheel zoom
+        // Touch zoom mode toggle
+        const touchZoomBtn = document.getElementById('touchZoomToggle');
+        if (touchZoomBtn) {
+            touchZoomBtn.addEventListener('click', () => {
+                this.pinchEnabled = !this.pinchEnabled;
+                touchZoomBtn.textContent = this.pinchEnabled ? '🔒 Pinch' : '🔓 Pan only';
+                touchZoomBtn.style.opacity = this.pinchEnabled ? '' : '0.5';
+            });
+        }
+
+        // Mouse wheel zoom — skip if a touch is active (prevents OS scroll→zoom on touchscreen)
         if (this.container) {
             this.container.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                
+                if (this._touchActive) return;
+
                 const rect = this.container.getBoundingClientRect();
                 const mouseX = e.clientX - rect.left;
                 const mouseY = e.clientY - rect.top;
-                
-                // Calculate mouse position in canvas space before zoom
+
                 const canvasX = mouseX / this.zoom - this.panX;
                 const canvasY = mouseY / this.zoom - this.panY;
-                
-                // Apply zoom
+
                 const delta = e.deltaY > 0 ? -0.1 : 0.1;
                 const newZoom = Math.max(0.1, Math.min(3, this.zoom + delta));
-                
-                // Adjust pan to keep mouse position stable
+
                 this.panX = mouseX / newZoom - canvasX;
                 this.panY = mouseY / newZoom - canvasY;
-                
+
                 this.zoom = newZoom;
                 this.applyZoom();
             }, { passive: false });
@@ -98,7 +110,6 @@ export class CanvasManager {
     setupPanning() {
         if (!this.container) return;
 
-        // Prevent native touch scroll/zoom on the canvas
         this.container.style.touchAction = 'none';
 
         document.addEventListener('keydown', (e) => {
@@ -116,15 +127,32 @@ export class CanvasManager {
             }
         });
 
-        // Pointer tracking for pinch-to-zoom and 1-finger pan
-        const pts = new Map();      // pointerId → {x, y}  (current positions)
-        let pinchDist = 0;          // last known pinch distance
-        let touchPanId = null;      // pointer used for 1-finger canvas pan
-        let touchPanPrev = null;    // last position of that pointer
+        // Only track pointers that start on canvas background (not on nodes/toolbar/minimap)
+        // This prevents node-drag pointers from polluting pinch/pan tracking.
+        const bgPts = new Map(); // pointerId → {x, y}
+        let pinchDist = 0;
+        let touchPanId = null;
+        let touchPanPrev = null;
+        let touchPanInitial = null; // starting pos for tap-to-deselect detection
+
+        // RAF batching to avoid triggering drawConnections() 120× per second during pan
+        let rafId = null;
+        let pendingDx = 0, pendingDy = 0;
+        const flushPan = () => {
+            rafId = null;
+            if (pendingDx !== 0 || pendingDy !== 0) {
+                this.panX += pendingDx;
+                this.panY += pendingDy;
+                pendingDx = 0;
+                pendingDy = 0;
+                this.applyZoom();
+            }
+        };
+
+        const isBackground = (target) =>
+            !target.closest('.node, .minimap, .minimap-viewport, .toolbar-overlay, .draw-toolbar, #contextMenu, .zoom-controls');
 
         this.container.addEventListener('pointerdown', (e) => {
-            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
             if (e.button === 1) {
                 e.preventDefault();
                 this.isMiddlePanning = true;
@@ -143,25 +171,56 @@ export class CanvasManager {
                 return;
             }
 
-            // 1-finger touch/pen pan on canvas background (not on a node)
-            if ((e.pointerType === 'touch' || e.pointerType === 'pen') &&
-                !e.target.closest('.node') && pts.size === 1) {
-                touchPanId = e.pointerId;
-                touchPanPrev = { x: e.clientX, y: e.clientY };
-                this.container.setPointerCapture(e.pointerId);
+            if ((e.pointerType === 'touch' || e.pointerType === 'pen') && isBackground(e.target)) {
+                bgPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                this._touchActive = true;
+                if (bgPts.size === 1) {
+                    touchPanId = e.pointerId;
+                    touchPanPrev = { x: e.clientX, y: e.clientY };
+                    touchPanInitial = { x: e.clientX, y: e.clientY };
+                    this.container.setPointerCapture(e.pointerId);
+                } else if (bgPts.size === 2 && this.pinchEnabled) {
+                    // Second finger down — check minimum distance before enabling pinch
+                    const [p1, p2] = [...bgPts.values()];
+                    const d = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                    if (d >= 50) {
+                        // Real 2-finger pinch, cancel 1-finger pan
+                        touchPanId = null;
+                        pinchDist = d;
+                        if (rafId) { cancelAnimationFrame(rafId); flushPan(); }
+                    }
+                    // else: fingers too close → treat as ghost touch, keep panning
+                }
             }
         });
 
         this.container.addEventListener('pointermove', (e) => {
-            const prev = pts.get(e.pointerId);
-            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (this.isMiddlePanning) {
+                this.panX += (e.clientX - this.middlePanStart.x) / this.zoom;
+                this.panY += (e.clientY - this.middlePanStart.y) / this.zoom;
+                this.middlePanStart = { x: e.clientX, y: e.clientY };
+                this.applyZoom();
+                return;
+            }
 
-            // 2-finger pinch-to-zoom
-            if (pts.size >= 2) {
-                const [p1, p2] = [...pts.values()];
+            if (this.isSpacePanning) {
+                this.panX += (e.clientX - this.spacePanStart.x) / this.zoom;
+                this.panY += (e.clientY - this.spacePanStart.y) / this.zoom;
+                this.spacePanStart = { x: e.clientX, y: e.clientY };
+                this.applyZoom();
+                return;
+            }
+
+            if (!bgPts.has(e.pointerId)) return;
+            bgPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+            if (bgPts.size >= 2 && this.pinchEnabled && pinchDist > 0) {
+                // Pinch-to-zoom toward midpoint
+                const [p1, p2] = [...bgPts.values()];
                 const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-                if (pinchDist > 0) {
-                    const scale = dist / pinchDist;
+                const scale = dist / pinchDist;
+                // Only apply if scale change is meaningful (filters ghost-touch micro-jitter)
+                if (Math.abs(scale - 1) > 0.01) {
                     const midX = (p1.x + p2.x) / 2;
                     const midY = (p1.y + p2.y) / 2;
                     const rect = this.container.getBoundingClientRect();
@@ -174,42 +233,43 @@ export class CanvasManager {
                     this.applyZoom();
                 }
                 pinchDist = dist;
-                touchPanId = null; // cancel 1-finger pan while pinching
-                return;
-            }
-            pinchDist = 0;
-
-            // Middle mouse pan
-            if (this.isMiddlePanning) {
-                this.panX += (e.clientX - this.middlePanStart.x) / this.zoom;
-                this.panY += (e.clientY - this.middlePanStart.y) / this.zoom;
-                this.middlePanStart = { x: e.clientX, y: e.clientY };
-                this.applyZoom();
-                return;
-            }
-
-            // Space-drag pan
-            if (this.isSpacePanning) {
-                this.panX += (e.clientX - this.spacePanStart.x) / this.zoom;
-                this.panY += (e.clientY - this.spacePanStart.y) / this.zoom;
-                this.spacePanStart = { x: e.clientX, y: e.clientY };
-                this.applyZoom();
-                return;
-            }
-
-            // 1-finger canvas pan
-            if (e.pointerId === touchPanId && touchPanPrev && !this.nodeManager?.isDragging) {
-                this.panX += (e.clientX - touchPanPrev.x) / this.zoom;
-                this.panY += (e.clientY - touchPanPrev.y) / this.zoom;
-                this.applyZoom();
+            } else if (e.pointerId === touchPanId && touchPanPrev) {
+                // 1-finger canvas pan — accumulate deltas, apply via RAF
+                pendingDx += (e.clientX - touchPanPrev.x) / this.zoom;
+                pendingDy += (e.clientY - touchPanPrev.y) / this.zoom;
                 touchPanPrev = { x: e.clientX, y: e.clientY };
+                if (!rafId) rafId = requestAnimationFrame(flushPan);
             }
         });
 
         const onPointerEnd = (e) => {
-            pts.delete(e.pointerId);
-            if (pts.size < 2) pinchDist = 0;
-            if (e.pointerId === touchPanId) { touchPanId = null; touchPanPrev = null; }
+            const wasBg = bgPts.has(e.pointerId);
+            if (wasBg) {
+                // Tap detection: minimal movement → clear node selection
+                if (e.pointerId === touchPanId && touchPanInitial) {
+                    const moved = Math.hypot(e.clientX - touchPanInitial.x, e.clientY - touchPanInitial.y);
+                    if (moved < 10 && this.nodeManager) {
+                        this.nodeManager.clearSelection();
+                    }
+                }
+                bgPts.delete(e.pointerId);
+                if (bgPts.size < 2) pinchDist = 0;
+                if (e.pointerId === touchPanId) {
+                    touchPanId = null;
+                    touchPanPrev = null;
+                    touchPanInitial = null;
+                    // If another background finger is still down, adopt it for pan
+                    if (bgPts.size === 1) {
+                        const [id, pos] = [...bgPts.entries()][0];
+                        touchPanId = id;
+                        touchPanPrev = { ...pos };
+                        touchPanInitial = { ...pos };
+                    }
+                }
+            }
+
+            if (bgPts.size === 0) this._touchActive = false;
+
             if (e.button === 1 && this.isMiddlePanning) {
                 this.isMiddlePanning = false;
                 this.container.style.cursor = '';

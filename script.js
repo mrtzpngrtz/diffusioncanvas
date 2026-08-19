@@ -541,6 +541,7 @@ class App {
                         });
                     } else {
                         // result node — img already in DOM, update src if fetched from server
+                        if (nodeData.data.maskData) tempNode.data.maskData = nodeData.data.maskData;
                         const img = tempNode.element.querySelector('img');
                         if (img) {
                             if (nodeData.data.imageRef) img.src = src;
