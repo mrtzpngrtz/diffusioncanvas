@@ -600,7 +600,10 @@ export class NodeManager {
                         });
                     });
                     wrapper.appendChild(metaEl);
-                    img.addEventListener('click', () => metaEl.classList.toggle('result-meta-visible'));
+                    wrapper.addEventListener('click', (e) => {
+                        if (e.target.closest('button, canvas')) return;
+                        metaEl.classList.toggle('result-meta-visible');
+                    });
                 }
 
                 content.appendChild(wrapper);
@@ -673,6 +676,7 @@ export class NodeManager {
         oc.className = 'draw-overlay';
         oc.width = img.naturalWidth || 800;
         oc.height = img.naturalHeight || 600;
+        oc.style.pointerEvents = 'none'; // explicit init; toggled by _drawToggle
         wrapper.appendChild(oc);
         node.data.drawCanvas = oc;
 

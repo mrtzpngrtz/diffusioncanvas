@@ -72,7 +72,8 @@ export class ResultNode extends NodeBase {
             metaEl.classList.toggle('result-meta-has-data', !!(p || m));
         };
 
-        img.addEventListener('click', () => {
+        wrapper.addEventListener('click', (e) => {
+            if (e.target.closest('button, canvas')) return;
             if (!metaEl.classList.contains('result-meta-has-data')) return;
             metaEl.classList.toggle('result-meta-visible');
         });
