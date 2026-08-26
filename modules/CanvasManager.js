@@ -82,6 +82,17 @@ export class CanvasManager {
             });
         }
 
+        // Star filter toggle
+        const starFilterBtn = document.getElementById('starFilterToggle');
+        if (starFilterBtn) {
+            starFilterBtn.addEventListener('click', () => {
+                const on = starFilterBtn.classList.toggle('active');
+                starFilterBtn.textContent = on ? '⭐' : '☆';
+                this.nodeCanvas.classList.toggle('filter-starred', on);
+                this.drawConnections();
+            });
+        }
+
         // Mouse wheel zoom — skip if a touch is active (prevents OS scroll→zoom on touchscreen)
         if (this.container) {
             this.container.addEventListener('wheel', (e) => {

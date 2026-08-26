@@ -430,6 +430,7 @@ class App {
                     imageRef: node.data.imageRef || null,  // server ID — never store raw imageData
                     overlayText: node.data.overlayText || null,
                     maskData: node.data.maskData || null,
+                    starred: node.data.starred || false,
                     imageWidth: node.data.imageWidth,
                     nodeWidth: node.element ? node.element.offsetWidth : null,
                     nodeHeight: node.element ? node.element.offsetHeight : null,

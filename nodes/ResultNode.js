@@ -88,6 +88,7 @@ export class ResultNode extends NodeBase {
         const actionButtons = document.createElement('div');
         actionButtons.className = 'image-actions';
         actionButtons.innerHTML = `
+            <button class="icon-btn star-btn" title="Star">☆</button>
             <button class="icon-btn" title="View Full Size">⛶</button>
             <button class="icon-btn" title="Download">↓</button>
             <button class="icon-btn icon-btn-std" title="Reset to standard size">⊡</button>
@@ -100,10 +101,18 @@ export class ResultNode extends NodeBase {
             callbacks.cloneNode(node.id)
         );
 
-        const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
-        const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+        const starBtn    = actionButtons.querySelector('.star-btn');
+        const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+        const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(3)');
         const stdBtn = actionButtons.querySelector('.icon-btn-std');
         const drawBtn = actionButtons.querySelector('.draw-toggle-btn');
+
+        starBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            node.data.starred = !node.data.starred;
+            starBtn.textContent = node.data.starred ? '⭐' : '☆';
+            node.element.classList.toggle('starred', node.data.starred);
+        });
 
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();

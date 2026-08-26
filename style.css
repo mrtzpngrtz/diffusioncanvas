@@ -2846,3 +2846,23 @@ body.dark-mode .login-modal {
     background: rgba(255, 180, 0, 0.25) !important;
     color: #ffcc00 !important;
 }
+
+/* Star button */
+.star-btn {
+    font-size: 14px;
+}
+.node.starred .star-btn {
+    color: #ffd700;
+}
+
+/* Star filter mode — fade out non-starred nodes */
+#nodeCanvas.filter-starred .node:not(.starred) {
+    opacity: 0.06;
+    pointer-events: none;
+}
+
+/* Star filter toggle button active state */
+#starFilterToggle.active {
+    background: rgba(255, 210, 0, 0.2) !important;
+    color: #ffd700 !important;
+}

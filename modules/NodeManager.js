@@ -137,6 +137,13 @@ export class NodeManager {
                 }
             }
 
+            // Restore star state from loaded data
+            if (node.data.starred) {
+                node.element.classList.add('starred');
+                const starBtn = node.element.querySelector('.star-btn');
+                if (starBtn) starBtn.textContent = '⭐';
+            }
+
             this.nodes.push(node);
             this.nodeCanvas.appendChild(node.element);
             this.uiManager.updateStatus(`${type.charAt(0).toUpperCase() + type.slice(1)} node created`);
@@ -627,6 +634,7 @@ export class NodeManager {
         const actionButtons = document.createElement('div');
         actionButtons.className = 'image-actions';
         actionButtons.innerHTML = `
+            <button class="icon-btn star-btn" title="Star">☆</button>
             <button class="icon-btn" title="View Full Size">⛶</button>
             <button class="icon-btn" title="Download">↓</button>
             <button class="icon-btn icon-btn-std" title="Reset to standard size">⊡</button>
@@ -638,10 +646,18 @@ export class NodeManager {
         wrapper.appendChild(actionButtons);
 
         actionButtons.querySelector('.node-clone').addEventListener('click', () => this.cloneNode(node.id));
-        const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(1)');
-        const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+        const starBtn     = actionButtons.querySelector('.star-btn');
+        const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
+        const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(3)');
         const stdBtn = actionButtons.querySelector('.icon-btn-std');
         const drawBtn = actionButtons.querySelector('.draw-toggle-btn');
+
+        starBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            node.data.starred = !node.data.starred;
+            starBtn.textContent = node.data.starred ? '⭐' : '☆';
+            node.element.classList.toggle('starred', node.data.starred);
+        });
 
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
