@@ -137,7 +137,7 @@ export class ConnectionManager {
 
     updateNodeConnections(sourceNode, targetNode) {
         // Update prompt/action node with connected images (from image, result, or draw node)
-        if ((targetNode.type === 'prompt' || targetNode.type === 'action') && (sourceNode.type === 'image' || sourceNode.type === 'result' || sourceNode.type === 'draw')) {
+        if ((targetNode.type === 'prompt' || targetNode.type === 'action') && (sourceNode.type === 'image' || sourceNode.type === 'result' || sourceNode.type === 'draw' || sourceNode.type === 'threed')) {
             if (!targetNode.data.connectedImages.includes(sourceNode)) {
                 targetNode.data.connectedImages.push(sourceNode);
             }
@@ -300,7 +300,7 @@ export class ConnectionManager {
                 
                 // Cleanup connection data
                 if (toNode && (toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
-                    if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw') && toNode.data.connectedImages) {
+                    if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw' || fromNode.type === 'threed') && toNode.data.connectedImages) {
                         toNode.data.connectedImages = toNode.data.connectedImages.filter(node => node.id !== fromNode.id);
                         // updateVeo3FrameIndicators(toNode);
                     }
