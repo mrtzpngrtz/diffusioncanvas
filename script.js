@@ -434,9 +434,13 @@ class App {
                     starred: node.data.starred || false,
                     modelType: node.data.modelType || null,
                     modelName: node.data.modelName || null,
-                    // Store 3D model inline (base64 for FBX, text for OBJ), capped at 20 MB
+                    // Store 3D model inline (base64 for FBX/GLB/STL, text for OBJ/GLTF), capped at 20 MB
                     modelData: (node.type === 'threed' && node.data.modelData && node.data.modelData.length < 20 * 1024 * 1024)
                         ? node.data.modelData : null,
+                    ambientIntensity: node.data.ambientIntensity ?? null,
+                    sunIntensity: node.data.sunIntensity ?? null,
+                    bgColor: node.data.bgColor || null,
+                    fov: node.data.fov || null,
                     imageWidth: node.data.imageWidth,
                     nodeWidth: node.element ? node.element.offsetWidth : null,
                     nodeHeight: node.element ? node.element.offsetHeight : null,

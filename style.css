@@ -2960,6 +2960,88 @@ body.dark-mode .login-modal {
     line-height: 1.5;
 }
 
+/* 3D controls panel */
+.threed-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    padding: 3px 6px;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(4px);
+    border-radius: 0 0 4px 4px;
+}
+
+/* Items (label + slider) hidden until .open */
+.threed-ctrl-item,
+.threed-bg-btn,
+.threed-reset-btn {
+    display: none;
+    align-items: center;
+    gap: 3px;
+}
+
+.threed-controls.open .threed-ctrl-item { display: flex; }
+.threed-controls.open .threed-bg-btn    { display: flex; }
+.threed-controls.open .threed-reset-btn { display: flex; }
+
+.threed-ctrl-lbl {
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.threed-slider {
+    width: 52px;
+    accent-color: rgba(255,255,255,0.7);
+    cursor: pointer;
+}
+.threed-slider-sm { width: 38px; }
+
+.threed-bg-btn,
+.threed-reset-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    padding: 0 4px;
+    height: 22px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: color 0.1s;
+    align-items: center;
+    justify-content: center;
+}
+.threed-bg-btn:hover,
+.threed-reset-btn:hover { color: #fff; }
+
+.threed-ctrl-collapse {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.4);
+    font-size: 12px;
+    padding: 0 3px;
+    height: 22px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: color 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+.threed-ctrl-collapse:hover { color: #fff; }
+.threed-controls.open .threed-ctrl-collapse { color: rgba(255,255,255,0.7); }
+
+.threed-controls .threed-ctrl-item + .threed-ctrl-item { margin-left: 6px; }
+.threed-controls .threed-bg-btn    { margin-left: 6px; }
+.threed-controls .threed-reset-btn { margin-left: 4px; }
+
 .draw-text-input {
     position: fixed;
     background: transparent;
