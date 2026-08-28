@@ -710,9 +710,12 @@ export class NodeManager {
             <button class="draw-tool active" data-tool="brush" title="Brush">✏</button>
             <button class="draw-tool" data-tool="text" title="Text">T</button>
             <button class="draw-tool" data-tool="eraser" title="Eraser">◫</button>
+            <span class="draw-sep"></span>
             <input class="draw-color" type="color" value="#ff3300">
             <input class="draw-size" type="range" min="2" max="80" value="12">
-            <button class="draw-clear" title="Clear all">✕</button>
+            <span class="draw-sep"></span>
+            <button class="draw-clear" title="Clear">✕</button>
+            <button class="draw-collapse-btn" title="Collapse toolbar">▾</button>
         `;
         wrapper.appendChild(tb);
 
@@ -814,6 +817,14 @@ export class NodeManager {
             e.stopPropagation();
             ctx.clearRect(0, 0, oc.width, oc.height);
             node.data.maskData = null;
+        });
+
+        const collapseBtn = tb.querySelector('.draw-collapse-btn');
+        collapseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const collapsed = tb.classList.toggle('collapsed');
+            collapseBtn.textContent = collapsed ? '▸' : '▾';
+            collapseBtn.title = collapsed ? 'Expand toolbar' : 'Collapse toolbar';
         });
 
         // Called by the draw toggle button

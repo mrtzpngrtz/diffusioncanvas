@@ -2765,70 +2765,121 @@ body.dark-mode .login-modal {
     right: 0;
     display: none;
     align-items: center;
-    gap: 5px;
-    padding: 5px 8px;
-    background: rgba(0, 0, 0, 0.72);
+    gap: 3px;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.78);
     z-index: 10;
     border-radius: 4px 4px 0 0;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
 }
 
 .draw-toolbar.active {
     display: flex;
 }
 
+/* Collapsed: only the arrow stays */
+.draw-toolbar.collapsed { gap: 0; padding: 3px 6px; }
+.draw-toolbar.collapsed .draw-tool,
+.draw-toolbar.collapsed .draw-color,
+.draw-toolbar.collapsed .draw-size,
+.draw-toolbar.collapsed .draw-clear,
+.draw-toolbar.collapsed .draw-sep { display: none; }
+
 .draw-tool {
-    background: rgba(255, 255, 255, 0.15);
+    background: none;
     border: none;
-    color: #fff;
-    padding: 3px 8px;
+    color: rgba(255, 255, 255, 0.65);
+    padding: 0;
+    width: 26px;
+    height: 24px;
     border-radius: 3px;
     cursor: pointer;
     font-size: 13px;
     font-family: var(--font-sans);
-    transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.1s, color 0.1s;
 }
 
 .draw-tool:hover {
-    background: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
 }
 
 .draw-tool.active {
-    background: rgba(255, 255, 255, 0.38);
-    outline: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}
+
+.draw-sep {
+    width: 1px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.18);
+    margin: 0 3px;
+    flex-shrink: 0;
 }
 
 .draw-color {
-    width: 28px;
+    width: 24px;
     height: 24px;
     padding: 0;
     border: none;
     border-radius: 3px;
     cursor: pointer;
     background: none;
+    flex-shrink: 0;
 }
 
 .draw-size {
-    width: 72px;
+    width: 64px;
     accent-color: #fff;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .draw-clear {
-    background: rgba(220, 50, 30, 0.5);
+    background: none;
     border: none;
-    color: #fff;
-    padding: 3px 8px;
+    color: rgba(255, 255, 255, 0.45);
+    padding: 0;
+    width: 24px;
+    height: 24px;
     border-radius: 3px;
     cursor: pointer;
-    font-size: 12px;
-    margin-left: auto;
-    transition: background 0.1s;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.1s, color 0.1s;
 }
 
 .draw-clear:hover {
-    background: rgba(220, 50, 30, 0.8);
+    background: rgba(220, 50, 30, 0.55);
+    color: #fff;
 }
+
+.draw-collapse-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 0;
+    width: 20px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: color 0.1s;
+}
+
+.draw-collapse-btn:hover { color: #fff; }
 
 .draw-text-input {
     position: fixed;
