@@ -3,6 +3,7 @@ import { PromptNode } from '../nodes/PromptNode.js';
 import { ActionNode } from '../nodes/ActionNode.js';
 import { DrawNode } from '../nodes/DrawNode.js';
 import { ResultNode } from '../nodes/ResultNode.js';
+import { ThreeDNode } from '../nodes/ThreeDNode.js';
 
 export class NodeManager {
     constructor(canvasManager, connectionManager, uiManager, apiManager) {
@@ -80,6 +81,9 @@ export class NodeManager {
             case 'draw':
                 node = new DrawNode().create(nodeId, x, y, callbacks);
                 break;
+            case 'threed':
+                node = new ThreeDNode().create(nodeId, x, y, callbacks);
+                break;
             case 'result': {
                 const imgData = data?.imageUrl || data?.imageData;
                 node = new ResultNode().create(nodeId, x, y, imgData, data?.sourceNode, callbacks);
@@ -134,6 +138,10 @@ export class NodeManager {
                         if (actionSelect) actionSelect.value = data.action;
                     }
                     this.updateGenerateButton(node);
+                } else if (type === 'threed') {
+                    if (node.restoreViewer && node.data.modelData && node.data.modelType) {
+                        node.restoreViewer().catch(console.error);
+                    }
                 }
             }
 

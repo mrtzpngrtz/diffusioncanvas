@@ -103,6 +103,7 @@ class App {
         document.getElementById('addPromptNode').addEventListener('click', () => this.addNode('prompt'));
         document.getElementById('addActionNode').addEventListener('click', () => this.addNode('action'));
         document.getElementById('addDrawNode').addEventListener('click', () => this.addNode('draw'));
+        document.getElementById('addThreeDNode').addEventListener('click', () => this.addNode('threed'));
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
@@ -431,6 +432,11 @@ class App {
                     overlayText: node.data.overlayText || null,
                     maskData: node.data.maskData || null,
                     starred: node.data.starred || false,
+                    modelType: node.data.modelType || null,
+                    modelName: node.data.modelName || null,
+                    // Store 3D model inline (base64 for FBX, text for OBJ), capped at 20 MB
+                    modelData: (node.type === 'threed' && node.data.modelData && node.data.modelData.length < 20 * 1024 * 1024)
+                        ? node.data.modelData : null,
                     imageWidth: node.data.imageWidth,
                     nodeWidth: node.element ? node.element.offsetWidth : null,
                     nodeHeight: node.element ? node.element.offsetHeight : null,

@@ -2881,6 +2881,85 @@ body.dark-mode .login-modal {
 
 .draw-collapse-btn:hover { color: #fff; }
 
+/* ── 3D Node ──────────────────────────────────────── */
+.threed-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 130px;
+    border: 1.5px dashed var(--border-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    padding: 20px;
+}
+.threed-dropzone:hover,
+.threed-dropzone.drag-over {
+    border-color: var(--accent);
+    background: rgba(var(--accent-rgb, 102,126,234), 0.07);
+}
+.threed-drop-icon {
+    font-size: 28px;
+    opacity: 0.45;
+    line-height: 1;
+}
+.threed-dropzone p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+}
+
+.threed-wrapper {
+    position: relative;
+    width: 100%;
+    background: #111;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.threed-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: none;
+}
+
+.threed-label {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    pointer-events: none;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 16px);
+}
+
+.threed-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 130px;
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+}
+
+.threed-error {
+    padding: 16px;
+    font-size: 11px;
+    color: #e57373;
+    background: rgba(229,115,115,0.08);
+    border-radius: 4px;
+    line-height: 1.5;
+}
+
 .draw-text-input {
     position: fixed;
     background: transparent;
