@@ -602,6 +602,14 @@ class App {
 
         // Restore connections
         this.connectionManager.connections = state.connections || [];
+        // Re-run wiring for every connection so connectedImages/connectedPrompts
+        // are always complete — covers old boards saved before a new node type
+        // was added, and browsers that cached JS before the connection type-check fix.
+        for (const conn of this.connectionManager.connections) {
+            const fromNode = this.nodeManager.nodes.find(n => n.id === conn.from);
+            const toNode   = this.nodeManager.nodes.find(n => n.id === conn.to);
+            if (fromNode && toNode) this.connectionManager.updateNodeConnections(fromNode, toNode);
+        }
         this.connectionManager.drawConnections();
         
         await Promise.all(promises);
