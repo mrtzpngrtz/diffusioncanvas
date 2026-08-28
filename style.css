@@ -2964,83 +2964,102 @@ body.dark-mode .login-modal {
 .threed-controls {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: 0;
     padding: 3px 6px;
-    background: rgba(0,0,0,0.72);
-    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.78);
+    backdrop-filter: blur(6px);
     border-radius: 0 0 4px 4px;
 }
 
-/* Items (label + slider) hidden until .open */
-.threed-ctrl-item,
-.threed-bg-btn,
-.threed-reset-btn {
+.threed-ctrl-rows {
     display: none;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    padding: 2px 0;
+}
+.threed-controls.open .threed-ctrl-rows { display: flex; }
+
+.threed-ctrl-row {
+    display: flex;
     align-items: center;
     gap: 3px;
 }
 
-.threed-controls.open .threed-ctrl-item { display: flex; }
-.threed-controls.open .threed-bg-btn    { display: flex; }
-.threed-controls.open .threed-reset-btn { display: flex; }
+.threed-ctrl-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
 
 .threed-ctrl-lbl {
     font-size: 9px;
-    color: rgba(255,255,255,0.4);
+    color: rgba(255,255,255,0.35);
     font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     white-space: nowrap;
     flex-shrink: 0;
+    margin-right: 1px;
 }
 
 .threed-slider {
-    width: 52px;
-    accent-color: rgba(255,255,255,0.7);
+    width: 56px;
+    accent-color: rgba(255,255,255,0.65);
     cursor: pointer;
+    flex-shrink: 0;
 }
-.threed-slider-sm { width: 38px; }
 
-.threed-bg-btn,
-.threed-reset-btn {
+/* Shared icon button base */
+.threed-icon-btn {
     background: none;
     border: none;
-    color: rgba(255,255,255,0.5);
-    font-size: 12px;
-    padding: 0 4px;
-    height: 22px;
+    color: rgba(255,255,255,0.45);
+    font-size: 11px;
+    padding: 0;
+    width: 22px;
+    height: 20px;
     cursor: pointer;
     border-radius: 3px;
-    transition: color 0.1s;
-    align-items: center;
-    justify-content: center;
-}
-.threed-bg-btn:hover,
-.threed-reset-btn:hover { color: #fff; }
-
-.threed-ctrl-collapse {
-    background: none;
-    border: none;
-    color: rgba(255,255,255,0.4);
-    font-size: 12px;
-    padding: 0 3px;
-    height: 22px;
-    cursor: pointer;
-    border-radius: 3px;
-    transition: color 0.1s;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: 4px;
     flex-shrink: 0;
+    font-family: var(--font-mono);
+    transition: background 0.1s, color 0.1s;
 }
-.threed-ctrl-collapse:hover { color: #fff; }
-.threed-controls.open .threed-ctrl-collapse { color: rgba(255,255,255,0.7); }
+.threed-icon-btn:hover          { background: rgba(255,255,255,0.12); color: #fff; }
+.threed-icon-btn.active         { background: rgba(255,255,255,0.2);  color: #fff; }
 
-.threed-controls .threed-ctrl-item + .threed-ctrl-item { margin-left: 6px; }
-.threed-controls .threed-bg-btn    { margin-left: 6px; }
-.threed-controls .threed-reset-btn { margin-left: 4px; }
+/* Pan buttons slightly wider for arrows */
+.threed-pan-btn { width: 20px; }
+
+/* Separator within row */
+.threed-ctrl-sep {
+    width: 1px; height: 12px;
+    background: rgba(255,255,255,0.15);
+    margin: 0 3px; flex-shrink: 0;
+}
+
+/* The ⚙ toggle — always visible, pushes to right */
+.threed-ctrl-collapse {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.35);
+    font-size: 12px;
+    padding: 0;
+    width: 22px; height: 22px;
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: color 0.1s;
+}
+.threed-ctrl-collapse:hover           { color: #fff; }
+.threed-controls.open .threed-ctrl-collapse { color: rgba(255,255,255,0.75); }
 
 .draw-text-input {
     position: fixed;
