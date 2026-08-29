@@ -36,6 +36,13 @@ class App {
         this.canvasManager.init();
         this.nodeManager.init();
 
+        // Canvas-drawn UI (connections, minimap) reads the theme at draw time —
+        // repaint both immediately when the theme flips.
+        this.uiManager.onThemeChange = () => {
+            this.connectionManager.drawConnections();
+            this.canvasManager.updateMinimap();
+        };
+
         this.currentBoardId = null;
         this.currentBoardName = null;
 
@@ -547,6 +554,8 @@ class App {
                                 this.nodeManager._setupDrawOverlay(tempNode, wrapper);
                                 this.nodeManager._setupImageTextInput(tempNode, content, tempNode.data.overlayText);
                                 this.nodeManager.addNodeActionButtons(tempNode, content);
+                                const clearBtn = tempNode.element.querySelector('.clear-button');
+                                if (clearBtn) clearBtn.style.display = '';
                                 resolve();
                             };
                             img.onerror = resolve;
@@ -678,7 +687,7 @@ Object.assign(App.prototype, {
                     <div class="board-card-meta">
                         <div class="board-card-name-row">
                             <span class="board-card-name">${this._escHtml(b.name)}</span>
-                            <button class="board-icon-btn board-rename-btn" data-id="${b.id}" data-name="${this._escHtml(b.name)}" title="Rename">✎</button>
+                            <button class="board-icon-btn board-rename-btn" data-id="${b.id}" data-name="${this._escHtml(b.name)}" title="Rename"><svg class="icon"><use href="#i-pencil"/></svg></button>
                         </div>
                         <div class="board-card-info">
                             <div class="board-card-dates">
@@ -691,10 +700,10 @@ Object.assign(App.prototype, {
                             </div>
                         </div>
                         <div class="board-card-actions">
-                            <button class="board-btn board-load-btn" data-id="${b.id}">↑ Load</button>
-                            <button class="board-btn board-download-btn" data-id="${b.id}">↓ Download</button>
-                            <button class="board-btn board-versions-btn" data-id="${b.id}" data-name="${this._escHtml(b.name)}">↩ Versions</button>
-                            <button class="board-btn board-delete-btn" data-id="${b.id}">✕</button>
+                            <button class="board-btn board-load-btn" data-id="${b.id}"><svg class="icon"><use href="#i-upload"/></svg>Load</button>
+                            <button class="board-btn board-download-btn" data-id="${b.id}"><svg class="icon"><use href="#i-download"/></svg>Download</button>
+                            <button class="board-btn board-versions-btn" data-id="${b.id}" data-name="${this._escHtml(b.name)}"><svg class="icon"><use href="#i-refresh"/></svg>Versions</button>
+                            <button class="board-btn board-delete-btn" data-id="${b.id}" title="Delete"><svg class="icon"><use href="#i-trash"/></svg></button>
                         </div>
                         <div class="board-versions-panel" id="vp-${b.id}" style="display:none;"></div>
                     </div>
@@ -745,7 +754,7 @@ Object.assign(App.prototype, {
                 ${versions.map((v, i) => `
                     <div class="board-version-row">
                         <span class="board-version-date">${this._fmtDateFull(v.savedAt)}</span>
-                        <button class="board-btn board-version-restore-btn" data-id="${boardId}" data-idx="${i}" data-name="${this._escHtml(boardName)}" data-date="${this._escHtml(v.savedAt)}">↩ Restore</button>
+                        <button class="board-btn board-version-restore-btn" data-id="${boardId}" data-idx="${i}" data-name="${this._escHtml(boardName)}" data-date="${this._escHtml(v.savedAt)}"><svg class="icon"><use href="#i-refresh"/></svg>Restore</button>
                     </div>
                 `).join('')}
             </div>`;

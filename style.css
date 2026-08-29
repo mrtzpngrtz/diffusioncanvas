@@ -156,9 +156,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 14px;
     font-weight: var(--fw-light);
-    letter-spacing: 0.2em;
+    letter-spacing: 0.28em;
     text-transform: uppercase;
     color: var(--accent);
     border: 1.5px dashed var(--accent);
@@ -460,7 +460,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     border-radius: var(--r-node);
     box-shadow: var(--shadow-soft);
     padding: 0;
-    min-width: 240px;
+    min-width: 220px; /* matches the JS resize floor */
     cursor: move;
     user-select: none;
     pointer-events: auto;
@@ -551,7 +551,7 @@ body.dark-mode .theme-icon-moon { display: block; }
 .image-node .node-header,
 .result-node .node-header {
     position: absolute;
-    top: -34px;
+    top: -32px; /* pill height — no dead hover gap between pill and image */
     left: 0;
     width: auto;
     display: inline-flex;
@@ -615,6 +615,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     line-height: 0; /* remove gap below inline img */
     border-radius: 8px;
     transition: box-shadow var(--t-med) var(--ease);
+    container-type: inline-size; /* lets the caption scale with node width */
 }
 
 .image-node:hover .image-wrapper,
@@ -645,6 +646,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     border: none;
     opacity: 0;
     transform: translateY(4px);
+    pointer-events: none; /* invisible band must not eat draw strokes / drags */
     transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
     z-index: 6;
     line-height: normal;
@@ -655,6 +657,13 @@ body.dark-mode .theme-icon-moon { display: block; }
 .image-text-row:focus-within {
     opacity: 1;
     transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* While draw mode is active, keep the text row out of the way of strokes */
+.node-content:has(.draw-toolbar.active) .image-text-row {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .image-text-input {
@@ -685,7 +694,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     right: 0;
     text-align: center;
     font-family: var(--font-sans);
-    font-size: clamp(12px, 4%, 24px);
+    font-size: clamp(12px, 5cqw, 24px);
     font-weight: var(--fw-med);
     color: #fff;
     text-shadow: 0 0 12px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.9);
@@ -1006,16 +1015,22 @@ body.dark-mode .theme-icon-moon { display: block; }
 
 .aspect-restore-btn {
     flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 0 10px;
     border: none;
     border-bottom: 1px solid var(--border-light);
     border-left: 1px solid var(--border-light);
     background: var(--surface);
     color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 13px;
     cursor: pointer;
     transition: background var(--t-fast) var(--ease);
+}
+
+.aspect-restore-btn .icon {
+    width: 12px;
+    height: 12px;
 }
 
 .aspect-restore-btn:hover {
@@ -1307,10 +1322,10 @@ body.dark-mode .theme-icon-moon { display: block; }
 .draw-color-picker {
     width: 30px;
     height: 28px;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--text-muted);
     border-radius: var(--r-btn);
     cursor: pointer;
-    background: #000;
+    background: var(--surface);
     padding: 2px;
 }
 
@@ -1409,7 +1424,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     top: 7px; right: 10px;
     font-family: var(--font-mono);
     font-size: 9px;
-    color: var(--border);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     z-index: 2;
@@ -1538,7 +1553,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     flex-direction: column;
     gap: 3px;
     pointer-events: none;
-    z-index: 4;
+    z-index: 7; /* above the hover text-row so the copy button stays clickable */
     line-height: normal;
 }
 
@@ -1634,6 +1649,12 @@ body.dark-mode .theme-icon-moon { display: block; }
     opacity: 1;
     transform: translateX(0);
     pointer-events: auto;
+}
+
+/* When the draw toolbar is open it occupies the top strip — shift the
+   action pill below it */
+.draw-toolbar.active ~ .image-actions {
+    top: 40px;
 }
 
 /* Base icon button — neutral ghost (used in prompt-meta and panels) */
@@ -1737,8 +1758,10 @@ body.dark-mode .theme-icon-moon { display: block; }
     color: var(--text);
 }
 
-/* On borderless media nodes the grip sits on the image — give it contrast */
-.image-node .resize-handle::after,
+/* On borderless media nodes the grip sits on the image — give it contrast.
+   Scoped to :has(.image-wrapper) so the empty dropzone state keeps the
+   default dark grip on its light surface. */
+.image-node:has(.image-wrapper) .resize-handle::after,
 .result-node .resize-handle::after {
     color: rgba(255, 255, 255, 0.75);
     filter: drop-shadow(0 0 2px rgba(0,0,0,0.6));
@@ -2112,8 +2135,8 @@ body.dark-mode .theme-icon-moon { display: block; }
 }
 
 .cookie-notice-small {
-    font-size: 12px !important;
-    color: var(--text-muted) !important;
+    font-size: 12px;
+    color: var(--text-muted);
 }
 
 .cookie-notice-text a {
@@ -2763,6 +2786,10 @@ body.dark-mode .theme-icon-moon { display: block; }
 }
 
 .board-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     padding: 5px 10px;
     background: transparent;
     border: 1px solid var(--border);
@@ -2776,6 +2803,16 @@ body.dark-mode .theme-icon-moon { display: block; }
     line-height: 1;
     flex: 1;
     text-align: center;
+}
+
+.board-btn .icon {
+    width: 12px;
+    height: 12px;
+}
+
+.board-icon-btn .icon {
+    width: 12px;
+    height: 12px;
 }
 
 .board-btn:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
@@ -3222,6 +3259,7 @@ body.dark-mode .login-hero::before {
     right: 0;
     display: none;
     align-items: center;
+    flex-wrap: wrap; /* narrow nodes: wrap to a second row instead of clipping */
     gap: 3px;
     padding: 4px 6px;
     background: var(--overlay-bg);
@@ -3233,6 +3271,12 @@ body.dark-mode .login-hero::before {
 .draw-toolbar.active {
     display: flex;
     animation: fade-in var(--t-fast) var(--ease);
+}
+
+/* One icon size for the whole row */
+.draw-toolbar .icon {
+    width: 13px;
+    height: 13px;
 }
 
 /* Collapsed: only the chevron stays */
@@ -3258,11 +3302,6 @@ body.dark-mode .login-hero::before {
     justify-content: center;
     flex-shrink: 0;
     transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
-}
-
-.draw-tool .icon {
-    width: 13px;
-    height: 13px;
 }
 
 .draw-tool:hover {
@@ -3317,11 +3356,6 @@ body.dark-mode .login-hero::before {
     transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 
-.draw-clear .icon {
-    width: 12px;
-    height: 12px;
-}
-
 .draw-clear:hover {
     background: rgba(var(--accent-rgb), 0.6);
     color: #fff;
@@ -3332,7 +3366,7 @@ body.dark-mode .login-hero::before {
     border: none;
     color: rgba(255, 255, 255, 0.4);
     padding: 0;
-    width: 22px;
+    width: 26px;
     height: 24px;
     border-radius: 5px;
     cursor: pointer;
@@ -3345,8 +3379,6 @@ body.dark-mode .login-hero::before {
 }
 
 .draw-collapse-btn .icon {
-    width: 12px;
-    height: 12px;
     transition: transform var(--t-med) var(--ease);
 }
 
@@ -3568,6 +3600,12 @@ body.dark-mode .login-hero::before {
     color: #FFD447;
 }
 
+/* Restore path sets .starred on the node before the button exists —
+   fill the star from the node class alone */
+.node.starred .star-btn .icon {
+    fill: currentColor;
+}
+
 #nodeCanvas.filter-starred .node:not(.starred) {
     opacity: 0.06;
     pointer-events: none;
@@ -3582,6 +3620,8 @@ body.dark-mode .login-hero::before {
     fill: currentColor;
 }
 
+/* Pin the hover fill dark so the gold star stays visible in both themes */
 #starFilterToggle.active:hover {
+    background: #1B1B1B;
     color: #FFD447;
 }

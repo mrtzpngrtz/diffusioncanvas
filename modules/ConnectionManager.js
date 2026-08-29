@@ -170,7 +170,13 @@ export class ConnectionManager {
         const panY = this.canvasManager.panY;
 
         ctx.clearRect(0, 0, width, height);
-        
+
+        // Resolve theme-aware colors once per redraw
+        const dark = document.body.classList.contains('dark-mode');
+        const lineColor = dark ? '#8F8F8B' : '#555';
+        const knobFill  = dark ? '#3A3A3A' : '#2a2a2a';
+        const knobGlyph = dark ? '#ccc' : '#aaa';
+
         ctx.save();
         ctx.translate(panX * zoom, panY * zoom);
         ctx.scale(zoom, zoom);
@@ -187,7 +193,7 @@ export class ConnectionManager {
 
             // Draw curved line
             ctx.beginPath();
-            ctx.strokeStyle = '#555';
+            ctx.strokeStyle = lineColor;
             ctx.lineWidth = 2;
 
             const cp1x = fromPoint.x + (toPoint.x - fromPoint.x) / 2;
@@ -215,17 +221,17 @@ export class ConnectionManager {
             // Draw disconnect button
             ctx.beginPath();
             ctx.arc(midX, midY, 10, 0, Math.PI * 2);
-            ctx.fillStyle = '#2a2a2a';
+            ctx.fillStyle = knobFill;
             ctx.fill();
-            ctx.strokeStyle = '#555';
+            ctx.strokeStyle = lineColor;
             ctx.lineWidth = 1;
             ctx.stroke();
-            
+
             // Draw minus sign
             ctx.beginPath();
             ctx.moveTo(midX - 5, midY);
             ctx.lineTo(midX + 5, midY);
-            ctx.strokeStyle = '#aaa';
+            ctx.strokeStyle = knobGlyph;
             ctx.lineWidth = 2;
             ctx.stroke();
         });

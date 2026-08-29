@@ -57,8 +57,9 @@ export class ResultNode extends NodeBase {
             e.stopPropagation();
             const text = node.data.prompt || '';
             if (!text) return;
+            // capture before the async boundary — currentTarget is null after dispatch
+            const btn = e.currentTarget;
             navigator.clipboard.writeText(text).then(() => {
-                const btn = e.currentTarget;
                 btn.textContent = 'copied';
                 setTimeout(() => { btn.textContent = 'copy'; }, 1500);
             });

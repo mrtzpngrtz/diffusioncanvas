@@ -610,8 +610,9 @@ export class NodeManager {
                     `;
                     metaEl.querySelector('.result-meta-copy').addEventListener('click', (e) => {
                         e.stopPropagation();
+                        // capture before the async boundary — currentTarget is null after dispatch
+                        const btn = e.currentTarget;
                         navigator.clipboard.writeText(meta.prompt || '').then(() => {
-                            const btn = e.currentTarget;
                             btn.textContent = 'copied';
                             setTimeout(() => { btn.textContent = 'copy'; }, 1500);
                         });
@@ -922,8 +923,11 @@ export class NodeManager {
                     if (originalNode.data.overlayText) {
                         newNode.data.overlayText = originalNode.data.overlayText;
                     }
+                    this._setupDrawOverlay(newNode, wrapper);
                     this._setupImageTextInput(newNode, content, newNode.data.overlayText);
                     this.addNodeActionButtons(newNode, content);
+                    const cloneClearBtn = newNode.element.querySelector('.clear-button');
+                    if (cloneClearBtn) cloneClearBtn.style.display = '';
                 }
                 break;
             case 'prompt':

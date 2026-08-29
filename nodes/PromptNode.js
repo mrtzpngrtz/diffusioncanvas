@@ -65,7 +65,7 @@ export class PromptNode extends NodeBase {
                     <option value="16:9">16:9 — wide</option>
                     <option value="21:9">21:9 — ultrawide</option>
                 </select>
-                <button class="aspect-restore-btn" title="Restore original ratio" style="display:none">↺</button>
+                <button class="aspect-restore-btn" title="Restore original ratio" style="display:none"><svg class="icon"><use href="#i-refresh"/></svg></button>
                 </div>
                 <div class="prompt-row-2col">
                     <select class="resolution-select">

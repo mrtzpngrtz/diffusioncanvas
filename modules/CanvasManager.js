@@ -88,7 +88,7 @@ export class CanvasManager {
             starFilterBtn.addEventListener('click', () => {
                 const on = starFilterBtn.classList.toggle('active');
                 this.nodeCanvas.classList.toggle('filter-starred', on);
-                this.drawConnections();
+                if (this.connectionManager) this.connectionManager.drawConnections();
             });
         }
 
@@ -398,7 +398,8 @@ export class CanvasManager {
         this.minimapCanvas.width = 300;
         this.minimapCanvas.height = 225;
         
-        this.minimapCtx.fillStyle = '#1a1a1a';
+        const dark = document.body.classList.contains('dark-mode');
+        this.minimapCtx.fillStyle = dark ? '#1a1a1a' : '#EDEDEA';
         this.minimapCtx.fillRect(0, 0, 300, 225);
         
         if (!this.nodeManager || this.nodeManager.nodes.length === 0) {
@@ -457,15 +458,15 @@ export class CanvasManager {
             }
             
             this.minimapCtx.fillRect(x, y, width, height);
-            
-            this.minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+
+            this.minimapCtx.strokeStyle = dark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.2)';
             this.minimapCtx.lineWidth = 1;
             this.minimapCtx.strokeRect(x, y, width, height);
         });
-        
+
         // Draw connections
         if (this.connectionManager) {
-            this.minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            this.minimapCtx.strokeStyle = dark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.3)';
             this.minimapCtx.lineWidth = 1.5;
             this.connectionManager.connections.forEach(conn => {
                 const fromNode = this.nodeManager.nodes.find(n => n.id === conn.from);

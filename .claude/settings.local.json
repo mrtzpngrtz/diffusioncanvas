@@ -5,7 +5,11 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(python -c ' *)",
-      "Bash(python -X utf8 -c ' *)"
+      "Bash(python -X utf8 -c ' *)",
+      "Bash(awk '/^[^ \\\\t\\\\/@].*\\\\{/{sel=$0} /z-index/{print NR\": \"sel\" -> \"$0}' old_style.css)",
+      "Bash(awk '/^[^ \\\\t\\\\/@].*\\\\{/{sel=$0} /z-index/{print NR\": \"sel\" -> \"$0}' \"G:/Other computers/SUPERSTUDIO/htdocs/2026_04_diffusioncanvas/style.css\")",
+      "Bash(awk '/^[^ \\\\t\\\\/@].*\\\\{/{sel=$0} /line-height/{print NR\": \"sel\" -> \"$0}' \"G:/Other computers/SUPERSTUDIO/htdocs/2026_04_diffusioncanvas/style.css\")",
+      "Bash(awk '/^[^ \\\\t\\\\/@].*\\\\{/{sel=$0} /line-height/{print NR\": \"sel\" -> \"$0}' old_style.css)"
     ]
   }
 }

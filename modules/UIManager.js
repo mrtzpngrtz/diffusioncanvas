@@ -35,6 +35,7 @@ export class UIManager {
         document.body.classList.toggle('dark-mode');
         const isDarkMode = document.body.classList.contains('dark-mode');
         localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+        if (this.onThemeChange) this.onThemeChange();
     }
 
     updateStatus(message, color = '#555') {
@@ -43,8 +44,10 @@ export class UIManager {
         // Callers pass legacy hex colors; map them onto the design tokens so
         // the status bar stays consistent in both themes.
         const tone = {
-            '#e74c3c': 'var(--accent)',
-            '#27ae60': 'var(--ok)',
+            '#e74c3c': 'var(--accent)',   // error
+            '#e67e22': 'var(--accent)',   // warning (e.g. unsaved version restore)
+            '#27ae60': 'var(--ok)',       // success
+            '#667eea': 'var(--text)',     // info/progress — stronger than idle
         }[color] || 'var(--text-muted)';
         this.statusEl.style.color = tone;
         // Re-trigger the flash animation on every update
@@ -116,8 +119,8 @@ export class UIManager {
 
         let isToolbarDragging = false;
         let toolbarDragStart = { x: 0, y: 0 };
-        // Docked flush-left below the title block (~76px tall)
-        let toolbarPosition = { x: 0, y: 76 };
+        // Floating card with a comfortable margin from the top-left corner
+        let toolbarPosition = { x: 16, y: 16 };
 
         // Set initial position
         this.toolbar.style.left = `${toolbarPosition.x}px`;
