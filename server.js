@@ -661,6 +661,8 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                 : { aspectRatio: geminiAspectRatio };
 
             // Generate using Gemini model
+            console.log(`Calling Gemini ${selectedModel} with ${contents.length - 1} image(s), aspectRatio=${geminiAspectRatio}, imageSize=${imageSizeParam}`);
+            const t0 = Date.now();
             const response = await ai.models.generateContent({
                 model: selectedModel,
                 contents,
@@ -669,6 +671,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                     responseFormat: { image: responseFormatImage }
                 }
             });
+            console.log(`Gemini responded in ${Date.now() - t0}ms`);
 
             // Process response
             if (!response || !response.candidates || !response.candidates[0]) {
@@ -692,7 +695,8 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                     result.text = part.text;
                 } else if (part.inlineData) {
                     const imageData = part.inlineData.data;
-                    result.image = `data:image/png;base64,${imageData}`;
+                    const mime = part.inlineData.mimeType || 'image/png';
+                    result.image = `data:${mime};base64,${imageData}`;
                     console.log('Generated image (base64 length):', imageData.length);
                 }
             }
