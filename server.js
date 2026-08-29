@@ -8,6 +8,8 @@ import cookieParser from 'cookie-parser';
 import { GoogleGenAI } from '@google/genai';
 import OpenAI, { toFile } from 'openai';
 import path from 'path';
+import os from 'os';
+import { promises as fsp } from 'fs';
 import { fileURLToPath } from 'url';
 import passport from './auth.js';
 import bcrypt from 'bcryptjs';
@@ -491,6 +493,185 @@ async function generateWithBFL(model, prompt, images, aspectRatio, resolution, o
     const buf = Buffer.from(await imgRes.arrayBuffer());
     return `data:${mimeType};base64,${buf.toString('base64')}`;
 }
+
+// ── VIDEO GENERATION ────────────────────────────────────────────────────────
+// Seedance via OpenRouter (/api/v1/videos, async submit → poll → download);
+// Gemini Omni Flash via Google's Interactions API. Both take minutes, so the
+// client gets a job id back immediately and polls /api/video-jobs/:id —
+// a single long request would be cut off by the reverse proxy.
+const OPENROUTER_VIDEO_MODELS = new Set([
+    'bytedance/seedance-2.0',
+    'bytedance/seedance-2.0-fast',
+    'bytedance/seedance-2.5'
+]);
+const OMNI_VIDEO_MODELS = new Set(['gemini-omni-1.1-flash']);
+const videoJobs = new Map(); // jobId → { userId, status, video, error, createdAt, model, cost }
+
+function pruneVideoJobs() {
+    const cutoff = Date.now() - 30 * 60 * 1000;
+    for (const [id, job] of videoJobs) if (job.createdAt < cutoff) videoJobs.delete(id);
+}
+
+async function generateVideoOpenRouter(model, prompt, opts) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error('Video models are not configured on this server (OPENROUTER_API_KEY is missing).');
+    const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+
+    const body = { model, prompt };
+    if (opts.duration)     body.duration = Number(opts.duration);
+    if (opts.resolution)   body.resolution = opts.resolution;
+    if (opts.aspectRatio)  body.aspect_ratio = opts.aspectRatio;
+    if (opts.audio != null) body.generate_audio = !!opts.audio;
+    const frames = [];
+    if (opts.firstFrame) frames.push({ type: 'image_url', image_url: { url: opts.firstFrame }, frame_type: 'first_frame' });
+    if (opts.lastFrame)  frames.push({ type: 'image_url', image_url: { url: opts.lastFrame },  frame_type: 'last_frame' });
+    if (frames.length) body.frame_images = frames;
+
+    const submitRes = await fetch('https://openrouter.ai/api/v1/videos', {
+        method: 'POST', headers, body: JSON.stringify(body)
+    });
+    if (!submitRes.ok) {
+        const errText = await submitRes.text().catch(() => '');
+        throw new Error(`OpenRouter video request failed (${submitRes.status}): ${errText.slice(0, 300)}`);
+    }
+    const submit = await submitRes.json();
+    const pollingUrl = submit.polling_url || `https://openrouter.ai/api/v1/videos/${submit.id}`;
+
+    const deadline = Date.now() + 15 * 60 * 1000;
+    let job = null;
+    while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 5000));
+        const pollRes = await fetch(pollingUrl, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        if (!pollRes.ok) continue;
+        job = await pollRes.json();
+        if (job.status === 'completed') break;
+        if (['failed', 'cancelled', 'expired'].includes(job.status)) {
+            const detail = typeof job.error === 'string' ? job.error : JSON.stringify(job.error || '');
+            throw new Error(`Video generation ${job.status}: ${detail.slice(0, 300)}`);
+        }
+    }
+    if (!job || job.status !== 'completed') throw new Error('Video generation timed out. Please try again.');
+
+    const url = job.unsigned_urls?.[0] || `https://openrouter.ai/api/v1/videos/${submit.id}/content?index=0`;
+    const vidRes = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+    if (!vidRes.ok) throw new Error('Failed to download the generated video.');
+    const mime = (vidRes.headers.get('content-type') || 'video/mp4').split(';')[0];
+    const buf = Buffer.from(await vidRes.arrayBuffer());
+    return `data:${mime};base64,${buf.toString('base64')}`;
+}
+
+async function generateVideoOmni(model, prompt, opts) {
+    if (!ai.interactions?.create) {
+        throw new Error('Gemini Omni needs @google/genai ≥ 2.x (Interactions API) — run npm install on the server.');
+    }
+    const toImagePart = (dataUrl) => {
+        const m = dataUrl.match(/^data:([^;]+);base64,(.*)$/s);
+        return { type: 'image', data: m ? m[2] : dataUrl, mime_type: m ? m[1] : 'image/jpeg' };
+    };
+    const input = [];
+    if (opts.firstFrame) input.push(toImagePart(opts.firstFrame));
+    if (opts.lastFrame)  input.push(toImagePart(opts.lastFrame));
+    input.push({ type: 'text', text: prompt });
+
+    const interaction = await ai.interactions.create({
+        model,
+        input: input.length === 1 ? prompt : input,
+        response_format: {
+            type: 'video',
+            aspect_ratio: opts.aspectRatio || '16:9',
+            resolution: opts.resolution || '720p'
+        },
+        generationConfig: { videoConfig: { task: opts.firstFrame ? 'image_to_video' : 'text_to_video' } }
+    });
+
+    const out = interaction.output_video;
+    if (out?.data) return `data:${out.mime_type || 'video/mp4'};base64,${out.data}`;
+
+    if (out?.uri) {
+        // URI delivery (large outputs): wait until the file is ACTIVE, then download
+        const m = out.uri.match(/files\/([A-Za-z0-9_-]+)/);
+        const name = m ? `files/${m[1]}` : out.uri;
+        const deadline = Date.now() + 10 * 60 * 1000;
+        while (Date.now() < deadline) {
+            const f = await ai.files.get({ name });
+            const state = f.state?.name || f.state;
+            if (state === 'ACTIVE') break;
+            if (state === 'FAILED') throw new Error('Gemini Omni video generation failed.');
+            await new Promise(r => setTimeout(r, 5000));
+        }
+        const tmp = path.join(os.tmpdir(), `omni-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`);
+        await ai.files.download({ file: out, downloadPath: tmp });
+        const buf = await fsp.readFile(tmp);
+        await fsp.unlink(tmp).catch(() => {});
+        return `data:video/mp4;base64,${buf.toString('base64')}`;
+    }
+    throw new Error('Gemini Omni returned no video.');
+}
+
+// Submit a video job — responds 202 with a job id, generation continues in the background
+app.post('/api/generate-video', isAuthenticated, async (req, res) => {
+    try {
+        const { prompt, model, resolution, aspectRatio, duration, audio, firstFrame, lastFrame } = req.body;
+        if (!prompt || !prompt.trim()) return res.status(400).json({ error: 'No prompt provided' });
+        if (!OPENROUTER_VIDEO_MODELS.has(model) && !OMNI_VIDEO_MODELS.has(model)) {
+            return res.status(400).json({ error: `Unknown video model: ${model}` });
+        }
+
+        const settings = await storage.getSettings();
+        const cost = settings.modelCosts[model] || 8;
+        if (!req.user.credits || req.user.credits < cost) {
+            return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
+        }
+
+        pruneVideoJobs();
+        const jobId = `${req.user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const job = { userId: req.user.id, status: 'pending', video: null, error: null, createdAt: Date.now(), model, cost };
+        videoJobs.set(jobId, job);
+        console.log(`Video job ${jobId}: ${model}, ${resolution} ${aspectRatio} ${duration ?? 'auto'}s, frames=${(firstFrame ? 1 : 0) + (lastFrame ? 1 : 0)}`);
+        res.status(202).json({ jobId, cost });
+
+        (async () => {
+            const t0 = Date.now();
+            try {
+                job.status = 'in_progress';
+                const opts = { resolution, aspectRatio, duration, audio, firstFrame, lastFrame };
+                const video = OPENROUTER_VIDEO_MODELS.has(model)
+                    ? await generateVideoOpenRouter(model, prompt, opts)
+                    : await generateVideoOmni(model, prompt, opts);
+
+                // Charge only on success
+                const users = await storage.getUsers();
+                const idx = users.findIndex(u => u.id === job.userId);
+                if (idx !== -1) {
+                    users[idx].credits = (users[idx].credits || 0) - cost;
+                    users[idx].usedCredits = (users[idx].usedCredits || 0) + cost;
+                    await storage.setUsers(users);
+                    job.creditsRemaining = users[idx].credits;
+                }
+                job.video = video;
+                job.status = 'completed';
+                console.log(`Video job ${jobId} completed in ${Math.round((Date.now() - t0) / 1000)}s`);
+            } catch (err) {
+                console.error(`Video job ${jobId} failed:`, err);
+                job.status = 'failed';
+                job.error = err?.error?.message || err?.message || 'Video generation failed.';
+            }
+        })();
+    } catch (error) {
+        console.error('Error submitting video job:', error);
+        res.status(500).json({ error: error?.message || 'Failed to start video generation.' });
+    }
+});
+
+// Poll a video job — the finished video is handed over once, then the job is dropped
+app.get('/api/video-jobs/:id', isAuthenticated, (req, res) => {
+    const job = videoJobs.get(req.params.id);
+    if (!job || job.userId !== req.user.id) return res.status(404).json({ error: 'Video job not found' });
+    const payload = { status: job.status, error: job.error, creditsRemaining: job.creditsRemaining };
+    if (job.status === 'completed') { payload.video = job.video; videoJobs.delete(req.params.id); }
+    if (job.status === 'failed') videoJobs.delete(req.params.id);
+    res.json(payload);
+});
 
 // Protect the generate endpoint with authentication
 app.post('/api/generate', isAuthenticated, async (req, res) => {

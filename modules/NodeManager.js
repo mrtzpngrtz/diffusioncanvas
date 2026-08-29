@@ -4,6 +4,8 @@ import { ActionNode } from '../nodes/ActionNode.js';
 import { DrawNode } from '../nodes/DrawNode.js';
 import { ResultNode } from '../nodes/ResultNode.js';
 import { ThreeDNode } from '../nodes/ThreeDNode.js';
+import { VideoNode, VIDEO_MODELS } from '../nodes/VideoNode.js';
+import { VideoResultNode } from '../nodes/VideoResultNode.js';
 
 export class NodeManager {
     constructor(canvasManager, connectionManager, uiManager, apiManager) {
@@ -84,6 +86,19 @@ export class NodeManager {
             case 'threed':
                 node = new ThreeDNode().create(nodeId, x, y, callbacks);
                 break;
+            case 'video':
+                node = new VideoNode().create(nodeId, x, y, callbacks);
+                break;
+            case 'videoresult': {
+                const vidData = data?.videoUrl || data?.videoData || null;
+                node = new VideoResultNode().create(nodeId, x, y, vidData, data?.sourceNode, callbacks);
+                if (node) {
+                    if (data?.prompt) node.data.prompt = data.prompt;
+                    if (data?.model)  node.data.model  = data.model;
+                    node.updateMeta?.();
+                }
+                break;
+            }
             case 'result': {
                 const imgData = data?.imageUrl || data?.imageData;
                 node = new ResultNode().create(nodeId, x, y, imgData, data?.sourceNode, callbacks);
@@ -142,6 +157,11 @@ export class NodeManager {
                     if (node.restoreViewer && node.data.modelData && node.data.modelType) {
                         node.restoreViewer().catch(console.error);
                     }
+                } else if (type === 'video') {
+                    node.syncSettingsUI?.();
+                    this.updateGenerateButton(node);
+                } else if (type === 'videoresult') {
+                    node.updateMeta?.();
                 }
             }
 
@@ -190,9 +210,7 @@ export class NodeManager {
             node.data.connectedImages = node.data.connectedImages.filter(n => n.id !== removedNodeId);
             if (node.data.connectedImages.length !== initialLength) {
                 this.updateGenerateButton(node);
-                if (node.type === 'veo3' && node.updateFrames) {
-                    node.updateFrames();
-                }
+                if (node.updateModeLabel) node.updateModeLabel();
             }
         }
         // ... (other cleanup logic)
@@ -433,15 +451,25 @@ export class NodeManager {
         const hasImages = totalImages > 0;
         
         let hasContent = false;
-        if (node.type === 'prompt') {
+        if (node.type === 'prompt' || node.type === 'video') {
             hasContent = node.data.prompt && node.data.prompt.trim().length > 0;
         } else if (node.type === 'action') {
             hasContent = node.data.action && node.data.action.trim().length > 0;
         }
-        
+
         // Enable button if there's content (with or without images)
         generateBtn.disabled = !hasContent;
-        
+
+        // Video nodes: no chaining; label reflects the frame mode
+        if (node.type === 'video') {
+            generateBtn.textContent = totalImages === 0 ? 'Generate Video'
+                : totalImages === 1 ? 'Generate Video (image → video)'
+                : 'Generate Video (first + last frame)';
+            const vi = node.element.querySelector('.model-indicator');
+            if (vi) vi.textContent = VIDEO_MODELS[node.data.model]?.label || node.data.model;
+            return;
+        }
+
         // Update button text
         const ownText = node.type === 'prompt' ? (node.data.prompt || '') : (node.data.action || '');
         const chainSteps = ownText.split('#').map(s => s.trim()).filter(Boolean).length;
@@ -452,7 +480,7 @@ export class NodeManager {
         } else {
             generateBtn.textContent = 'Generate Image';
         }
-        
+
         // Update model indicator if present
         const modelIndicator = node.element.querySelector('.model-indicator');
         if (modelIndicator && node.data.model) {
@@ -492,7 +520,36 @@ export class NodeManager {
         return resultNode;
     }
 
+    _placeVideoResultNode(sourceNode, apiResult) {
+        const existing = this.nodes.filter(n =>
+            n.type === 'videoresult' && n.data.sourcePromptNode === sourceNode
+        );
+        const x = sourceNode.position.x + sourceNode.element.offsetWidth + 50;
+        const y = sourceNode.position.y + existing.length * 20;
+        const resultNode = this.createNode('videoresult', x, y, {
+            videoUrl: apiResult.video,
+            sourceNode,
+            prompt: apiResult.prompt,
+            model: apiResult.model
+        });
+        this.connectionManager.createConnection(sourceNode.id, resultNode.id, 'output', 'input');
+        if (apiResult.creditsRemaining !== undefined) {
+            const el = document.getElementById('userCredits');
+            if (el) el.textContent = `${apiResult.creditsRemaining} credit${apiResult.creditsRemaining !== 1 ? 's' : ''}`;
+        }
+        return resultNode;
+    }
+
     async handleGenerateImage(node) {
+        if (node.type === 'video') {
+            const result = await this.apiManager.generateVideo(node);
+            if (result.success && result.video) {
+                this._placeVideoResultNode(node, result);
+                this.uiManager.updateStatus('Video generated!', '#27ae60');
+            }
+            return;
+        }
+
         // Detect # chain separator in the node's own prompt/action text
         const ownText = node.type === 'prompt' ? (node.data.prompt || '') : (node.data.action || '');
         const chainParts = ownText.split('#').map(s => s.trim()).filter(Boolean);
@@ -929,6 +986,16 @@ export class NodeManager {
                     const cloneClearBtn = newNode.element.querySelector('.clear-button');
                     if (cloneClearBtn) cloneClearBtn.style.display = '';
                 }
+                break;
+            case 'video':
+                newNode = this.createNode('video', newPosition.x, newPosition.y, {
+                    prompt: originalNode.data.prompt,
+                    model: originalNode.data.model,
+                    resolution: originalNode.data.resolution,
+                    aspectRatio: originalNode.data.aspectRatio,
+                    duration: originalNode.data.duration,
+                    audio: originalNode.data.audio
+                });
                 break;
             case 'prompt':
                 newNode = this.createNode('prompt', newPosition.x, newPosition.y);

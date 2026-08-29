@@ -94,6 +94,8 @@ Then edit `.env` and add your credentials:
 - Google GenAI API Key
 - OpenAI API Key (optional — enables the GPT Image 2 model)
 - Black Forest Labs API Key `BFL_API_KEY` (optional — enables the FLUX.2 models)
+- OpenRouter API Key `OPENROUTER_API_KEY` (optional — enables the Seedance video models)
+- Gemini Omni Flash video uses the same `GOOGLE_API_KEY`
 - Session Secret (generate a random string)
 - OAuth credentials for Google (required)
 - OAuth credentials for Facebook and LinkedIn (optional)

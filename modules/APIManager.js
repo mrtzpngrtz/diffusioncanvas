@@ -257,4 +257,86 @@ export class APIManager {
         }
     }
 
+    // ── VIDEO ────────────────────────────────────────────────────────────────
+    // Submit → poll /api/video-jobs/:id. Connected images map to frames:
+    // input 1 = first frame, input 2 = last frame.
+    async generateVideo(node) {
+        const promptParts = [];
+        (node.data.connectedPrompts || []).forEach(p => {
+            const t = (p.data.prompt || '').trim();
+            if (t) promptParts.push(t);
+        });
+        const own = (node.data.prompt || '').trim();
+        if (own) promptParts.push(own);
+        const prompt = promptParts.join(', ');
+        if (!prompt) {
+            this.uiManager.updateStatus('No prompt provided', '#e74c3c');
+            return { success: false };
+        }
+
+        const generateBtn = node.element.querySelector('.generate-btn');
+        const originalText = generateBtn.textContent;
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span class="loading"></span> Submitting…';
+
+        let timer = null;
+        try {
+            const frameSources = (node.data.connectedImages || [])
+                .map(n => n.data.imageData).filter(Boolean).slice(0, 2);
+            const frames = [];
+            for (const src of frameSources) frames.push(await this.compressImage(src, 1280));
+
+            const res = await fetch('/api/generate-video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt,
+                    model: node.data.model,
+                    resolution: node.data.resolution,
+                    aspectRatio: node.data.aspectRatio,
+                    duration: node.data.duration,
+                    audio: node.data.audio,
+                    firstFrame: frames[0] || null,
+                    lastFrame: frames[1] || null
+                })
+            });
+            if (!res.ok) {
+                let msg = `HTTP ${res.status}`;
+                try { msg = (await res.json()).error || msg; } catch {}
+                throw new Error(msg);
+            }
+            const { jobId } = await res.json();
+
+            const started = Date.now();
+            const tick = () => {
+                const s = Math.round((Date.now() - started) / 1000);
+                generateBtn.innerHTML = `<span class="loading"></span> ${s}s`;
+                this.uiManager.updateStatus(`Generating video… ${s}s`, '#667eea');
+            };
+            tick();
+            timer = setInterval(tick, 1000);
+
+            while (true) {
+                await new Promise(r => setTimeout(r, 4000));
+                const jr = await fetch(`/api/video-jobs/${jobId}`);
+                if (jr.status === 404) throw new Error('Video job was lost (server restarted?). Please try again.');
+                if (!jr.ok) continue; // transient — keep polling
+                const job = await jr.json();
+                if (job.status === 'completed') {
+                    return { success: true, video: job.video, prompt, model: node.data.model, creditsRemaining: job.creditsRemaining };
+                }
+                if (job.status === 'failed') throw new Error(job.error || 'Video generation failed.');
+            }
+        } catch (error) {
+            console.error('Video generation error:', error);
+            this.uiManager.updateStatus(`Error: ${error.message}`, '#e74c3c');
+            alert(`Video generation failed: ${error.message}`);
+            return { success: false, error: error.message };
+        } finally {
+            if (timer) clearInterval(timer);
+            generateBtn.disabled = false;
+            generateBtn.textContent = originalText;
+        }
+    }
+
 }

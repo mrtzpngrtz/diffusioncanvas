@@ -136,16 +136,20 @@ export class ConnectionManager {
     }
 
     updateNodeConnections(sourceNode, targetNode) {
-        // Update prompt/action node with connected images (from image, result, or draw node)
-        if ((targetNode.type === 'prompt' || targetNode.type === 'action') && (sourceNode.type === 'image' || sourceNode.type === 'result' || sourceNode.type === 'draw' || sourceNode.type === 'threed')) {
+        const acceptsInputs = targetNode.type === 'prompt' || targetNode.type === 'action' || targetNode.type === 'video';
+        const isImageSource = sourceNode.type === 'image' || sourceNode.type === 'result' || sourceNode.type === 'draw' || sourceNode.type === 'threed';
+
+        // Update prompt/action/video node with connected images (from image, result, draw or 3D node)
+        if (acceptsInputs && isImageSource) {
             if (!targetNode.data.connectedImages.includes(sourceNode)) {
                 targetNode.data.connectedImages.push(sourceNode);
             }
             this.nodeManager.updateGenerateButton(targetNode);
+            if (targetNode.updateModeLabel) targetNode.updateModeLabel();
         }
-        
-        // Allow chaining prompts to prompts/actions
-        if ((targetNode.type === 'prompt' || targetNode.type === 'action') && sourceNode.type === 'prompt') {
+
+        // Allow chaining prompts to prompts/actions/video
+        if (acceptsInputs && sourceNode.type === 'prompt') {
             if (!targetNode.data.connectedPrompts) {
                 targetNode.data.connectedPrompts = [];
             }
@@ -305,19 +309,19 @@ export class ConnectionManager {
                 const toNode = this.nodeManager.nodes.find(n => n.id === conn.to);
                 
                 // Cleanup connection data
-                if (toNode && (toNode.type === 'prompt' || toNode.type === 'action') && fromNode) {
+                if (toNode && (toNode.type === 'prompt' || toNode.type === 'action' || toNode.type === 'video') && fromNode) {
                     if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw' || fromNode.type === 'threed') && toNode.data.connectedImages) {
                         toNode.data.connectedImages = toNode.data.connectedImages.filter(node => node.id !== fromNode.id);
-                        // updateVeo3FrameIndicators(toNode);
+                        if (toNode.updateModeLabel) toNode.updateModeLabel();
                     }
                     if (fromNode.type === 'prompt' && toNode.data.connectedPrompts) {
                          toNode.data.connectedPrompts = toNode.data.connectedPrompts.filter(node => node.id !== fromNode.id);
                     }
                     this.nodeManager.updateGenerateButton(toNode);
                 }
-                
-                if (fromNode && toNode && toNode.type === 'result') {
-                    if (fromNode.type === 'prompt' || fromNode.type === 'action') {
+
+                if (fromNode && toNode && (toNode.type === 'result' || toNode.type === 'videoresult')) {
+                    if (fromNode.type === 'prompt' || fromNode.type === 'action' || fromNode.type === 'video') {
                         if (fromNode.data.resultNode && fromNode.data.resultNode.id === toNode.id) {
                             fromNode.data.resultNode = null;
                         }

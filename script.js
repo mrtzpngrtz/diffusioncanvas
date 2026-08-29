@@ -111,6 +111,7 @@ class App {
         document.getElementById('addActionNode').addEventListener('click', () => this.addNode('action'));
         document.getElementById('addDrawNode').addEventListener('click', () => this.addNode('draw'));
         document.getElementById('addThreeDNode').addEventListener('click', () => this.addNode('threed'));
+        document.getElementById('addVideoNode').addEventListener('click', () => this.addNode('video'));
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
@@ -188,10 +189,10 @@ class App {
     }
 
     resetAllImageSizes() {
-        const count = this.nodeManager.nodes.filter(n => n.type === 'image' || n.type === 'result').length;
+        const count = this.nodeManager.nodes.filter(n => n.type === 'image' || n.type === 'result' || n.type === 'videoresult').length;
         if (!count) return;
         this.nodeManager.nodes.forEach(n => {
-            if (n.type === 'image' || n.type === 'result') {
+            if (n.type === 'image' || n.type === 'result' || n.type === 'videoresult') {
                 n.element.style.width = '400px';
             }
         });
@@ -241,6 +242,7 @@ class App {
                     case 'addAction': newNode = this.nodeManager.createNode('action', canvasX, canvasY); break;
                     case 'addDraw': newNode = this.nodeManager.createNode('draw', canvasX, canvasY); break;
                     case 'addThreeD': newNode = this.nodeManager.createNode('threed', canvasX, canvasY); break;
+                    case 'addVideo': newNode = this.nodeManager.createNode('video', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu
@@ -322,23 +324,28 @@ class App {
     }
 
     async _uploadPendingImages(show) {
-        const nodes = this.nodeManager.nodes.filter(n => n.data.imageData && !n.data.imageRef);
-        if (!nodes.length) return;
-        show('saving', `● uploading ${nodes.length} image${nodes.length > 1 ? 's' : ''}…`);
-        await Promise.all(nodes.map(async node => {
+        // Images and videos share the blob store (/api/images is mime-agnostic)
+        const pending = [];
+        for (const n of this.nodeManager.nodes) {
+            if (n.data.imageData && !n.data.imageRef) pending.push({ node: n, dataKey: 'imageData', refKey: 'imageRef' });
+            if (n.data.videoData && !n.data.videoRef) pending.push({ node: n, dataKey: 'videoData', refKey: 'videoRef' });
+        }
+        if (!pending.length) return;
+        show('saving', `● uploading ${pending.length} media file${pending.length > 1 ? 's' : ''}…`);
+        await Promise.all(pending.map(async ({ node, dataKey, refKey }) => {
             try {
                 const res = await fetch('/api/images', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ data: node.data.imageData })
+                    body: JSON.stringify({ data: node.data[dataKey] })
                 });
                 if (res.ok) {
                     const { id } = await res.json();
-                    node.data.imageRef = id;
+                    node.data[refKey] = id;
                 }
             } catch (e) {
-                console.warn('[upload] image upload failed:', e);
+                console.warn('[upload] media upload failed:', e);
             }
         }));
     }
@@ -437,6 +444,9 @@ class App {
                 position: node.position,
                 data: {
                     imageRef: node.data.imageRef || null,  // server ID — never store raw imageData
+                    videoRef: node.data.videoRef || null,  // server ID — never store raw videoData
+                    duration: node.data.duration ?? null,
+                    audio: node.data.audio ?? null,
                     overlayText: node.data.overlayText || null,
                     maskData: node.data.maskData || null,
                     starred: node.data.starred || false,
@@ -575,6 +585,32 @@ class App {
                             tempNode.data.image = img;
                         }
                     }
+                })();
+                promises.push(p);
+            }
+
+            // Video results — fetch the stored blob and load it into the player
+            if (nodeData.type === 'videoresult' && (nodeData.data.videoRef || nodeData.data.videoData)) {
+                const p = (async () => {
+                    let src = nodeData.data.videoData || null;
+                    if (nodeData.data.videoRef) {
+                        try {
+                            const res = await fetch(`/api/images/${nodeData.data.videoRef}`, { credentials: 'include' });
+                            if (res.ok) {
+                                const blob = await res.blob();
+                                src = await new Promise(resolve => {
+                                    const r = new FileReader();
+                                    r.onload = () => resolve(r.result);
+                                    r.onerror = () => resolve(null);
+                                    r.readAsDataURL(blob);
+                                });
+                                tempNode.data.videoRef = nodeData.data.videoRef;
+                            }
+                        } catch (e) {
+                            console.warn('[load] video fetch failed:', e);
+                        }
+                    }
+                    if (src && tempNode.setVideoSrc) tempNode.setVideoSrc(src);
                 })();
                 promises.push(p);
             }

@@ -80,7 +80,12 @@ export const storage = {
                 'flux-2-pro': 5,
                 'flux-2-flex': 4,
                 'flux-2-klein-9b-preview': 3,
-                'flux-2-klein-9b': 3
+                'flux-2-klein-9b': 3,
+                // Video models (per generation)
+                'bytedance/seedance-2.0': 8,
+                'bytedance/seedance-2.0-fast': 4,
+                'bytedance/seedance-2.5': 8,
+                'gemini-omni-1.1-flash': 6
             }
         };
         if (useRedis()) {
