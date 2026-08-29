@@ -51,7 +51,7 @@ export class ThreeDNode extends NodeBase {
         nodeEl.style.width = '400px';
 
         nodeEl.innerHTML = `
-            ${this.createNodeHeader('3D Viewer')}
+            ${this.createNodeHeader('3D Viewer', 'i-cube')}
             <div class="node-content">
                 <div class="threed-dropzone">
                     <span class="threed-drop-icon">⬡</span>
@@ -279,7 +279,7 @@ export class ThreeDNode extends NodeBase {
                     <span class="threed-ctrl-item"><span class="threed-ctrl-lbl">Amb</span><input class="threed-slider" type="range" min="0" max="200" value="${Math.round((node.data.ambientIntensity ?? 0.7) * 100)}"></span>
                     <span class="threed-ctrl-item"><span class="threed-ctrl-lbl">Sun</span><input class="threed-slider" type="range" min="0" max="300" value="${Math.round((node.data.sunIntensity ?? 0.9) * 100)}"></span>
                     <button class="threed-bg-btn threed-icon-btn" title="Background">${BG_ICONS[bgI.v]}</button>
-                    <button class="threed-reset-btn threed-icon-btn" title="Reset camera">↺</button>
+                    <button class="threed-reset-btn threed-icon-btn" title="Reset camera"><svg class="icon"><use href="#i-refresh"/></svg></button>
                 </div>
                 <div class="threed-ctrl-row">
                     <span class="threed-ctrl-lbl">Lens</span>
@@ -295,7 +295,7 @@ export class ThreeDNode extends NodeBase {
                     <button class="threed-pan-btn threed-icon-btn" data-dx="1" data-dy="0">→</button>
                 </div>
             </div>
-            <button class="threed-ctrl-collapse" title="Settings">⚙</button>
+            <button class="threed-ctrl-collapse" title="Settings"><svg class="icon"><use href="#i-sliders"/></svg></button>
         `;
         wrapper.appendChild(ctrl);
 

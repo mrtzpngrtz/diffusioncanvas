@@ -149,7 +149,7 @@ export class NodeManager {
             if (node.data.starred) {
                 node.element.classList.add('starred');
                 const starBtn = node.element.querySelector('.star-btn');
-                if (starBtn) starBtn.textContent = '⭐';
+                if (starBtn) starBtn.classList.add('starred');
             }
 
             this.nodes.push(node);
@@ -260,7 +260,9 @@ export class NodeManager {
         if (this.isResizing && this.resizedNode) {
             const zoom = this.canvasManager.zoom;
             const deltaX = (e.clientX - this.resizeStart.x) / zoom;
-            const newWidth = Math.max(200, this.resizeStart.width + deltaX);
+            // 220 matches the CSS min-width of image/result nodes — below that
+            // the CSS floor wins anyway and the handle drifts away from the corner
+            const newWidth = Math.max(220, this.resizeStart.width + deltaX);
             this.resizedNode.element.style.width = `${newWidth}px`;
 
             // Prompt nodes also resize vertically
@@ -642,12 +644,12 @@ export class NodeManager {
         const actionButtons = document.createElement('div');
         actionButtons.className = 'image-actions';
         actionButtons.innerHTML = `
-            <button class="icon-btn star-btn" title="Star">☆</button>
-            <button class="icon-btn" title="View Full Size">⛶</button>
-            <button class="icon-btn" title="Download">↓</button>
-            <button class="icon-btn icon-btn-std" title="Reset to standard size">⊡</button>
-            <button class="icon-btn draw-toggle-btn" title="Draw / Annotate">✏</button>
-            <button class="icon-btn node-clone" title="Clone Node">⎘</button>
+            <button class="icon-btn star-btn" title="Star"><svg class="icon"><use href="#i-star"/></svg></button>
+            <button class="icon-btn lightbox-btn" title="View Full Size"><svg class="icon"><use href="#i-maximize"/></svg></button>
+            <button class="icon-btn download-btn" title="Download"><svg class="icon"><use href="#i-download"/></svg></button>
+            <button class="icon-btn icon-btn-std" title="Reset to standard size"><svg class="icon"><use href="#i-frame"/></svg></button>
+            <button class="icon-btn draw-toggle-btn" title="Draw / Annotate"><svg class="icon"><use href="#i-pencil"/></svg></button>
+            <button class="icon-btn node-clone" title="Clone Node"><svg class="icon"><use href="#i-copy"/></svg></button>
         `;
         // Append inside image-wrapper so the overlay sits on the image
         const wrapper = container.querySelector('.image-wrapper') || container;
@@ -655,15 +657,15 @@ export class NodeManager {
 
         actionButtons.querySelector('.node-clone').addEventListener('click', () => this.cloneNode(node.id));
         const starBtn     = actionButtons.querySelector('.star-btn');
-        const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
-        const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(3)');
+        const lightboxBtn = actionButtons.querySelector('.lightbox-btn');
+        const downloadBtn = actionButtons.querySelector('.download-btn');
         const stdBtn = actionButtons.querySelector('.icon-btn-std');
         const drawBtn = actionButtons.querySelector('.draw-toggle-btn');
 
         starBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             node.data.starred = !node.data.starred;
-            starBtn.textContent = node.data.starred ? '⭐' : '☆';
+            starBtn.classList.toggle('starred', node.data.starred);
             node.element.classList.toggle('starred', node.data.starred);
         });
 
@@ -715,15 +717,15 @@ export class NodeManager {
         const tb = document.createElement('div');
         tb.className = 'draw-toolbar';
         tb.innerHTML = `
-            <button class="draw-tool active" data-tool="brush" title="Brush">✏</button>
-            <button class="draw-tool" data-tool="text" title="Text">T</button>
-            <button class="draw-tool" data-tool="eraser" title="Eraser">◫</button>
+            <button class="draw-tool active" data-tool="brush" title="Brush"><svg class="icon"><use href="#i-pencil"/></svg></button>
+            <button class="draw-tool" data-tool="text" title="Text"><svg class="icon"><use href="#i-type"/></svg></button>
+            <button class="draw-tool" data-tool="eraser" title="Eraser"><svg class="icon"><use href="#i-eraser"/></svg></button>
             <span class="draw-sep"></span>
             <input class="draw-color" type="color" value="#ff3300">
             <input class="draw-size" type="range" min="2" max="80" value="12">
             <span class="draw-sep"></span>
-            <button class="draw-clear" title="Clear">✕</button>
-            <button class="draw-collapse-btn" title="Collapse toolbar">▾</button>
+            <button class="draw-clear" title="Clear"><svg class="icon"><use href="#i-x"/></svg></button>
+            <button class="draw-collapse-btn" title="Collapse toolbar"><svg class="icon"><use href="#i-chevron-down"/></svg></button>
         `;
         wrapper.appendChild(tb);
 
@@ -831,7 +833,6 @@ export class NodeManager {
         collapseBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const collapsed = tb.classList.toggle('collapsed');
-            collapseBtn.textContent = collapsed ? '▸' : '▾';
             collapseBtn.title = collapsed ? 'Expand toolbar' : 'Collapse toolbar';
         });
 

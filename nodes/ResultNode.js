@@ -14,7 +14,7 @@ export class ResultNode extends NodeBase {
         img.addEventListener('dragstart', (e) => e.preventDefault());
 
         nodeEl.innerHTML = `
-            ${this.createNodeHeader('Generated Result')}
+            ${this.createNodeHeader('Generated Result', 'i-sparkle')}
             <div class="node-content"></div>
             ${this.createConnectionPoints(nodeId, true, true)}
         `;
@@ -88,12 +88,12 @@ export class ResultNode extends NodeBase {
         const actionButtons = document.createElement('div');
         actionButtons.className = 'image-actions';
         actionButtons.innerHTML = `
-            <button class="icon-btn star-btn" title="Star">☆</button>
-            <button class="icon-btn" title="View Full Size">⛶</button>
-            <button class="icon-btn" title="Download">↓</button>
-            <button class="icon-btn icon-btn-std" title="Reset to standard size">⊡</button>
-            <button class="icon-btn draw-toggle-btn" title="Draw / Annotate">✏</button>
-            <button class="icon-btn node-clone" title="Clone Node">⎘</button>
+            <button class="icon-btn star-btn" title="Star"><svg class="icon"><use href="#i-star"/></svg></button>
+            <button class="icon-btn lightbox-btn" title="View Full Size"><svg class="icon"><use href="#i-maximize"/></svg></button>
+            <button class="icon-btn download-btn" title="Download"><svg class="icon"><use href="#i-download"/></svg></button>
+            <button class="icon-btn icon-btn-std" title="Reset to standard size"><svg class="icon"><use href="#i-frame"/></svg></button>
+            <button class="icon-btn draw-toggle-btn" title="Draw / Annotate"><svg class="icon"><use href="#i-pencil"/></svg></button>
+            <button class="icon-btn node-clone" title="Clone Node"><svg class="icon"><use href="#i-copy"/></svg></button>
         `;
         wrapper.appendChild(actionButtons);
 
@@ -102,15 +102,15 @@ export class ResultNode extends NodeBase {
         );
 
         const starBtn    = actionButtons.querySelector('.star-btn');
-        const lightboxBtn = actionButtons.querySelector('.icon-btn:nth-child(2)');
-        const downloadBtn = actionButtons.querySelector('.icon-btn:nth-child(3)');
+        const lightboxBtn = actionButtons.querySelector('.lightbox-btn');
+        const downloadBtn = actionButtons.querySelector('.download-btn');
         const stdBtn = actionButtons.querySelector('.icon-btn-std');
         const drawBtn = actionButtons.querySelector('.draw-toggle-btn');
 
         starBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             node.data.starred = !node.data.starred;
-            starBtn.textContent = node.data.starred ? '⭐' : '☆';
+            starBtn.classList.toggle('starred', node.data.starred);
             node.element.classList.toggle('starred', node.data.starred);
         });
 

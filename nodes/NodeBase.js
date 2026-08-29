@@ -38,12 +38,13 @@ export class NodeBase {
         });
     }
 
-    // Common node header HTML
-    createNodeHeader(title) {
+    // Common node header HTML — optional icon references a sprite symbol id
+    createNodeHeader(title, icon = null) {
+        const iconHtml = icon ? `<svg class="icon node-title-icon"><use href="#${icon}"/></svg>` : '';
         return `
             <div class="node-header">
-                <span class="node-title">${title}</span>
-                <button class="node-close">×</button>
+                <span class="node-title">${iconHtml}${title}</span>
+                <button class="node-close" title="Remove node"><svg class="icon"><use href="#i-x"/></svg></button>
             </div>
         `;
     }

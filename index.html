@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script type="importmap">
     {
@@ -19,6 +19,40 @@
     </script>
 </head>
 <body>
+    <!-- Icon sprite — stroke icons, styled via .icon (stroke: currentColor) -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+        <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 15-4.5-4.5L7 20"/></symbol>
+        <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+        <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+        <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></symbol>
+        <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></symbol>
+        <symbol id="i-frame" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M16 21h3a2 2 0 0 0 2-2v-3M8 21H5a2 2 0 0 1-2-2v-3"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></symbol>
+        <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+        <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></symbol>
+        <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+        <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></symbol>
+        <symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
+        <symbol id="i-eraser" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7M5 11l9 9"/></symbol>
+        <symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+        <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+        <symbol id="i-dots" viewBox="0 0 24 24"><path style="stroke-width:3" d="M12 5h.01M12 12h.01M12 19h.01"/></symbol>
+        <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+        <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+        <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35M11 8v6M8 11h6"/></symbol>
+        <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35M8 11h6"/></symbol>
+        <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"/></symbol>
+    </svg>
+
     <!-- Login Modal -->
     <div class="login-modal" id="loginModal">
         <div class="login-container">
@@ -88,19 +122,19 @@
                 <span id="userCredits" class="user-credits">— credits</span>
                 <a href="/admin" id="adminLink" class="admin-link" style="display: none;">Admin</a>
                 <div class="user-info-wrapper">
-                    <button class="user-menu-btn" id="userMenuBtn">⋮</button>
+                    <button class="user-menu-btn" id="userMenuBtn"><svg class="icon"><use href="#i-dots"/></svg></button>
                     <div class="user-dropdown" id="userDropdown">
                         <div class="user-dropdown-item" onclick="window.location.href='/auth/logout'">
-                            ⎋ Logout
+                            <svg class="icon"><use href="#i-logout"/></svg>Logout
                         </div>
                         <div class="user-dropdown-item danger" id="deleteAccountBtn">
-                            ✕ Delete Account
+                            <svg class="icon"><use href="#i-trash"/></svg>Delete Account
                         </div>
                     </div>
                 </div>
             </div>
             <button class="theme-toggle" id="themeToggle" title="Toggle day/night mode">
-                <span class="theme-icon">○</span>
+                <span class="theme-icon"><svg class="icon theme-icon-sun"><use href="#i-sun"/></svg><svg class="icon theme-icon-moon"><use href="#i-moon"/></svg></span>
             </button>
         </div>
     </header>
@@ -108,19 +142,19 @@
     <div class="canvas-container">
         <!-- Toolbar (Left) -->
         <div class="toolbar-overlay">
-            <button id="addImageNode" class="btn">+ Image Node</button>
-            <button id="addPromptNode" class="btn">+ Prompt Node</button>
-            <button id="addActionNode" class="btn">+ Action Node</button>
-            <button id="addDrawNode" class="btn">+ Draw Node</button>
-            <button id="addThreeDNode" class="btn">+ 3D Node</button>
-            <button id="resetAllSizes" class="btn">⊡ Reset Sizes</button>
-            <button id="clearCanvas" class="btn btn-danger">✕ Clear</button>
+            <button id="addImageNode" class="btn"><svg class="icon"><use href="#i-image"/></svg>Image Node</button>
+            <button id="addPromptNode" class="btn"><svg class="icon"><use href="#i-chat"/></svg>Prompt Node</button>
+            <button id="addActionNode" class="btn"><svg class="icon"><use href="#i-zap"/></svg>Action Node</button>
+            <button id="addDrawNode" class="btn"><svg class="icon"><use href="#i-pencil"/></svg>Draw Node</button>
+            <button id="addThreeDNode" class="btn"><svg class="icon"><use href="#i-cube"/></svg>3D Node</button>
+            <button id="resetAllSizes" class="btn"><svg class="icon"><use href="#i-frame"/></svg>Reset Sizes</button>
+            <button id="clearCanvas" class="btn btn-danger"><svg class="icon"><use href="#i-trash"/></svg>Clear</button>
             <div class="toolbar-section-label btn-section-start">02 — Boards</div>
             <div id="currentBoardName" class="board-name-display"></div>
-            <button id="saveBoardBtn" class="btn">↑ Save Board</button>
-            <button id="newBoardBtn" class="btn">+ Save as New</button>
-            <button id="openBoardsBtn" class="btn">☰ Switch Board</button>
-            <button id="downloadBoardBtn" class="btn" style="display:none">↓ Download Board</button>
+            <button id="saveBoardBtn" class="btn"><svg class="icon"><use href="#i-save"/></svg>Save Board</button>
+            <button id="newBoardBtn" class="btn"><svg class="icon"><use href="#i-copy"/></svg>Save as New</button>
+            <button id="openBoardsBtn" class="btn"><svg class="icon"><use href="#i-grid"/></svg>Switch Board</button>
+            <button id="downloadBoardBtn" class="btn" style="display:none"><svg class="icon"><use href="#i-download"/></svg>Download Board</button>
         </div>
 
         <!-- Status (Bottom Center) -->
@@ -130,12 +164,12 @@
         <div id="nodeCanvas" class="node-canvas"></div>
         
         <div class="zoom-controls">
-            <button class="zoom-btn" id="zoomOut">-</button>
+            <button class="zoom-btn" id="zoomOut" title="Zoom out"><svg class="icon"><use href="#i-zoom-out"/></svg></button>
             <span class="zoom-level" id="zoomLevel">100%</span>
-            <button class="zoom-btn" id="zoomIn">+</button>
-            <button class="zoom-btn" id="zoomReset">Reset</button>
-            <button class="zoom-btn" id="touchZoomToggle" title="Toggle pinch zoom">🔒 Pinch</button>
-            <button class="zoom-btn" id="starFilterToggle" title="Show only starred images">☆</button>
+            <button class="zoom-btn" id="zoomIn" title="Zoom in"><svg class="icon"><use href="#i-zoom-in"/></svg></button>
+            <button class="zoom-btn" id="zoomReset" title="Reset view">Reset</button>
+            <button class="zoom-btn" id="touchZoomToggle" title="Toggle pinch zoom"><svg class="icon"><use href="#i-lock"/></svg></button>
+            <button class="zoom-btn" id="starFilterToggle" title="Show only starred images"><svg class="icon"><use href="#i-star"/></svg></button>
         </div>
         
         <div class="minimap">
@@ -186,9 +220,9 @@
             <div class="boards-modal-header">
                 <span class="boards-modal-title">02 — Boards</span>
                 <div class="boards-modal-header-actions">
-                    <button class="board-new-btn board-import-btn" id="boardsModalImport">↑ Import JSON</button>
-                    <button class="board-new-btn" id="boardsModalNew">+ New Board</button>
-                    <button class="boards-modal-close" id="boardsModalClose">✕</button>
+                    <button class="board-new-btn board-import-btn" id="boardsModalImport"><svg class="icon"><use href="#i-upload"/></svg>Import JSON</button>
+                    <button class="board-new-btn" id="boardsModalNew"><svg class="icon"><use href="#i-plus"/></svg>New Board</button>
+                    <button class="boards-modal-close" id="boardsModalClose"><svg class="icon"><use href="#i-x"/></svg></button>
                 </div>
             </div>
             <div class="boards-modal-body" id="boardsModalBody"></div>
@@ -198,10 +232,11 @@
 
     <!-- Context Menu -->
     <div class="context-menu" id="contextMenu">
-        <div class="context-menu-item" data-action="addImage">01 — Image Node</div>
-        <div class="context-menu-item" data-action="addPrompt">02 — Prompt Node</div>
-        <div class="context-menu-item" data-action="addAction">03 — Action Node</div>
-        <div class="context-menu-item" data-action="addDraw">04 — Draw Node</div>
+        <div class="context-menu-item" data-action="addImage"><svg class="icon"><use href="#i-image"/></svg>Image Node</div>
+        <div class="context-menu-item" data-action="addPrompt"><svg class="icon"><use href="#i-chat"/></svg>Prompt Node</div>
+        <div class="context-menu-item" data-action="addAction"><svg class="icon"><use href="#i-zap"/></svg>Action Node</div>
+        <div class="context-menu-item" data-action="addDraw"><svg class="icon"><use href="#i-pencil"/></svg>Draw Node</div>
+        <div class="context-menu-item" data-action="addThreeD"><svg class="icon"><use href="#i-cube"/></svg>3D Node</div>
     </div>
 
     <!-- Cookie Notice (German) -->

@@ -19,13 +19,11 @@ export class UIManager {
     }
 
     setupTheme() {
-        // Default is light/blueprint. dark-mode class enables dark theme.
+        // Default is light. dark-mode class enables dark theme; the sun/moon
+        // icons swap purely via CSS on body.dark-mode.
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             document.body.classList.add('dark-mode');
-            if (this.themeIcon) this.themeIcon.textContent = '●';
-        } else {
-            if (this.themeIcon) this.themeIcon.textContent = '○';
         }
 
         if (this.themeToggle) {
@@ -36,16 +34,23 @@ export class UIManager {
     toggleTheme() {
         document.body.classList.toggle('dark-mode');
         const isDarkMode = document.body.classList.contains('dark-mode');
-
-        if (this.themeIcon) this.themeIcon.textContent = isDarkMode ? '●' : '○';
         localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     }
 
     updateStatus(message, color = '#555') {
-        if (this.statusEl) {
-            this.statusEl.textContent = message;
-            this.statusEl.style.color = color;
-        }
+        if (!this.statusEl) return;
+        this.statusEl.textContent = message;
+        // Callers pass legacy hex colors; map them onto the design tokens so
+        // the status bar stays consistent in both themes.
+        const tone = {
+            '#e74c3c': 'var(--accent)',
+            '#27ae60': 'var(--ok)',
+        }[color] || 'var(--text-muted)';
+        this.statusEl.style.color = tone;
+        // Re-trigger the flash animation on every update
+        this.statusEl.classList.remove('status-flash');
+        void this.statusEl.offsetWidth;
+        this.statusEl.classList.add('status-flash');
     }
 
     setupLightbox() {

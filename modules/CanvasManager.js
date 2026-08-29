@@ -77,8 +77,8 @@ export class CanvasManager {
         if (touchZoomBtn) {
             touchZoomBtn.addEventListener('click', () => {
                 this.pinchEnabled = !this.pinchEnabled;
-                touchZoomBtn.textContent = this.pinchEnabled ? '🔒 Pinch' : '🔓 Pan only';
-                touchZoomBtn.style.opacity = this.pinchEnabled ? '' : '0.5';
+                touchZoomBtn.classList.toggle('off', !this.pinchEnabled);
+                touchZoomBtn.title = this.pinchEnabled ? 'Toggle pinch zoom' : 'Pan only — pinch zoom off';
             });
         }
 
@@ -87,7 +87,6 @@ export class CanvasManager {
         if (starFilterBtn) {
             starFilterBtn.addEventListener('click', () => {
                 const on = starFilterBtn.classList.toggle('active');
-                starFilterBtn.textContent = on ? '⭐' : '☆';
                 this.nodeCanvas.classList.toggle('filter-starred', on);
                 this.drawConnections();
             });

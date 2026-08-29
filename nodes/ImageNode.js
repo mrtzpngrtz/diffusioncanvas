@@ -9,7 +9,7 @@ export class ImageNode extends NodeBase {
         nodeEl.style.top = `${y}px`;
 
         nodeEl.innerHTML = `
-            ${this.createNodeHeader('Image Input')}
+            ${this.createNodeHeader('Image Input', 'i-image')}
             <button class="clear-button" style="display: none;">Clear</button>
             <div class="node-content">
                 <div class="drop-zone">

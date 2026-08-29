@@ -20,13 +20,13 @@ export class PromptNode extends NodeBase {
         nodeEl.style.top = `${y}px`;
 
         nodeEl.innerHTML = `
-            ${this.createNodeHeader('Prompt Input')}
+            ${this.createNodeHeader('Prompt Input', 'i-chat')}
             <div class="node-content">
                 <textarea placeholder="Enter your prompt here..." spellcheck="false"></textarea>
                 <div class="prompt-meta">
                     <span class="prompt-char-count">0 chars · 0 words</span>
                     <div class="prompt-library-wrap">
-                        <button class="icon-btn prompt-library-btn" title="Prompt Library">☰</button>
+                        <button class="icon-btn prompt-library-btn" title="Prompt Library"><svg class="icon"><use href="#i-menu"/></svg></button>
                         <div class="prompt-library-panel" style="display:none">
                             <div class="prompt-library-save">
                                 <input class="prompt-library-name" type="text" placeholder="Name…" maxlength="60">
@@ -35,7 +35,7 @@ export class PromptNode extends NodeBase {
                             <div class="prompt-library-list"></div>
                         </div>
                     </div>
-                    <button class="icon-btn node-clone prompt-clone-btn" title="Clone Node">⎘</button>
+                    <button class="icon-btn node-clone prompt-clone-btn" title="Clone Node"><svg class="icon"><use href="#i-copy"/></svg></button>
                 </div>
                 <select class="model-select">
                     <option value="gemini-3.1-flash-image">Nano Banana Flash (image edit)</option>

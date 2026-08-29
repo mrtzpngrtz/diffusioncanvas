@@ -233,6 +233,7 @@ class App {
                     case 'addPrompt': newNode = this.nodeManager.createNode('prompt', canvasX, canvasY); break;
                     case 'addAction': newNode = this.nodeManager.createNode('action', canvasX, canvasY); break;
                     case 'addDraw': newNode = this.nodeManager.createNode('draw', canvasX, canvasY); break;
+                    case 'addThreeD': newNode = this.nodeManager.createNode('threed', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu

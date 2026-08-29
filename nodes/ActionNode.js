@@ -9,7 +9,7 @@ export class ActionNode extends NodeBase {
         nodeEl.style.top = `${y}px`;
 
         nodeEl.innerHTML = `
-            ${this.createNodeHeader('Action Preset')}
+            ${this.createNodeHeader('Action Preset', 'i-zap')}
             <div class="node-content">
                 <select class="action-select">
                     <option value="">Select an action...</option>

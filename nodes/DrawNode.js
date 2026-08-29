@@ -9,7 +9,7 @@ export class DrawNode extends NodeBase {
         nodeEl.style.top = `${y}px`;
 
         nodeEl.innerHTML = `
-            ${this.createNodeHeader('Draw Canvas')}
+            ${this.createNodeHeader('Draw Canvas', 'i-pencil')}
             <div class="node-content">
                 <select class="aspect-ratio-select">
                     <option value="1:1">1:1 (512x512)</option>
