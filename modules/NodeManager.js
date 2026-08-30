@@ -851,8 +851,9 @@ export class NodeManager {
             <input class="draw-color" type="color" value="#ff3300">
             <input class="draw-size" type="range" min="2" max="80" value="12">
             <span class="draw-sep"></span>
-            <button class="draw-clear" title="Clear"><svg class="icon"><use href="#i-x"/></svg></button>
+            <button class="draw-clear" title="Clear drawing"><svg class="icon"><use href="#i-trash"/></svg></button>
             <button class="draw-collapse-btn" title="Collapse toolbar"><svg class="icon"><use href="#i-chevron-down"/></svg></button>
+            <button class="draw-done" title="Done drawing"><svg class="icon"><use href="#i-check"/></svg></button>
         `;
         wrapper.appendChild(tb);
 
@@ -969,6 +970,13 @@ export class NodeManager {
             oc.style.cursor = on ? 'crosshair' : '';
             tb.classList.toggle('active', on);
         };
+
+        // Done — leave draw mode (mirrors the pencil toggle in the actions pill)
+        tb.querySelector('.draw-done').addEventListener('click', (e) => {
+            e.stopPropagation();
+            node._drawToggle(false);
+            node.element.querySelector('.draw-toggle-btn')?.classList.remove('active');
+        });
     }
 
     copySelectedNodes() {

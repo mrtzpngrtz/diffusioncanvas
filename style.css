@@ -4236,3 +4236,66 @@ body.dark-mode .comp-stage {
 .outpaint-node .outpaint-prompt {
     min-height: 72px;
 }
+
+/* ============ DRAW MODE — calmer ============ */
+
+/* While drawing, the actions pill gets out of the way entirely; the
+   toolbar's Done button is the way back */
+.draw-toolbar.active ~ .image-actions {
+    display: none;
+}
+
+.draw-toolbar {
+    padding: 5px 8px;
+    gap: 4px;
+}
+
+.draw-toolbar .draw-tool,
+.draw-toolbar .draw-clear,
+.draw-toolbar .draw-collapse-btn {
+    width: 28px;
+    height: 26px;
+    border-radius: 6px;
+}
+
+.draw-toolbar .draw-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.35);
+    margin: 0 2px;
+}
+
+.draw-toolbar .draw-color::-webkit-color-swatch-wrapper { padding: 0; }
+.draw-toolbar .draw-color::-webkit-color-swatch { border: none; border-radius: 50%; }
+.draw-toolbar .draw-color::-moz-color-swatch { border: none; border-radius: 50%; }
+
+.draw-toolbar .draw-size {
+    width: 72px;
+    accent-color: #fff;
+}
+
+.draw-toolbar .draw-collapse-btn { margin-left: auto; }
+
+.draw-done {
+    background: rgba(255,255,255,0.92);
+    border: none;
+    color: #111;
+    padding: 0;
+    width: 28px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background var(--t-fast) var(--ease);
+}
+
+.draw-done .icon { width: 13px; height: 13px; stroke-width: 2; }
+.draw-done:hover { background: #fff; }
+
+/* Collapsed toolbar keeps the chevron AND the Done button */
+.draw-toolbar.collapsed .draw-done { display: flex; }
