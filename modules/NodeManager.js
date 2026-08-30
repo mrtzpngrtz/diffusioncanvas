@@ -8,6 +8,7 @@ import { VideoNode, VIDEO_MODELS } from '../nodes/VideoNode.js';
 import { VideoResultNode } from '../nodes/VideoResultNode.js';
 import { FormatNode } from '../nodes/FormatNode.js';
 import { ImageTo3DNode, IMAGE_TO_3D_MODELS } from '../nodes/ImageTo3DNode.js';
+import { CompNode } from '../nodes/CompNode.js';
 
 export class NodeManager {
     constructor(canvasManager, connectionManager, uiManager, apiManager) {
@@ -97,6 +98,9 @@ export class NodeManager {
             case 'imageto3d':
                 node = new ImageTo3DNode().create(nodeId, x, y, callbacks);
                 break;
+            case 'comp':
+                node = new CompNode().create(nodeId, x, y, callbacks);
+                break;
             case 'videoresult': {
                 const vidData = data?.videoUrl || data?.videoData || null;
                 node = new VideoResultNode().create(nodeId, x, y, vidData, data?.sourceNode, callbacks);
@@ -165,7 +169,7 @@ export class NodeManager {
                     if (node.restoreViewer && node.data.modelData && node.data.modelType) {
                         node.restoreViewer().catch(console.error);
                     }
-                } else if (type === 'video' || type === 'format' || type === 'imageto3d') {
+                } else if (type === 'video' || type === 'format' || type === 'imageto3d' || type === 'comp') {
                     node.syncSettingsUI?.();
                     this.updateGenerateButton(node);
                 } else if (type === 'videoresult') {

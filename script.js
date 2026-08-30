@@ -114,6 +114,7 @@ class App {
         document.getElementById('addVideoNode').addEventListener('click', () => this.addNode('video'));
         document.getElementById('addFormatNode').addEventListener('click', () => this.addNode('format'));
         document.getElementById('addImageTo3DNode').addEventListener('click', () => this.addNode('imageto3d'));
+        document.getElementById('addCompNode').addEventListener('click', () => this.addNode('comp'));
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
@@ -247,6 +248,7 @@ class App {
                     case 'addVideo': newNode = this.nodeManager.createNode('video', canvasX, canvasY); break;
                     case 'addFormat': newNode = this.nodeManager.createNode('format', canvasX, canvasY); break;
                     case 'addImageTo3D': newNode = this.nodeManager.createNode('imageto3d', canvasX, canvasY); break;
+                    case 'addComp': newNode = this.nodeManager.createNode('comp', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu
@@ -339,7 +341,8 @@ class App {
         // Images and videos share the blob store (/api/images is mime-agnostic)
         const pending = [];
         for (const n of this.nodeManager.nodes) {
-            if (n.data.imageData && !n.data.imageRef) pending.push({ node: n, dataKey: 'imageData', refKey: 'imageRef' });
+            // (composites re-render from their sources on load — no need to store the output)
+            if (n.type !== 'comp' && n.data.imageData && !n.data.imageRef) pending.push({ node: n, dataKey: 'imageData', refKey: 'imageRef' });
             if (n.data.videoData && !n.data.videoRef) pending.push({ node: n, dataKey: 'videoData', refKey: 'videoRef' });
             if (n.type === 'threed' && n.data.modelData && !n.data.modelRef) pending.push({ node: n, dataKey: 'modelData', refKey: 'modelRef' });
         }
@@ -469,6 +472,10 @@ class App {
                     quality: node.data.quality || null,
                     seed: node.data.seed ?? null,
                     modelRef: node.data.modelRef || null,  // server blob ID for large 3D models
+                    // Composite layers: file layers keep their PNG inline, input layers only the source id
+                    layers: node.type === 'comp' && node.data.layers
+                        ? node.data.layers.map(l => ({ ...l, src: l.kind === 'file' ? l.src : null }))
+                        : null,
                     overlayText: node.data.overlayText || null,
                     maskData: node.data.maskData || null,
                     starred: node.data.starred || false,

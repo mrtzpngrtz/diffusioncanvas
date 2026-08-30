@@ -136,8 +136,8 @@ export class ConnectionManager {
     }
 
     updateNodeConnections(sourceNode, targetNode) {
-        const acceptsInputs = ['prompt', 'action', 'video', 'format', 'imageto3d'].includes(targetNode.type);
-        const isImageSource = sourceNode.type === 'image' || sourceNode.type === 'result' || sourceNode.type === 'draw' || sourceNode.type === 'threed';
+        const acceptsInputs = ['prompt', 'action', 'video', 'format', 'imageto3d', 'comp'].includes(targetNode.type);
+        const isImageSource = ['image', 'result', 'draw', 'threed', 'comp'].includes(sourceNode.type);
 
         // Update prompt/action/video node with connected images (from image, result, draw or 3D node)
         if (acceptsInputs && isImageSource) {
@@ -309,8 +309,8 @@ export class ConnectionManager {
                 const toNode = this.nodeManager.nodes.find(n => n.id === conn.to);
                 
                 // Cleanup connection data
-                if (toNode && ['prompt', 'action', 'video', 'format', 'imageto3d'].includes(toNode.type) && fromNode) {
-                    if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw' || fromNode.type === 'threed') && toNode.data.connectedImages) {
+                if (toNode && ['prompt', 'action', 'video', 'format', 'imageto3d', 'comp'].includes(toNode.type) && fromNode) {
+                    if (['image', 'result', 'draw', 'threed', 'comp'].includes(fromNode.type) && toNode.data.connectedImages) {
                         toNode.data.connectedImages = toNode.data.connectedImages.filter(node => node.id !== fromNode.id);
                         if (toNode.updateModeLabel) toNode.updateModeLabel();
                     }

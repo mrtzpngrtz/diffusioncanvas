@@ -147,6 +147,7 @@ export class APIManager {
             if (imageNodes.length > 0) {
                 this.uiManager.updateStatus('Compressing images...', '#667eea');
                 for (const imageNode of imageNodes) {
+                    if (imageNode.refresh) await imageNode.refresh(); // composite: re-render if sources changed
                     if (imageNode.data.imageData) {
                         let imgData = imageNode.data.imageData;
                         if (imageNode.data.overlayText?.trim()) {
@@ -260,6 +261,7 @@ export class APIManager {
     // ── IMAGE → 3D ───────────────────────────────────────────────────────────
     // Submit → poll the shared job endpoint. Returns { modelData, modelType, modelName }.
     async generate3D(node) {
+        for (const n of node.data.connectedImages || []) if (n.refresh) await n.refresh();
         const source = (node.data.connectedImages || []).find(n => n.data.imageData);
         if (!source) {
             this.uiManager.updateStatus('Connect an image first', '#e74c3c');
@@ -347,6 +349,8 @@ export class APIManager {
 
         let timer = null;
         try {
+            // Composites: make sure their output reflects the current sources
+            for (const n of node.data.connectedImages || []) if (n.refresh) await n.refresh();
             // Frame slots come from the node (mode + swap aware): [first, last]
             const slots = node.getFrames
                 ? node.getFrames()
