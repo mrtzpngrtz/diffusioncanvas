@@ -115,6 +115,7 @@ class App {
         document.getElementById('addFormatNode').addEventListener('click', () => this.addNode('format'));
         document.getElementById('addImageTo3DNode').addEventListener('click', () => this.addNode('imageto3d'));
         document.getElementById('addCompNode').addEventListener('click', () => this.addNode('comp'));
+        document.getElementById('addOutpaintNode').addEventListener('click', () => this.addNode('outpaint'));
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
@@ -249,6 +250,7 @@ class App {
                     case 'addFormat': newNode = this.nodeManager.createNode('format', canvasX, canvasY); break;
                     case 'addImageTo3D': newNode = this.nodeManager.createNode('imageto3d', canvasX, canvasY); break;
                     case 'addComp': newNode = this.nodeManager.createNode('comp', canvasX, canvasY); break;
+                    case 'addOutpaint': newNode = this.nodeManager.createNode('outpaint', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu
@@ -342,7 +344,7 @@ class App {
         const pending = [];
         for (const n of this.nodeManager.nodes) {
             // (composites re-render from their sources on load — no need to store the output)
-            if (n.type !== 'comp' && n.data.imageData && !n.data.imageRef) pending.push({ node: n, dataKey: 'imageData', refKey: 'imageRef' });
+            if (n.type !== 'comp' && n.type !== 'outpaint' && n.data.imageData && !n.data.imageRef) pending.push({ node: n, dataKey: 'imageData', refKey: 'imageRef' });
             if (n.data.videoData && !n.data.videoRef) pending.push({ node: n, dataKey: 'videoData', refKey: 'videoRef' });
             if (n.type === 'threed' && n.data.modelData && !n.data.modelRef) pending.push({ node: n, dataKey: 'modelData', refKey: 'modelRef' });
         }
@@ -472,6 +474,7 @@ class App {
                     quality: node.data.quality || null,
                     seed: node.data.seed ?? null,
                     modelRef: node.data.modelRef || null,  // server blob ID for large 3D models
+                    pad: node.type === 'outpaint' ? node.data.pad : null,
                     // Composite layers: file layers keep their PNG inline, input layers only the source id
                     layers: node.type === 'comp' && node.data.layers
                         ? node.data.layers.map(l => ({ ...l, src: l.kind === 'file' ? l.src : null }))

@@ -4158,3 +4158,81 @@ body.dark-mode .comp-stage {
         linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.05) 75%),
         linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.05) 75%);
 }
+
+/* ============ OUTPAINT NODE ============ */
+
+.outpaint-stage {
+    position: relative;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border-light);
+    line-height: 0;
+    padding: 10px;
+}
+
+.outpaint-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: none;
+}
+
+.outpaint-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-muted);
+    line-height: 1.5;
+    pointer-events: none;
+}
+
+.outpaint-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.outpaint-info {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+.outpaint-presets {
+    display: flex;
+    gap: 3px;
+}
+
+.outpaint-preset {
+    padding: 3px 7px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+
+.outpaint-preset:hover {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--surface);
+}
+
+.outpaint-node .outpaint-prompt {
+    min-height: 72px;
+}

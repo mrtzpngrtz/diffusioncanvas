@@ -9,6 +9,7 @@ import { VideoResultNode } from '../nodes/VideoResultNode.js';
 import { FormatNode } from '../nodes/FormatNode.js';
 import { ImageTo3DNode, IMAGE_TO_3D_MODELS } from '../nodes/ImageTo3DNode.js';
 import { CompNode } from '../nodes/CompNode.js';
+import { OutpaintNode } from '../nodes/OutpaintNode.js';
 
 export class NodeManager {
     constructor(canvasManager, connectionManager, uiManager, apiManager) {
@@ -101,6 +102,9 @@ export class NodeManager {
             case 'comp':
                 node = new CompNode().create(nodeId, x, y, callbacks);
                 break;
+            case 'outpaint':
+                node = new OutpaintNode().create(nodeId, x, y, callbacks);
+                break;
             case 'videoresult': {
                 const vidData = data?.videoUrl || data?.videoData || null;
                 node = new VideoResultNode().create(nodeId, x, y, vidData, data?.sourceNode, callbacks);
@@ -169,7 +173,7 @@ export class NodeManager {
                     if (node.restoreViewer && node.data.modelData && node.data.modelType) {
                         node.restoreViewer().catch(console.error);
                     }
-                } else if (type === 'video' || type === 'format' || type === 'imageto3d' || type === 'comp') {
+                } else if (['video', 'format', 'imageto3d', 'comp', 'outpaint'].includes(type)) {
                     node.syncSettingsUI?.();
                     this.updateGenerateButton(node);
                 } else if (type === 'videoresult') {
@@ -463,7 +467,7 @@ export class NodeManager {
         const hasImages = totalImages > 0;
         
         let hasContent = false;
-        if (node.type === 'prompt' || node.type === 'video' || node.type === 'format') {
+        if (['prompt', 'video', 'format', 'outpaint'].includes(node.type)) {
             hasContent = node.data.prompt && node.data.prompt.trim().length > 0;
         } else if (node.type === 'action') {
             hasContent = node.data.action && node.data.action.trim().length > 0;
@@ -494,13 +498,19 @@ export class NodeManager {
         }
 
         // Update button text
-        const ownText = (node.type === 'prompt' || node.type === 'format') ? (node.data.prompt || '') : (node.data.action || '');
+        const ownText = ['prompt', 'format', 'outpaint'].includes(node.type) ? (node.data.prompt || '') : (node.data.action || '');
         const chainSteps = ownText.split('#').map(s => s.trim()).filter(Boolean).length;
         if (node.type === 'format') {
             generateBtn.textContent = hasImages
                 ? `Change Format → ${node.data.targetFormat || ''}`
                 : 'Change Format (connect an image)';
             generateBtn.disabled = !hasContent || !hasImages; // needs a source image
+        } else if (node.type === 'outpaint') {
+            const ready = hasImages && !!node.data.imageData;
+            generateBtn.textContent = ready
+                ? `Outpaint → ${node.data.originalWidth}×${node.data.originalHeight}`
+                : 'Outpaint (connect an image)';
+            generateBtn.disabled = !hasContent || !ready;
         } else if (chainSteps > 1) {
             generateBtn.textContent = `Generate chain (${chainSteps} steps)`;
         } else if (hasImages) {
@@ -608,7 +618,7 @@ export class NodeManager {
         }
 
         // Detect # chain separator in the node's own prompt/action text
-        const ownText = (node.type === 'prompt' || node.type === 'format') ? (node.data.prompt || '') : (node.data.action || '');
+        const ownText = ['prompt', 'format', 'outpaint'].includes(node.type) ? (node.data.prompt || '') : (node.data.action || '');
         const chainParts = ownText.split('#').map(s => s.trim()).filter(Boolean);
 
         if (chainParts.length <= 1) {
@@ -1045,6 +1055,16 @@ export class NodeManager {
                     const cloneClearBtn = newNode.element.querySelector('.clear-button');
                     if (cloneClearBtn) cloneClearBtn.style.display = '';
                 }
+                break;
+            case 'outpaint':
+                newNode = this.createNode('outpaint', newPosition.x, newPosition.y, {
+                    pad: { ...(originalNode.data.pad || {}) },
+                    prompt: originalNode.data.prompt,
+                    promptEdited: originalNode.data.promptEdited,
+                    model: originalNode.data.model,
+                    resolution: originalNode.data.resolution,
+                    outputFormat: originalNode.data.outputFormat
+                });
                 break;
             case 'imageto3d':
                 newNode = this.createNode('imageto3d', newPosition.x, newPosition.y, {

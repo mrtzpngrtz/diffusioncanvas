@@ -69,6 +69,10 @@ export class APIManager {
     // Native pixel size of the first connected medium (image / result / drawing).
     // Used server-side to honour aspectRatio 'original'.
     _sourceDimensions(node) {
+        // Outpaint nodes generate from their own padded canvas — its size sets the ratio
+        if (node.type === 'outpaint' && node.data.originalWidth > 0) {
+            return { sourceWidth: node.data.originalWidth, sourceHeight: node.data.originalHeight };
+        }
         const source = (node.data.connectedImages || [])
             .find(n => n.data.originalWidth > 0 && n.data.originalHeight > 0);
         return {
@@ -100,7 +104,10 @@ export class APIManager {
     async generateImage(node) {
         // Only collect images DIRECTLY connected to this node
         // Don't inherit images from chained prompts to avoid payload size issues
-        let imageNodes = [...(node.data.connectedImages || [])];
+        // Outpaint nodes send their own padded canvas instead of the raw source
+        let imageNodes = node.type === 'outpaint'
+            ? (node.data.imageData ? [node] : [])
+            : [...(node.data.connectedImages || [])];
     
         // Build combined prompt from connected prompts and own prompt
         let promptParts = [];
@@ -117,7 +124,7 @@ export class APIManager {
         
         // Add this node's own prompt/action
         let ownPrompt = '';
-        if (node.type === 'prompt' || node.type === 'format') {
+        if (node.type === 'prompt' || node.type === 'format' || node.type === 'outpaint') {
             ownPrompt = (node.data.prompt || '').trim();
         } else if (node.type === 'action') {
             ownPrompt = node.data.action.trim();
