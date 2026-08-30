@@ -90,7 +90,7 @@ export class VideoResultNode extends NodeBase {
             <button class="icon-btn star-btn" title="Star"><svg class="icon"><use href="#i-star"/></svg></button>
             <button class="icon-btn meta-btn" title="Prompt / model"><svg class="icon"><use href="#i-chat"/></svg></button>
             <button class="icon-btn download-btn" title="Download"><svg class="icon"><use href="#i-download"/></svg></button>
-            <button class="icon-btn icon-btn-std" title="Reset to standard size"><svg class="icon"><use href="#i-frame"/></svg></button>
+            <button class="icon-btn icon-btn-std" title="Toggle size: standard / large"><svg class="icon"><use href="#i-fit"/></svg></button>
         `;
         wrapper.appendChild(actionButtons);
 
@@ -114,7 +114,8 @@ export class VideoResultNode extends NodeBase {
         });
         actionButtons.querySelector('.icon-btn-std').addEventListener('click', (e) => {
             e.stopPropagation();
-            nodeEl.style.width = '400px';
+            const w = nodeEl.offsetWidth;
+            nodeEl.style.width = Math.abs(w - 400) < 4 ? '640px' : '400px';
         });
 
         nodeEl.querySelector('.node-close').addEventListener('click', () => callbacks.removeNode(nodeId));

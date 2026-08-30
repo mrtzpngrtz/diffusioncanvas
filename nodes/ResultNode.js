@@ -92,7 +92,7 @@ export class ResultNode extends NodeBase {
             <button class="icon-btn star-btn" title="Star"><svg class="icon"><use href="#i-star"/></svg></button>
             <button class="icon-btn lightbox-btn" title="View Full Size"><svg class="icon"><use href="#i-maximize"/></svg></button>
             <button class="icon-btn download-btn" title="Download"><svg class="icon"><use href="#i-download"/></svg></button>
-            <button class="icon-btn icon-btn-std" title="Reset to standard size"><svg class="icon"><use href="#i-frame"/></svg></button>
+            <button class="icon-btn icon-btn-std" title="Toggle size: standard / large"><svg class="icon"><use href="#i-fit"/></svg></button>
             <button class="icon-btn draw-toggle-btn" title="Draw / Annotate"><svg class="icon"><use href="#i-pencil"/></svg></button>
             <button class="icon-btn node-clone" title="Clone Node"><svg class="icon"><use href="#i-copy"/></svg></button>
         `;
@@ -130,7 +130,8 @@ export class ResultNode extends NodeBase {
 
         stdBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            nodeEl.style.width = '400px';
+            const w = nodeEl.offsetWidth;
+            nodeEl.style.width = Math.abs(w - 400) < 4 ? '640px' : '400px';
         });
 
         drawBtn.addEventListener('click', (e) => {

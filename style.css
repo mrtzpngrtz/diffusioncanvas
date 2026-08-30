@@ -3825,3 +3825,13 @@ body.dark-mode .login-hero::before {
 .to3d-seed::-webkit-outer-spin-button,
 .to3d-seed::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .to3d-seed::placeholder { color: var(--text-muted); }
+
+/* Action preset groups */
+.action-node select optgroup {
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
