@@ -112,6 +112,7 @@ class App {
         document.getElementById('addDrawNode').addEventListener('click', () => this.addNode('draw'));
         document.getElementById('addThreeDNode').addEventListener('click', () => this.addNode('threed'));
         document.getElementById('addVideoNode').addEventListener('click', () => this.addNode('video'));
+        document.getElementById('addFormatNode').addEventListener('click', () => this.addNode('format'));
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
@@ -243,6 +244,7 @@ class App {
                     case 'addDraw': newNode = this.nodeManager.createNode('draw', canvasX, canvasY); break;
                     case 'addThreeD': newNode = this.nodeManager.createNode('threed', canvasX, canvasY); break;
                     case 'addVideo': newNode = this.nodeManager.createNode('video', canvasX, canvasY); break;
+                    case 'addFormat': newNode = this.nodeManager.createNode('format', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu
@@ -447,6 +449,9 @@ class App {
                     videoRef: node.data.videoRef || null,  // server ID — never store raw videoData
                     duration: node.data.duration ?? null,
                     audio: node.data.audio ?? null,
+                    targetFormat: node.data.targetFormat || null,
+                    formatOptions: node.data.formatOptions || null,
+                    promptEdited: node.data.promptEdited || false,
                     overlayText: node.data.overlayText || null,
                     maskData: node.data.maskData || null,
                     starred: node.data.starred || false,

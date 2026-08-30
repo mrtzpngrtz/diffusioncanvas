@@ -6,6 +6,7 @@ import { ResultNode } from '../nodes/ResultNode.js';
 import { ThreeDNode } from '../nodes/ThreeDNode.js';
 import { VideoNode, VIDEO_MODELS } from '../nodes/VideoNode.js';
 import { VideoResultNode } from '../nodes/VideoResultNode.js';
+import { FormatNode } from '../nodes/FormatNode.js';
 
 export class NodeManager {
     constructor(canvasManager, connectionManager, uiManager, apiManager) {
@@ -89,6 +90,9 @@ export class NodeManager {
             case 'video':
                 node = new VideoNode().create(nodeId, x, y, callbacks);
                 break;
+            case 'format':
+                node = new FormatNode().create(nodeId, x, y, callbacks);
+                break;
             case 'videoresult': {
                 const vidData = data?.videoUrl || data?.videoData || null;
                 node = new VideoResultNode().create(nodeId, x, y, vidData, data?.sourceNode, callbacks);
@@ -157,7 +161,7 @@ export class NodeManager {
                     if (node.restoreViewer && node.data.modelData && node.data.modelType) {
                         node.restoreViewer().catch(console.error);
                     }
-                } else if (type === 'video') {
+                } else if (type === 'video' || type === 'format') {
                     node.syncSettingsUI?.();
                     this.updateGenerateButton(node);
                 } else if (type === 'videoresult') {
@@ -451,7 +455,7 @@ export class NodeManager {
         const hasImages = totalImages > 0;
         
         let hasContent = false;
-        if (node.type === 'prompt' || node.type === 'video') {
+        if (node.type === 'prompt' || node.type === 'video' || node.type === 'format') {
             hasContent = node.data.prompt && node.data.prompt.trim().length > 0;
         } else if (node.type === 'action') {
             hasContent = node.data.action && node.data.action.trim().length > 0;
@@ -471,9 +475,14 @@ export class NodeManager {
         }
 
         // Update button text
-        const ownText = node.type === 'prompt' ? (node.data.prompt || '') : (node.data.action || '');
+        const ownText = (node.type === 'prompt' || node.type === 'format') ? (node.data.prompt || '') : (node.data.action || '');
         const chainSteps = ownText.split('#').map(s => s.trim()).filter(Boolean).length;
-        if (chainSteps > 1) {
+        if (node.type === 'format') {
+            generateBtn.textContent = hasImages
+                ? `Change Format → ${node.data.targetFormat || ''}`
+                : 'Change Format (connect an image)';
+            generateBtn.disabled = !hasContent || !hasImages; // needs a source image
+        } else if (chainSteps > 1) {
             generateBtn.textContent = `Generate chain (${chainSteps} steps)`;
         } else if (hasImages) {
             generateBtn.textContent = `Generate (${totalImages} image${totalImages > 1 ? 's' : ''})`;
@@ -551,7 +560,7 @@ export class NodeManager {
         }
 
         // Detect # chain separator in the node's own prompt/action text
-        const ownText = node.type === 'prompt' ? (node.data.prompt || '') : (node.data.action || '');
+        const ownText = (node.type === 'prompt' || node.type === 'format') ? (node.data.prompt || '') : (node.data.action || '');
         const chainParts = ownText.split('#').map(s => s.trim()).filter(Boolean);
 
         if (chainParts.length <= 1) {
@@ -986,6 +995,17 @@ export class NodeManager {
                     const cloneClearBtn = newNode.element.querySelector('.clear-button');
                     if (cloneClearBtn) cloneClearBtn.style.display = '';
                 }
+                break;
+            case 'format':
+                newNode = this.createNode('format', newPosition.x, newPosition.y, {
+                    targetFormat: originalNode.data.targetFormat,
+                    formatOptions: { ...(originalNode.data.formatOptions || {}) },
+                    prompt: originalNode.data.prompt,
+                    promptEdited: originalNode.data.promptEdited,
+                    model: originalNode.data.model,
+                    resolution: originalNode.data.resolution,
+                    outputFormat: originalNode.data.outputFormat
+                });
                 break;
             case 'video':
                 newNode = this.createNode('video', newPosition.x, newPosition.y, {

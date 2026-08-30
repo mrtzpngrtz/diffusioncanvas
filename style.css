@@ -3726,3 +3726,50 @@ body.dark-mode .login-hero::before {
 .videoresult-node .result-meta {
     padding-bottom: 44px;
 }
+
+/* ============ FORMAT CHANGER NODE ============ */
+
+.format-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.format-option {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    font-family: var(--font-sans);
+    font-weight: var(--fw-light);
+    font-size: 11px;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.format-option:nth-child(odd) {
+    border-right: 1px solid var(--border-light);
+}
+
+.format-option:hover {
+    background: var(--bg);
+}
+
+.format-option input {
+    accent-color: var(--text);
+    width: 12px;
+    height: 12px;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+/* The composed prompt — shorter than the prompt node's textarea */
+.format-node .format-prompt {
+    min-height: 96px;
+    font-size: 12px;
+}

@@ -117,8 +117,8 @@ export class APIManager {
         
         // Add this node's own prompt/action
         let ownPrompt = '';
-        if (node.type === 'prompt') {
-            ownPrompt = node.data.prompt.trim();
+        if (node.type === 'prompt' || node.type === 'format') {
+            ownPrompt = (node.data.prompt || '').trim();
         } else if (node.type === 'action') {
             ownPrompt = node.data.action.trim();
         }

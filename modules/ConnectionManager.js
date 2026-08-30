@@ -136,7 +136,7 @@ export class ConnectionManager {
     }
 
     updateNodeConnections(sourceNode, targetNode) {
-        const acceptsInputs = targetNode.type === 'prompt' || targetNode.type === 'action' || targetNode.type === 'video';
+        const acceptsInputs = targetNode.type === 'prompt' || targetNode.type === 'action' || targetNode.type === 'video' || targetNode.type === 'format';
         const isImageSource = sourceNode.type === 'image' || sourceNode.type === 'result' || sourceNode.type === 'draw' || sourceNode.type === 'threed';
 
         // Update prompt/action/video node with connected images (from image, result, draw or 3D node)
@@ -309,7 +309,7 @@ export class ConnectionManager {
                 const toNode = this.nodeManager.nodes.find(n => n.id === conn.to);
                 
                 // Cleanup connection data
-                if (toNode && (toNode.type === 'prompt' || toNode.type === 'action' || toNode.type === 'video') && fromNode) {
+                if (toNode && (toNode.type === 'prompt' || toNode.type === 'action' || toNode.type === 'video' || toNode.type === 'format') && fromNode) {
                     if ((fromNode.type === 'image' || fromNode.type === 'result' || fromNode.type === 'draw' || fromNode.type === 'threed') && toNode.data.connectedImages) {
                         toNode.data.connectedImages = toNode.data.connectedImages.filter(node => node.id !== fromNode.id);
                         if (toNode.updateModeLabel) toNode.updateModeLabel();
@@ -321,7 +321,7 @@ export class ConnectionManager {
                 }
 
                 if (fromNode && toNode && (toNode.type === 'result' || toNode.type === 'videoresult')) {
-                    if (fromNode.type === 'prompt' || fromNode.type === 'action' || fromNode.type === 'video') {
+                    if (fromNode.type === 'prompt' || fromNode.type === 'action' || fromNode.type === 'video' || fromNode.type === 'format') {
                         if (fromNode.data.resultNode && fromNode.data.resultNode.id === toNode.id) {
                             fromNode.data.resultNode = null;
                         }
