@@ -180,6 +180,10 @@ export class ThreeDNode extends NodeBase {
         renderer.setSize(W, H);
         renderer.setClearColor(node.data.bgColor || '#111111');
         renderer.shadowMap.enabled = true;
+        // Tone mapping keeps very bright lights from clipping to flat white;
+        // exposure is the global brightness multiplier
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = node.data.exposure ?? 1;
         wrapper.appendChild(renderer.domElement);
         renderer.domElement.className = 'threed-canvas';
 
@@ -276,8 +280,9 @@ export class ThreeDNode extends NodeBase {
         ctrl.innerHTML = `
             <div class="threed-ctrl-rows">
                 <div class="threed-ctrl-row">
-                    <span class="threed-ctrl-item"><span class="threed-ctrl-lbl">Amb</span><input class="threed-slider" type="range" min="0" max="200" value="${Math.round((node.data.ambientIntensity ?? 0.7) * 100)}"></span>
-                    <span class="threed-ctrl-item"><span class="threed-ctrl-lbl">Sun</span><input class="threed-slider" type="range" min="0" max="300" value="${Math.round((node.data.sunIntensity ?? 0.9) * 100)}"></span>
+                    <span class="threed-ctrl-item"><span class="threed-ctrl-lbl">Amb</span><input class="threed-slider" type="range" min="0" max="800" value="${Math.round((node.data.ambientIntensity ?? 0.7) * 100)}"></span>
+                    <span class="threed-ctrl-item"><span class="threed-ctrl-lbl">Sun</span><input class="threed-slider" type="range" min="0" max="1200" value="${Math.round((node.data.sunIntensity ?? 0.9) * 100)}"></span>
+                    <span class="threed-ctrl-item"><span class="threed-ctrl-lbl">Exp</span><input class="threed-slider threed-exposure" type="range" min="20" max="500" value="${Math.round((node.data.exposure ?? 1) * 100)}"></span>
                     <button class="threed-bg-btn threed-icon-btn" title="Background">${BG_ICONS[bgI.v]}</button>
                     <button class="threed-reset-btn threed-icon-btn" title="Reset camera"><svg class="icon"><use href="#i-refresh"/></svg></button>
                 </div>
@@ -314,6 +319,14 @@ export class ThreeDNode extends NodeBase {
         sunSlider.addEventListener('input', (e) => {
             const v = e.target.value / 100;
             sun.intensity = v; node.data.sunIntensity = v; capture();
+        });
+
+        // Exposure (global brightness)
+        const expSlider = ctrl.querySelector('.threed-exposure');
+        expSlider.addEventListener('mousedown', sp);
+        expSlider.addEventListener('input', (e) => {
+            const v = e.target.value / 100;
+            renderer.toneMappingExposure = v; node.data.exposure = v; capture();
         });
 
         // Background

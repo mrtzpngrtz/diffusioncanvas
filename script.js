@@ -457,6 +457,7 @@ class App {
                         ? node.data.modelData : null,
                     ambientIntensity: node.data.ambientIntensity ?? null,
                     sunIntensity: node.data.sunIntensity ?? null,
+                    exposure: node.data.exposure ?? null,
                     bgColor: node.data.bgColor || null,
                     fov: node.data.fov || null,
                     imageWidth: node.data.imageWidth,
