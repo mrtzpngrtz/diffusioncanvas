@@ -3773,3 +3773,55 @@ body.dark-mode .login-hero::before {
     min-height: 96px;
     font-size: 12px;
 }
+
+/* ============ IMAGE → 3D NODE ============ */
+
+.to3d-note {
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border-light);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.to3d-note:empty { display: none; }
+
+.to3d-prompt {
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-weight: var(--fw-light);
+    font-size: 12px;
+    outline: none;
+    transition: background var(--t-fast) var(--ease);
+}
+
+.to3d-prompt:focus { background: var(--bg); }
+.to3d-prompt::placeholder { color: var(--text-muted); }
+
+.to3d-seed-wrap {
+    gap: 8px;
+}
+
+.to3d-seed {
+    width: 100%;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-align: right;
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.to3d-seed::-webkit-outer-spin-button,
+.to3d-seed::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.to3d-seed::placeholder { color: var(--text-muted); }

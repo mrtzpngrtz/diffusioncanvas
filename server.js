@@ -648,7 +648,7 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
                     await storage.setUsers(users);
                     job.creditsRemaining = users[idx].credits;
                 }
-                job.video = video;
+                job.result = { video };
                 job.status = 'completed';
                 console.log(`Video job ${jobId} completed in ${Math.round((Date.now() - t0) / 1000)}s`);
             } catch (err) {
@@ -663,12 +663,214 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
     }
 });
 
-// Poll a video job — the finished video is handed over once, then the job is dropped
+// ── IMAGE → 3D (Replicate) ──────────────────────────────────────────────────
+// Each model exposes a different input schema, so we fetch it at runtime and
+// only set the fields that exist. Output is normalised to a GLB data URL.
+const REPLICATE_3D_MODELS = new Set([
+    'fishwowater/trellis2',
+    'tencent/hunyuan-3d-3.1',
+    'prunaai/hunyuan3d-2',
+    'firtoz/trellis',
+    'hyper3d/rodin'
+]);
+const replicateModelCache = new Map(); // slug → { version, props, fetchedAt }
+
+async function replicateModelMeta(slug, token) {
+    const cached = replicateModelCache.get(slug);
+    if (cached && Date.now() - cached.fetchedAt < 60 * 60 * 1000) return cached;
+    const res = await fetch(`https://api.replicate.com/v1/models/${slug}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error(`Replicate model lookup failed (${res.status}) for ${slug}`);
+    const meta = await res.json();
+    const props = meta.latest_version?.openapi_schema?.components?.schemas?.Input?.properties || {};
+    const entry = { version: meta.latest_version?.id || null, props, fetchedAt: Date.now() };
+    replicateModelCache.set(slug, entry);
+    return entry;
+}
+
+// Map our generic settings onto whatever the model's schema actually has
+function buildReplicate3DInput(props, opts) {
+    const has = (k) => Object.prototype.hasOwnProperty.call(props, k);
+    const enumOf = (k) => props[k]?.enum || props[k]?.allOf?.[0]?.enum || null;
+    const input = {};
+
+    // Image — first matching field; array-typed fields get a one-element array
+    const imageKey = ['image', 'images', 'input_image', 'image_url', 'input_images', 'input_image_urls', 'front_image', 'image_path']
+        .find(has)
+        // fallback: first uri-typed or image-named field
+        || Object.keys(props).find(k => props[k].format === 'uri' || props[k].items?.format === 'uri')
+        || Object.keys(props).find(k => /image/i.test(k));
+    if (!imageKey) throw new Error('This model exposes no image input field.');
+    input[imageKey] = props[imageKey].type === 'array' ? [opts.image] : opts.image;
+
+    // Optional text hint
+    if (opts.prompt) {
+        const pk = ['prompt', 'text', 'caption'].find(has);
+        if (pk) input[pk] = opts.prompt;
+    }
+
+    if (opts.seed != null && has('seed')) input.seed = Number(opts.seed);
+
+    const high = opts.quality === 'high';
+    // Texture resolution
+    for (const k of ['texture_size', 'texture_resolution', 'texture_res']) {
+        if (has(k)) { input[k] = high ? 2048 : 1024; break; }
+    }
+    // Mesh density / simplification
+    if (has('mesh_simplify')) input.mesh_simplify = high ? 0.9 : 0.95;
+    for (const k of ['face_count', 'num_faces', 'target_face_num', 'max_facenum', 'face_limit', 'max_faces']) {
+        if (has(k)) {
+            const max = props[k].maximum ?? 1500000, min = props[k].minimum ?? 10000;
+            input[k] = Math.min(max, Math.max(min, high ? 300000 : 100000));
+            break;
+        }
+    }
+    // Quality tiers (e.g. Rodin)
+    for (const k of ['quality', 'tier']) {
+        const en = enumOf(k);
+        if (has(k) && en) {
+            input[k] = high ? (en.find(v => /^high$/i.test(v)) || en[0]) : (en.find(v => /^(medium|standard)$/i.test(v)) || en[en.length - 1]);
+            break;
+        }
+    }
+    // Always want a GLB back
+    for (const k of ['geometry_file_format', 'output_format', 'file_format', 'mesh_format']) {
+        const en = enumOf(k);
+        if (has(k) && (!en || en.includes('glb'))) { input[k] = 'glb'; break; }
+    }
+    // PBR / textures on, preview videos off (saves minutes)
+    for (const k of ['generate_pbr', 'pbr', 'enable_pbr', 'with_texture', 'generate_texture']) {
+        if (has(k) && props[k].type === 'boolean') { input[k] = true; break; }
+    }
+    if (has('material')) { const en = enumOf('material'); if (en) input.material = en.find(v => /pbr/i.test(v)) || en[0]; }
+    if (has('generate_model')) input.generate_model = true;
+    for (const k of ['generate_color', 'generate_normal', 'render_video', 'generate_video', 'save_video']) {
+        if (has(k) && props[k].type === 'boolean') input[k] = false;
+    }
+    return input;
+}
+
+// Find the mesh URL in whatever shape the model returns
+function pickModelUrl(output) {
+    const urls = [];
+    const walk = (v) => {
+        if (!v) return;
+        if (typeof v === 'string') { if (/^https?:\/\//.test(v)) urls.push(v); return; }
+        if (Array.isArray(v)) return v.forEach(walk);
+        if (typeof v === 'object') {
+            // prefer obviously-named mesh fields
+            for (const k of ['model_file', 'glb', 'mesh', 'model', 'output', 'geometry']) {
+                if (typeof v[k] === 'string') urls.unshift(v[k]);
+            }
+            Object.values(v).forEach(walk);
+        }
+    };
+    walk(output);
+    const byExt = urls.find(u => /\.glb(\?|$)/i.test(u));
+    return byExt || urls.find(u => !/\.(mp4|webm|png|jpg|jpeg|gif|ply)(\?|$)/i.test(u)) || urls[0] || null;
+}
+
+async function generate3DReplicate(model, opts) {
+    const token = process.env.REPLICATE_API_TOKEN;
+    if (!token) throw new Error('Image → 3D is not configured on this server (REPLICATE_API_TOKEN is missing).');
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+    const meta = await replicateModelMeta(model, token);
+    const input = buildReplicate3DInput(meta.props, opts);
+
+    // Official models accept the models/… endpoint; community models need a version id
+    let createRes = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
+        method: 'POST', headers, body: JSON.stringify({ input })
+    });
+    if (!createRes.ok && meta.version) {
+        createRes = await fetch('https://api.replicate.com/v1/predictions', {
+            method: 'POST', headers, body: JSON.stringify({ version: meta.version, input })
+        });
+    }
+    if (!createRes.ok) {
+        const t = await createRes.text().catch(() => '');
+        throw new Error(`Replicate request failed (${createRes.status}): ${t.slice(0, 300)}`);
+    }
+    let pred = await createRes.json();
+    const pollUrl = pred.urls?.get || `https://api.replicate.com/v1/predictions/${pred.id}`;
+
+    const deadline = Date.now() + 20 * 60 * 1000;
+    while (!['succeeded', 'failed', 'canceled'].includes(pred.status) && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 5000));
+        const pr = await fetch(pollUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (pr.ok) pred = await pr.json();
+    }
+    if (pred.status !== 'succeeded') {
+        throw new Error(pred.status === 'failed' ? `3D generation failed: ${String(pred.error || '').slice(0, 300)}` : `3D generation ${pred.status || 'timed out'}.`);
+    }
+
+    const url = pickModelUrl(pred.output);
+    if (!url) throw new Error('Replicate returned no mesh file.');
+    const fileRes = await fetch(url);
+    if (!fileRes.ok) throw new Error('Failed to download the generated mesh.');
+    const buf = Buffer.from(await fileRes.arrayBuffer());
+    const ext = (url.match(/\.(glb|gltf|obj|fbx|stl)(\?|$)/i)?.[1] || 'glb').toLowerCase();
+    return {
+        modelType: ext,
+        modelName: `${model.split('/')[1]}.${ext}`,
+        modelData: ext === 'gltf' || ext === 'obj' ? buf.toString('utf-8') : buf.toString('base64')
+    };
+}
+
+app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
+    try {
+        const { model, image, prompt, quality, seed } = req.body;
+        if (!image || !image.startsWith('data:image/')) return res.status(400).json({ error: 'No source image provided' });
+        if (!REPLICATE_3D_MODELS.has(model)) return res.status(400).json({ error: `Unknown 3D model: ${model}` });
+
+        const settings = await storage.getSettings();
+        const cost = settings.modelCosts[model] || 6;
+        if (!req.user.credits || req.user.credits < cost) {
+            return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
+        }
+
+        pruneVideoJobs();
+        const jobId = `${req.user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const job = { userId: req.user.id, status: 'pending', result: null, error: null, createdAt: Date.now(), model, cost };
+        videoJobs.set(jobId, job);
+        console.log(`3D job ${jobId}: ${model}, quality=${quality}, seed=${seed ?? 'random'}`);
+        res.status(202).json({ jobId, cost });
+
+        (async () => {
+            const t0 = Date.now();
+            try {
+                job.status = 'in_progress';
+                const result = await generate3DReplicate(model, { image, prompt, quality, seed });
+                const users = await storage.getUsers();
+                const idx = users.findIndex(u => u.id === job.userId);
+                if (idx !== -1) {
+                    users[idx].credits = (users[idx].credits || 0) - cost;
+                    users[idx].usedCredits = (users[idx].usedCredits || 0) + cost;
+                    await storage.setUsers(users);
+                    job.creditsRemaining = users[idx].credits;
+                }
+                job.result = result;
+                job.status = 'completed';
+                console.log(`3D job ${jobId} completed in ${Math.round((Date.now() - t0) / 1000)}s (${result.modelType}, ${Math.round(result.modelData.length / 1024)} KB)`);
+            } catch (err) {
+                console.error(`3D job ${jobId} failed:`, err);
+                job.status = 'failed';
+                job.error = err?.error?.message || err?.message || '3D generation failed.';
+            }
+        })();
+    } catch (error) {
+        console.error('Error submitting 3D job:', error);
+        res.status(500).json({ error: error?.message || 'Failed to start 3D generation.' });
+    }
+});
+
+// Poll a background job (video or 3D) — the result is handed over once, then the job is dropped
 app.get('/api/video-jobs/:id', isAuthenticated, (req, res) => {
     const job = videoJobs.get(req.params.id);
-    if (!job || job.userId !== req.user.id) return res.status(404).json({ error: 'Video job not found' });
+    if (!job || job.userId !== req.user.id) return res.status(404).json({ error: 'Job not found' });
     const payload = { status: job.status, error: job.error, creditsRemaining: job.creditsRemaining };
-    if (job.status === 'completed') { payload.video = job.video; videoJobs.delete(req.params.id); }
+    if (job.status === 'completed') { Object.assign(payload, job.result || {}); videoJobs.delete(req.params.id); }
     if (job.status === 'failed') videoJobs.delete(req.params.id);
     res.json(payload);
 });

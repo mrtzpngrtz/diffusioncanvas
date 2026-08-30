@@ -96,6 +96,7 @@ Then edit `.env` and add your credentials:
 - Black Forest Labs API Key `BFL_API_KEY` (optional — enables the FLUX.2 models)
 - OpenRouter API Key `OPENROUTER_API_KEY` (optional — enables the Seedance video models)
 - Gemini Omni Flash video uses the same `GOOGLE_API_KEY`
+- Replicate API Token `REPLICATE_API_TOKEN` (optional — enables the Image → 3D models)
 - Session Secret (generate a random string)
 - OAuth credentials for Google (required)
 - OAuth credentials for Facebook and LinkedIn (optional)

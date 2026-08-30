@@ -257,6 +257,72 @@ export class APIManager {
         }
     }
 
+    // ── IMAGE → 3D ───────────────────────────────────────────────────────────
+    // Submit → poll the shared job endpoint. Returns { modelData, modelType, modelName }.
+    async generate3D(node) {
+        const source = (node.data.connectedImages || []).find(n => n.data.imageData);
+        if (!source) {
+            this.uiManager.updateStatus('Connect an image first', '#e74c3c');
+            return { success: false };
+        }
+        const promptParts = [];
+        (node.data.connectedPrompts || []).forEach(p => { const t = (p.data.prompt || '').trim(); if (t) promptParts.push(t); });
+        const own = (node.data.prompt || '').trim();
+        if (own) promptParts.push(own);
+        const prompt = promptParts.join(', ');
+
+        const generateBtn = node.element.querySelector('.generate-btn');
+        const originalText = generateBtn.textContent;
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span class="loading"></span> Submitting…';
+
+        let timer = null;
+        try {
+            const image = await this.compressImage(source.data.imageData, 1024);
+            const res = await fetch('/api/generate-3d', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: node.data.model, image, prompt, quality: node.data.quality, seed: node.data.seed })
+            });
+            if (!res.ok) {
+                let msg = `HTTP ${res.status}`;
+                try { msg = (await res.json()).error || msg; } catch {}
+                throw new Error(msg);
+            }
+            const { jobId } = await res.json();
+
+            const started = Date.now();
+            const tick = () => {
+                const s = Math.round((Date.now() - started) / 1000);
+                generateBtn.innerHTML = `<span class="loading"></span> ${s}s`;
+                this.uiManager.updateStatus(`Generating 3D model… ${s}s`, '#667eea');
+            };
+            tick();
+            timer = setInterval(tick, 1000);
+
+            while (true) {
+                await new Promise(r => setTimeout(r, 4000));
+                const jr = await fetch(`/api/video-jobs/${jobId}`);
+                if (jr.status === 404) throw new Error('3D job was lost (server restarted?). Please try again.');
+                if (!jr.ok) continue;
+                const job = await jr.json();
+                if (job.status === 'completed') {
+                    return { success: true, modelData: job.modelData, modelType: job.modelType, modelName: job.modelName, prompt, model: node.data.model, creditsRemaining: job.creditsRemaining };
+                }
+                if (job.status === 'failed') throw new Error(job.error || '3D generation failed.');
+            }
+        } catch (error) {
+            console.error('3D generation error:', error);
+            this.uiManager.updateStatus(`Error: ${error.message}`, '#e74c3c');
+            alert(`3D generation failed: ${error.message}`);
+            return { success: false, error: error.message };
+        } finally {
+            if (timer) clearInterval(timer);
+            generateBtn.disabled = false;
+            generateBtn.textContent = originalText;
+        }
+    }
+
     // ── VIDEO ────────────────────────────────────────────────────────────────
     // Submit → poll /api/video-jobs/:id. Connected images map to frames:
     // input 1 = first frame, input 2 = last frame.

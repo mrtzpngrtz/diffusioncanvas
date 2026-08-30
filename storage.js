@@ -85,7 +85,13 @@ export const storage = {
                 'bytedance/seedance-2.0': 8,
                 'bytedance/seedance-2.0-fast': 4,
                 'bytedance/seedance-2.5': 8,
-                'gemini-omni-1.1-flash': 6
+                'gemini-omni-1.1-flash': 6,
+                // Image → 3D (Replicate)
+                'fishwowater/trellis2': 6,
+                'tencent/hunyuan-3d-3.1': 8,
+                'prunaai/hunyuan3d-2': 3,
+                'firtoz/trellis': 3,
+                'hyper3d/rodin': 10
             }
         };
         if (useRedis()) {

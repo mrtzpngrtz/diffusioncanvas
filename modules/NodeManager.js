@@ -7,6 +7,7 @@ import { ThreeDNode } from '../nodes/ThreeDNode.js';
 import { VideoNode, VIDEO_MODELS } from '../nodes/VideoNode.js';
 import { VideoResultNode } from '../nodes/VideoResultNode.js';
 import { FormatNode } from '../nodes/FormatNode.js';
+import { ImageTo3DNode, IMAGE_TO_3D_MODELS } from '../nodes/ImageTo3DNode.js';
 
 export class NodeManager {
     constructor(canvasManager, connectionManager, uiManager, apiManager) {
@@ -93,6 +94,9 @@ export class NodeManager {
             case 'format':
                 node = new FormatNode().create(nodeId, x, y, callbacks);
                 break;
+            case 'imageto3d':
+                node = new ImageTo3DNode().create(nodeId, x, y, callbacks);
+                break;
             case 'videoresult': {
                 const vidData = data?.videoUrl || data?.videoData || null;
                 node = new VideoResultNode().create(nodeId, x, y, vidData, data?.sourceNode, callbacks);
@@ -161,7 +165,7 @@ export class NodeManager {
                     if (node.restoreViewer && node.data.modelData && node.data.modelType) {
                         node.restoreViewer().catch(console.error);
                     }
-                } else if (type === 'video' || type === 'format') {
+                } else if (type === 'video' || type === 'format' || type === 'imageto3d') {
                     node.syncSettingsUI?.();
                     this.updateGenerateButton(node);
                 } else if (type === 'videoresult') {
@@ -464,6 +468,15 @@ export class NodeManager {
         // Enable button if there's content (with or without images)
         generateBtn.disabled = !hasContent;
 
+        // Image → 3D: needs a source image, nothing else
+        if (node.type === 'imageto3d') {
+            generateBtn.disabled = !hasImages;
+            generateBtn.textContent = hasImages ? 'Generate 3D' : 'Generate 3D (connect an image)';
+            const mi = node.element.querySelector('.model-indicator');
+            if (mi) mi.textContent = IMAGE_TO_3D_MODELS[node.data.model]?.label || node.data.model;
+            return;
+        }
+
         // Video nodes: no chaining; label reflects the frame mode
         if (node.type === 'video') {
             generateBtn.textContent = totalImages === 0 ? 'Generate Video'
@@ -549,7 +562,36 @@ export class NodeManager {
         return resultNode;
     }
 
+    _place3DResultNode(sourceNode, apiResult) {
+        const existing = this.nodes.filter(n => n.type === 'threed' && n.data.sourcePromptNode === sourceNode);
+        const x = sourceNode.position.x + sourceNode.element.offsetWidth + 50;
+        const y = sourceNode.position.y + existing.length * 20;
+        const threed = this.createNode('threed', x, y, {
+            modelData: apiResult.modelData,
+            modelType: apiResult.modelType,
+            modelName: apiResult.modelName,
+            sourcePromptNode: sourceNode,
+            prompt: apiResult.prompt,
+            model: apiResult.model
+        });
+        this.connectionManager.createConnection(sourceNode.id, threed.id, 'output', 'input');
+        if (apiResult.creditsRemaining !== undefined) {
+            const el = document.getElementById('userCredits');
+            if (el) el.textContent = `${apiResult.creditsRemaining} credit${apiResult.creditsRemaining !== 1 ? 's' : ''}`;
+        }
+        return threed;
+    }
+
     async handleGenerateImage(node) {
+        if (node.type === 'imageto3d') {
+            const result = await this.apiManager.generate3D(node);
+            if (result.success && result.modelData) {
+                this._place3DResultNode(node, result);
+                this.uiManager.updateStatus('3D model generated!', '#27ae60');
+            }
+            return;
+        }
+
         if (node.type === 'video') {
             const result = await this.apiManager.generateVideo(node);
             if (result.success && result.video) {
@@ -995,6 +1037,14 @@ export class NodeManager {
                     const cloneClearBtn = newNode.element.querySelector('.clear-button');
                     if (cloneClearBtn) cloneClearBtn.style.display = '';
                 }
+                break;
+            case 'imageto3d':
+                newNode = this.createNode('imageto3d', newPosition.x, newPosition.y, {
+                    model: originalNode.data.model,
+                    prompt: originalNode.data.prompt,
+                    quality: originalNode.data.quality,
+                    seed: originalNode.data.seed
+                });
                 break;
             case 'format':
                 newNode = this.createNode('format', newPosition.x, newPosition.y, {

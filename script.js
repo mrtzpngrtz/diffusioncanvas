@@ -113,6 +113,7 @@ class App {
         document.getElementById('addThreeDNode').addEventListener('click', () => this.addNode('threed'));
         document.getElementById('addVideoNode').addEventListener('click', () => this.addNode('video'));
         document.getElementById('addFormatNode').addEventListener('click', () => this.addNode('format'));
+        document.getElementById('addImageTo3DNode').addEventListener('click', () => this.addNode('imageto3d'));
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
@@ -245,6 +246,7 @@ class App {
                     case 'addThreeD': newNode = this.nodeManager.createNode('threed', canvasX, canvasY); break;
                     case 'addVideo': newNode = this.nodeManager.createNode('video', canvasX, canvasY); break;
                     case 'addFormat': newNode = this.nodeManager.createNode('format', canvasX, canvasY); break;
+                    case 'addImageTo3D': newNode = this.nodeManager.createNode('imageto3d', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu
@@ -325,12 +327,21 @@ class App {
         // Nothing specific needed here, methods are available
     }
 
+    // ThreeDNode keeps binary formats as base64 and text formats as plain text
+    _modelDataUrl(node) {
+        const type = node.data.modelType || 'glb';
+        const binary = ['glb', 'fbx', 'stl'].includes(type);
+        if (binary) return `data:model/${type};base64,${node.data.modelData}`;
+        return `data:text/${type};base64,${btoa(unescape(encodeURIComponent(node.data.modelData)))}`;
+    }
+
     async _uploadPendingImages(show) {
         // Images and videos share the blob store (/api/images is mime-agnostic)
         const pending = [];
         for (const n of this.nodeManager.nodes) {
             if (n.data.imageData && !n.data.imageRef) pending.push({ node: n, dataKey: 'imageData', refKey: 'imageRef' });
             if (n.data.videoData && !n.data.videoRef) pending.push({ node: n, dataKey: 'videoData', refKey: 'videoRef' });
+            if (n.type === 'threed' && n.data.modelData && !n.data.modelRef) pending.push({ node: n, dataKey: 'modelData', refKey: 'modelRef' });
         }
         if (!pending.length) return;
         show('saving', `● uploading ${pending.length} media file${pending.length > 1 ? 's' : ''}…`);
@@ -340,7 +351,8 @@ class App {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ data: node.data[dataKey] })
+                    // 3D models are stored as raw base64 (binary) or text — wrap them as a data URL
+                    body: JSON.stringify({ data: dataKey === 'modelData' ? this._modelDataUrl(node) : node.data[dataKey] })
                 });
                 if (res.ok) {
                     const { id } = await res.json();
@@ -452,13 +464,17 @@ class App {
                     targetFormat: node.data.targetFormat || null,
                     formatOptions: node.data.formatOptions || null,
                     promptEdited: node.data.promptEdited || false,
+                    quality: node.data.quality || null,
+                    seed: node.data.seed ?? null,
+                    modelRef: node.data.modelRef || null,  // server blob ID for large 3D models
                     overlayText: node.data.overlayText || null,
                     maskData: node.data.maskData || null,
                     starred: node.data.starred || false,
                     modelType: node.data.modelType || null,
                     modelName: node.data.modelName || null,
-                    // Store 3D model inline (base64 for FBX/GLB/STL, text for OBJ/GLTF), capped at 20 MB
-                    modelData: (node.type === 'threed' && node.data.modelData && node.data.modelData.length < 20 * 1024 * 1024)
+                    // 3D model: stored in the blob store once uploaded (modelRef); inline only as a
+                    // fallback for small files that haven't been uploaded yet (cap 20 MB)
+                    modelData: (node.type === 'threed' && !node.data.modelRef && node.data.modelData && node.data.modelData.length < 20 * 1024 * 1024)
                         ? node.data.modelData : null,
                     ambientIntensity: node.data.ambientIntensity ?? null,
                     sunIntensity: node.data.sunIntensity ?? null,
@@ -590,6 +606,32 @@ class App {
                             }
                             tempNode.data.image = img;
                         }
+                    }
+                })();
+                promises.push(p);
+            }
+
+            // 3D models stored in the blob store — fetch, decode and start the viewer
+            if (nodeData.type === 'threed' && nodeData.data.modelRef && !nodeData.data.modelData) {
+                const p = (async () => {
+                    try {
+                        const res = await fetch(`/api/images/${nodeData.data.modelRef}`, { credentials: 'include' });
+                        if (!res.ok) return;
+                        const buf = await res.arrayBuffer();
+                        const type = nodeData.data.modelType || 'glb';
+                        if (['glb', 'fbx', 'stl'].includes(type)) {
+                            const bytes = new Uint8Array(buf);
+                            let bin = ''; const CH = 8192;
+                            for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+                            tempNode.data.modelData = btoa(bin);
+                        } else {
+                            tempNode.data.modelData = new TextDecoder().decode(buf);
+                        }
+                        tempNode.data.modelType = type;
+                        tempNode.data.modelRef = nodeData.data.modelRef;
+                        if (tempNode.restoreViewer) await tempNode.restoreViewer();
+                    } catch (e) {
+                        console.warn('[load] 3D model fetch failed:', e);
                     }
                 })();
                 promises.push(p);
