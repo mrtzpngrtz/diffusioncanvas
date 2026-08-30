@@ -3837,3 +3837,28 @@ body.dark-mode .login-hero::before {
     text-transform: uppercase;
     letter-spacing: 0.1em;
 }
+
+/* ============ SELECT AFFORDANCE ============ */
+/* Custom selects lost the native arrow (appearance:none) — draw a chevron
+   so model/format/ratio rows read as dropdowns, not labels */
+.model-select,
+.aspect-ratio-select,
+.resolution-select,
+.output-format-select,
+.video-duration-select,
+.action-node select {
+    padding-right: 30px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238F8F8B' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 13px 13px;
+}
+
+body.dark-mode .model-select,
+body.dark-mode .aspect-ratio-select,
+body.dark-mode .resolution-select,
+body.dark-mode .output-format-select,
+body.dark-mode .video-duration-select,
+body.dark-mode .action-node select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%237E7E7A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
