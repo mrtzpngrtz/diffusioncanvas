@@ -49,16 +49,6 @@ export class FormatNode extends NodeBase {
                 <select class="aspect-ratio-select format-target-select">
                     ${FORMATS.map(f => `<option value="${f.ratio}">${f.ratio} — ${f.label}</option>`).join('')}
                 </select>
-                <select class="model-select format-model-select">
-                    <option value="gemini-3.1-flash-image">Nano Banana Flash</option>
-                    <option value="gemini-3-pro-image">Nano Banana Pro</option>
-                    <option value="gemini-2.5-flash-image">Nano Banana</option>
-                    <option value="gpt-image-2-2026-04-21">GPT Image 2</option>
-                    <option value="flux-2-pro-preview">FLUX.2 Pro</option>
-                    <option value="flux-2-flex">FLUX.2 Flex</option>
-                    <option value="flux-2-klein-9b-preview">FLUX.2 Klein</option>
-                    <option value="flux-2-max">FLUX.2 Max</option>
-                </select>
                 <div class="format-options">
                     ${FORMAT_OPTIONS.map(o => `
                         <label class="format-option" title="${o.text}">
@@ -86,7 +76,16 @@ export class FormatNode extends NodeBase {
             </div>
             ${this.createConnectionPoints(nodeId, true, true)}
             <div class="node-actions">
-                <div class="model-indicator">Nano Banana Flash</div>
+                <select class="model-select format-model-select model-indicator-select" title="Model">
+                    <option value="gemini-3.1-flash-image">Nano Banana Flash</option>
+                    <option value="gemini-3-pro-image">Nano Banana Pro</option>
+                    <option value="gemini-2.5-flash-image">Nano Banana</option>
+                    <option value="gpt-image-2-2026-04-21">GPT Image 2</option>
+                    <option value="flux-2-pro-preview">FLUX.2 Pro</option>
+                    <option value="flux-2-flex">FLUX.2 Flex</option>
+                    <option value="flux-2-klein-9b-preview">FLUX.2 Klein</option>
+                    <option value="flux-2-max">FLUX.2 Max</option>
+                </select>
                 <button class="node-btn generate-btn" disabled>Change Format</button>
             </div>
         `;

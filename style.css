@@ -974,7 +974,7 @@ body.dark-mode .theme-icon-moon { display: block; }
 .model-select:hover,
 .resolution-select:hover,
 .output-format-select:hover {
-    background: var(--bg);
+    background-color: var(--bg);
 }
 
 .aspect-ratio-select option,
@@ -1092,7 +1092,7 @@ body.dark-mode .theme-icon-moon { display: block; }
 }
 
 .action-node select:hover {
-    background: var(--bg);
+    background-color: var(--bg);
 }
 
 .action-node select option {
@@ -3670,9 +3670,9 @@ body.dark-mode .login-hero::before {
     transition: background var(--t-fast) var(--ease);
 }
 
-.video-duration-select:hover { background: var(--bg); }
+.video-duration-select:hover { background-color: var(--bg); }
 .video-duration-select:focus { outline: none; }
-.video-duration-select:disabled { color: var(--text-muted); cursor: default; background: var(--surface); }
+.video-duration-select:disabled { color: var(--text-muted); cursor: default; background-color: var(--surface); }
 
 .video-audio-toggle {
     display: flex;
@@ -3861,4 +3861,21 @@ body.dark-mode .output-format-select,
 body.dark-mode .video-duration-select,
 body.dark-mode .action-node select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%237E7E7A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* Model select sitting in the actions bar (Format Changer) — looks like the
+   indicator label but is a real dropdown */
+.model-indicator-select {
+    border-bottom: 1px solid var(--border-light);
+    text-align: center;
+    text-align-last: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    padding: 7px 30px 7px 12px;
+}
+
+.model-indicator-select:hover,
+.model-indicator-select:focus {
+    color: var(--text);
 }
