@@ -4437,3 +4437,14 @@ body.dark-mode .comp-stage {
     max-height: 160px;
     font-size: 13px;
 }
+
+/* Media inside nodes must never start a native HTML5 drag — node moving is
+   pointer-based, and a native image drag drops a copy onto the canvas */
+.node img,
+.node canvas,
+.node video,
+.node svg {
+    -webkit-user-drag: none;
+    user-drag: none;
+    user-select: none;
+}

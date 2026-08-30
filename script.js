@@ -70,7 +70,20 @@ class App {
         const container = document.querySelector('.canvas-container');
         const nodeCanvas = document.getElementById('nodeCanvas');
 
+        // Anything inside a node (images, canvases, video) must never start a
+        // native HTML5 drag: Chrome exposes a dragged <img> as a File, so moving
+        // a node with the pointer could end as a "file drop" that inserts a copy.
+        let internalDrag = false;
+        document.addEventListener('dragstart', (e) => {
+            if (e.target.closest && e.target.closest('.node')) {
+                e.preventDefault();
+                internalDrag = true;
+            }
+        }, true);
+        document.addEventListener('dragend', () => { internalDrag = false; });
+
         container.addEventListener('dragover', (e) => {
+            if (internalDrag) { e.preventDefault(); return; }
             if (e.dataTransfer.types.includes('Files')) {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
@@ -87,6 +100,7 @@ class App {
         container.addEventListener('drop', (e) => {
             e.preventDefault();
             nodeCanvas.classList.remove('drop-active');
+            if (internalDrag) { internalDrag = false; return; }
 
             const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
             if (!files.length) return;
