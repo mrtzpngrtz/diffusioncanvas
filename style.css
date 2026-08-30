@@ -4559,3 +4559,44 @@ body.dark-mode .comp-stage {
     accent-color: var(--text);
     cursor: pointer;
 }
+
+/* ============ TOOLBAR / MENU CATEGORIES ============ */
+
+/* Real section labels replace the old pseudo-element heading */
+.toolbar-overlay::before { content: none; }
+
+.toolbar-overlay .toolbar-section-label {
+    padding: 7px 14px 5px;
+    border-top: 1px solid var(--border);
+    border-bottom: none;
+    background: var(--bg);
+    font-size: 9px;
+}
+
+.toolbar-overlay .toolbar-section-label:first-child {
+    border-top: none;
+}
+
+.toolbar-overlay .btn {
+    padding: 8px 14px;
+}
+
+.toolbar-overlay .board-name-display {
+    border-top: none;
+    background: var(--bg);
+    padding-top: 0;
+    min-height: 22px;
+}
+
+.context-menu-group {
+    padding: 6px 10px 3px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    pointer-events: none;
+}
+
+.context-menu-group + .context-menu-group { margin-top: 0; }
+.context-menu-item + .context-menu-group { margin-top: 4px; border-top: 1px solid var(--border-light); padding-top: 8px; }

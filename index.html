@@ -148,21 +148,26 @@
     <div class="canvas-container">
         <!-- Toolbar (Left) -->
         <div class="toolbar-overlay">
-            <button id="addImageNode" class="btn"><svg class="icon"><use href="#i-image"/></svg>Image Node</button>
-            <button id="addPromptNode" class="btn"><svg class="icon"><use href="#i-chat"/></svg>Prompt Node</button>
-            <button id="addActionNode" class="btn"><svg class="icon"><use href="#i-zap"/></svg>Action Node</button>
-            <button id="addDrawNode" class="btn"><svg class="icon"><use href="#i-pencil"/></svg>Draw Node</button>
-            <button id="addThreeDNode" class="btn"><svg class="icon"><use href="#i-cube"/></svg>3D Node</button>
-            <button id="addVideoNode" class="btn"><svg class="icon"><use href="#i-film"/></svg>Video Node</button>
-            <button id="addFormatNode" class="btn"><svg class="icon"><use href="#i-frame"/></svg>Format Changer</button>
+            <div class="toolbar-section-label">01 — Input</div>
+            <button id="addImageNode" class="btn"><svg class="icon"><use href="#i-image"/></svg>Image</button>
+            <button id="addDrawNode" class="btn"><svg class="icon"><use href="#i-pencil"/></svg>Draw</button>
+            <button id="addThreeDNode" class="btn"><svg class="icon"><use href="#i-cube"/></svg>3D Viewer</button>
+            <div class="toolbar-section-label">02 — Generate</div>
+            <button id="addPromptNode" class="btn"><svg class="icon"><use href="#i-chat"/></svg>Prompt</button>
+            <button id="addActionNode" class="btn"><svg class="icon"><use href="#i-zap"/></svg>Action Preset</button>
+            <button id="addVideoNode" class="btn"><svg class="icon"><use href="#i-film"/></svg>Video</button>
             <button id="addImageTo3DNode" class="btn"><svg class="icon"><use href="#i-cube"/></svg>Image → 3D</button>
-            <button id="addCompNode" class="btn"><svg class="icon"><use href="#i-layers"/></svg>Composite</button>
+            <div class="toolbar-section-label">03 — Edit</div>
+            <button id="addFormatNode" class="btn"><svg class="icon"><use href="#i-frame"/></svg>Format Changer</button>
             <button id="addOutpaintNode" class="btn"><svg class="icon"><use href="#i-expand"/></svg>Outpaint</button>
+            <button id="addCompNode" class="btn"><svg class="icon"><use href="#i-layers"/></svg>Composite</button>
+            <div class="toolbar-section-label">04 — Tools</div>
             <button id="addChatNode" class="btn"><svg class="icon"><use href="#i-sparkle"/></svg>Assistant</button>
             <button id="addCompareNode" class="btn"><svg class="icon"><use href="#i-split"/></svg>Before / After</button>
-            <button id="resetAllSizes" class="btn"><svg class="icon"><use href="#i-frame"/></svg>Reset Sizes</button>
-            <button id="clearCanvas" class="btn btn-danger"><svg class="icon"><use href="#i-trash"/></svg>Clear</button>
-            <div class="toolbar-section-label btn-section-start">02 — Boards</div>
+            <div class="toolbar-section-label">05 — Canvas</div>
+            <button id="resetAllSizes" class="btn"><svg class="icon"><use href="#i-fit"/></svg>Reset Sizes</button>
+            <button id="clearCanvas" class="btn btn-danger"><svg class="icon"><use href="#i-trash"/></svg>Clear Canvas</button>
+            <div class="toolbar-section-label">06 — Boards</div>
             <div id="currentBoardName" class="board-name-display"></div>
             <button id="saveBoardBtn" class="btn"><svg class="icon"><use href="#i-save"/></svg>Save Board</button>
             <button id="newBoardBtn" class="btn"><svg class="icon"><use href="#i-copy"/></svg>Save as New</button>
@@ -245,16 +250,20 @@
 
     <!-- Context Menu -->
     <div class="context-menu" id="contextMenu">
-        <div class="context-menu-item" data-action="addImage"><svg class="icon"><use href="#i-image"/></svg>Image Node</div>
-        <div class="context-menu-item" data-action="addPrompt"><svg class="icon"><use href="#i-chat"/></svg>Prompt Node</div>
-        <div class="context-menu-item" data-action="addAction"><svg class="icon"><use href="#i-zap"/></svg>Action Node</div>
-        <div class="context-menu-item" data-action="addDraw"><svg class="icon"><use href="#i-pencil"/></svg>Draw Node</div>
-        <div class="context-menu-item" data-action="addThreeD"><svg class="icon"><use href="#i-cube"/></svg>3D Node</div>
-        <div class="context-menu-item" data-action="addVideo"><svg class="icon"><use href="#i-film"/></svg>Video Node</div>
-        <div class="context-menu-item" data-action="addFormat"><svg class="icon"><use href="#i-frame"/></svg>Format Changer</div>
+        <div class="context-menu-group">Input</div>
+        <div class="context-menu-item" data-action="addImage"><svg class="icon"><use href="#i-image"/></svg>Image</div>
+        <div class="context-menu-item" data-action="addDraw"><svg class="icon"><use href="#i-pencil"/></svg>Draw</div>
+        <div class="context-menu-item" data-action="addThreeD"><svg class="icon"><use href="#i-cube"/></svg>3D Viewer</div>
+        <div class="context-menu-group">Generate</div>
+        <div class="context-menu-item" data-action="addPrompt"><svg class="icon"><use href="#i-chat"/></svg>Prompt</div>
+        <div class="context-menu-item" data-action="addAction"><svg class="icon"><use href="#i-zap"/></svg>Action Preset</div>
+        <div class="context-menu-item" data-action="addVideo"><svg class="icon"><use href="#i-film"/></svg>Video</div>
         <div class="context-menu-item" data-action="addImageTo3D"><svg class="icon"><use href="#i-cube"/></svg>Image → 3D</div>
-        <div class="context-menu-item" data-action="addComp"><svg class="icon"><use href="#i-layers"/></svg>Composite</div>
+        <div class="context-menu-group">Edit</div>
+        <div class="context-menu-item" data-action="addFormat"><svg class="icon"><use href="#i-frame"/></svg>Format Changer</div>
         <div class="context-menu-item" data-action="addOutpaint"><svg class="icon"><use href="#i-expand"/></svg>Outpaint</div>
+        <div class="context-menu-item" data-action="addComp"><svg class="icon"><use href="#i-layers"/></svg>Composite</div>
+        <div class="context-menu-group">Tools</div>
         <div class="context-menu-item" data-action="addChat"><svg class="icon"><use href="#i-sparkle"/></svg>Assistant</div>
         <div class="context-menu-item" data-action="addCompare"><svg class="icon"><use href="#i-split"/></svg>Before / After</div>
     </div>
