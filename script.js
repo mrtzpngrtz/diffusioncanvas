@@ -116,6 +116,7 @@ class App {
         document.getElementById('addImageTo3DNode').addEventListener('click', () => this.addNode('imageto3d'));
         document.getElementById('addCompNode').addEventListener('click', () => this.addNode('comp'));
         document.getElementById('addOutpaintNode').addEventListener('click', () => this.addNode('outpaint'));
+        document.getElementById('addChatNode').addEventListener('click', () => this.addNode('chat'));
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
@@ -251,6 +252,7 @@ class App {
                     case 'addImageTo3D': newNode = this.nodeManager.createNode('imageto3d', canvasX, canvasY); break;
                     case 'addComp': newNode = this.nodeManager.createNode('comp', canvasX, canvasY); break;
                     case 'addOutpaint': newNode = this.nodeManager.createNode('outpaint', canvasX, canvasY); break;
+                    case 'addChat': newNode = this.nodeManager.createNode('chat', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu
@@ -475,6 +477,9 @@ class App {
                     seed: node.data.seed ?? null,
                     modelRef: node.data.modelRef || null,  // server blob ID for large 3D models
                     pad: node.type === 'outpaint' ? node.data.pad : null,
+                    history: node.type === 'chat' ? (node.data.history || []).slice(-40) : null,
+                    promptMode: node.type === 'chat' ? node.data.promptMode !== false : null,
+                    fromChatId: node.data.fromChatId || null,
                     // Composite layers: file layers keep their PNG inline, input layers only the source id
                     layers: node.type === 'comp' && node.data.layers
                         ? node.data.layers.map(l => ({ ...l, src: l.kind === 'file' ? l.src : null }))

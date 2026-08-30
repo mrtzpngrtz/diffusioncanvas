@@ -91,7 +91,11 @@ export const storage = {
                 'tencent/hunyuan-3d-3.1': 8,
                 'prunaai/hunyuan3d-2': 3,
                 'firtoz/trellis': 3,
-                'hyper3d/rodin': 10
+                'hyper3d/rodin': 10,
+                // LLM chat (per message)
+                'anthropic/claude-sonnet-5': 1,
+                'anthropic/claude-opus-5': 2,
+                'google/gemini-3.7-flash': 1
             }
         };
         if (useRedis()) {

@@ -10,6 +10,7 @@ import { FormatNode } from '../nodes/FormatNode.js';
 import { ImageTo3DNode, IMAGE_TO_3D_MODELS } from '../nodes/ImageTo3DNode.js';
 import { CompNode } from '../nodes/CompNode.js';
 import { OutpaintNode } from '../nodes/OutpaintNode.js';
+import { ChatNode, CHAT_MODELS } from '../nodes/ChatNode.js';
 
 export class NodeManager {
     constructor(canvasManager, connectionManager, uiManager, apiManager) {
@@ -71,7 +72,8 @@ export class NodeManager {
             openLightbox: (src) => this.uiManager.openLightbox(src),
             downloadImage: (src, name, meta) => this.downloadImage(src, name, meta),
             updateDrawNodeImage: (n) => this.updateDrawNodeImage(n),
-            setupDraw: (n, w) => this._setupDrawOverlay(n, w)
+            setupDraw: (n, w) => this._setupDrawOverlay(n, w),
+            promptFromChat: (n, text) => this.createPromptFromChat(n, text)
         };
 
         switch (type) {
@@ -104,6 +106,9 @@ export class NodeManager {
                 break;
             case 'outpaint':
                 node = new OutpaintNode().create(nodeId, x, y, callbacks);
+                break;
+            case 'chat':
+                node = new ChatNode().create(nodeId, x, y, callbacks);
                 break;
             case 'videoresult': {
                 const vidData = data?.videoUrl || data?.videoData || null;
@@ -173,7 +178,7 @@ export class NodeManager {
                     if (node.restoreViewer && node.data.modelData && node.data.modelType) {
                         node.restoreViewer().catch(console.error);
                     }
-                } else if (['video', 'format', 'imageto3d', 'comp', 'outpaint'].includes(type)) {
+                } else if (['video', 'format', 'imageto3d', 'comp', 'outpaint', 'chat'].includes(type)) {
                     node.syncSettingsUI?.();
                     this.updateGenerateButton(node);
                 } else if (type === 'videoresult') {
@@ -476,6 +481,15 @@ export class NodeManager {
         // Enable button if there's content (with or without images)
         generateBtn.disabled = !hasContent;
 
+        // Chat: needs text; label shows the model
+        if (node.type === 'chat') {
+            generateBtn.disabled = !(node.data.prompt && node.data.prompt.trim());
+            generateBtn.textContent = 'Send';
+            const mi = node.element.querySelector('.model-indicator');
+            if (mi) mi.textContent = CHAT_MODELS[node.data.model]?.label || node.data.model;
+            return;
+        }
+
         // Image → 3D: needs a source image, nothing else
         if (node.type === 'imageto3d') {
             generateBtn.disabled = !hasImages;
@@ -598,7 +612,28 @@ export class NodeManager {
         return threed;
     }
 
+    // Turn an assistant reply into a Prompt node, wired to the chat's images
+    createPromptFromChat(chatNode, text) {
+        const existing = this.nodes.filter(n => n.type === 'prompt' && n.data.fromChatId === chatNode.id);
+        const x = chatNode.position.x + chatNode.element.offsetWidth + 50;
+        const y = chatNode.position.y + existing.length * 30;
+        const promptNode = this.createNode('prompt', x, y, { prompt: text, fromChatId: chatNode.id });
+        const ta = promptNode.element.querySelector('textarea');
+        if (ta) { ta.value = text; ta.dispatchEvent(new Event('input')); }
+        for (const img of chatNode.data.connectedImages || []) {
+            this.connectionManager.createConnection(img.id, promptNode.id, 'output', 'input');
+        }
+        this.updateGenerateButton(promptNode);
+        this.uiManager.updateStatus('Prompt node created from reply', '#27ae60');
+        return promptNode;
+    }
+
     async handleGenerateImage(node) {
+        if (node.type === 'chat') {
+            await this.apiManager.chat(node);
+            return;
+        }
+
         if (node.type === 'imageto3d') {
             const result = await this.apiManager.generate3D(node);
             if (result.success && result.modelData) {
@@ -1063,6 +1098,14 @@ export class NodeManager {
                     const cloneClearBtn = newNode.element.querySelector('.clear-button');
                     if (cloneClearBtn) cloneClearBtn.style.display = '';
                 }
+                break;
+            case 'chat':
+                newNode = this.createNode('chat', newPosition.x, newPosition.y, {
+                    prompt: originalNode.data.prompt,
+                    model: originalNode.data.model,
+                    promptMode: originalNode.data.promptMode,
+                    history: originalNode.data.history.map(m => ({ ...m }))
+                });
                 break;
             case 'outpaint':
                 newNode = this.createNode('outpaint', newPosition.x, newPosition.y, {

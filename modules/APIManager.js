@@ -265,6 +265,65 @@ export class APIManager {
         }
     }
 
+    // ── LLM CHAT ─────────────────────────────────────────────────────────────
+    // Sends the history (text) plus the current turn with the connected images.
+    async chat(node) {
+        const text = (node.data.prompt || '').trim();
+        if (!text) return { success: false };
+
+        const generateBtn = node.element.querySelector('.generate-btn');
+        const originalText = generateBtn.textContent;
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span class="loading"></span> Thinking…';
+        this.uiManager.updateStatus('Assistant is thinking…', '#667eea');
+
+        try {
+            for (const n of node.data.connectedImages || []) if (n.refresh) await n.refresh();
+            const sources = (node.data.connectedImages || []).map(n => n.data.imageData).filter(Boolean).slice(0, 4);
+            const images = [];
+            for (const src of sources) images.push(await this.compressImage(src, 1024));
+
+            // Connected prompt nodes act as extra context for this turn
+            const context = (node.data.connectedPrompts || []).map(p => (p.data.prompt || '').trim()).filter(Boolean);
+            const turnText = context.length ? `${text}\n\nContext from connected prompt nodes:\n${context.join('\n')}` : text;
+
+            const messages = [
+                ...node.data.history.map(m => ({ role: m.role, text: m.text })),
+                { role: 'user', text: turnText, images }
+            ];
+
+            node.appendMessage('user', text, images.length);
+            node.clearInput();
+
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: node.data.model, messages, system: node.systemPrompt() })
+            });
+            if (!res.ok) {
+                let msg = `HTTP ${res.status}`;
+                try { msg = (await res.json()).error || msg; } catch {}
+                throw new Error(msg);
+            }
+            const data = await res.json();
+            node.appendMessage('assistant', data.text);
+            if (data.creditsRemaining !== undefined) {
+                const el = document.getElementById('userCredits');
+                if (el) el.textContent = `${data.creditsRemaining} credit${data.creditsRemaining !== 1 ? 's' : ''}`;
+            }
+            this.uiManager.updateStatus('Assistant replied', '#27ae60');
+            return { success: true, text: data.text };
+        } catch (error) {
+            console.error('Chat error:', error);
+            this.uiManager.updateStatus(`Error: ${error.message}`, '#e74c3c');
+            node.appendMessage('assistant', `⚠ ${error.message}`);
+            return { success: false, error: error.message };
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.textContent = originalText;
+        }
+    }
+
     // ── IMAGE → 3D ───────────────────────────────────────────────────────────
     // Submit → poll the shared job endpoint. Returns { modelData, modelType, modelName }.
     async generate3D(node) {

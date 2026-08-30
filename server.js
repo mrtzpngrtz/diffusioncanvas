@@ -865,6 +865,75 @@ app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
     }
 });
 
+// ── LLM CHAT (OpenRouter chat completions, text out) ────────────────────────
+const CHAT_MODELS = new Set(['anthropic/claude-sonnet-5', 'anthropic/claude-opus-5', 'google/gemini-3.7-flash']);
+
+app.post('/api/chat', isAuthenticated, async (req, res) => {
+    try {
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'The assistant is not configured on this server (OPENROUTER_API_KEY is missing).' });
+
+        const { model, messages, system } = req.body;
+        if (!CHAT_MODELS.has(model)) return res.status(400).json({ error: `Unknown chat model: ${model}` });
+        if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'No messages' });
+
+        const settings = await storage.getSettings();
+        const cost = settings.modelCosts[model] || 1;
+        if (!req.user.credits || req.user.credits < cost) {
+            return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
+        }
+
+        // messages: [{ role, text, images?: [dataUrl] }] → OpenRouter format
+        const orMessages = [];
+        if (system) orMessages.push({ role: 'system', content: system });
+        for (const m of messages.slice(-20)) {
+            const role = m.role === 'assistant' ? 'assistant' : 'user';
+            const text = String(m.text || '').slice(0, 20000);
+            if (role === 'user' && Array.isArray(m.images) && m.images.length) {
+                orMessages.push({
+                    role,
+                    content: [
+                        { type: 'text', text },
+                        ...m.images.slice(0, 4).map(url => ({ type: 'image_url', image_url: { url } }))
+                    ]
+                });
+            } else {
+                orMessages.push({ role, content: text });
+            }
+        }
+
+        const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, messages: orMessages, max_tokens: 1500 })
+        });
+        if (!r.ok) {
+            const t = await r.text().catch(() => '');
+            throw new Error(`Chat request failed (${r.status}): ${t.slice(0, 300)}`);
+        }
+        const data = await r.json();
+        const content = data.choices?.[0]?.message?.content;
+        const text = typeof content === 'string'
+            ? content
+            : Array.isArray(content) ? content.map(p => p.text || '').join('') : '';
+        if (!text.trim()) throw new Error('The model returned no text.');
+
+        const users = await storage.getUsers();
+        const idx = users.findIndex(u => u.id === req.user.id);
+        let creditsRemaining;
+        if (idx !== -1) {
+            users[idx].credits = (users[idx].credits || 0) - cost;
+            users[idx].usedCredits = (users[idx].usedCredits || 0) + cost;
+            await storage.setUsers(users);
+            creditsRemaining = users[idx].credits;
+        }
+        res.json({ text: text.trim(), creditsRemaining });
+    } catch (error) {
+        console.error('Chat error:', error);
+        res.status(500).json({ error: error?.message || 'Chat failed.' });
+    }
+});
+
 // Poll a background job (video or 3D) — the result is handed over once, then the job is dropped
 app.get('/api/video-jobs/:id', isAuthenticated, (req, res) => {
     const job = videoJobs.get(req.params.id);
