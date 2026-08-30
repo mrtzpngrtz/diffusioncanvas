@@ -479,8 +479,10 @@ export class NodeManager {
 
         // Video nodes: no chaining; label reflects the frame mode
         if (node.type === 'video') {
-            generateBtn.textContent = totalImages === 0 ? 'Generate Video'
-                : totalImages === 1 ? 'Generate Video (image → video)'
+            const mode = node.effectiveFrameMode ? node.effectiveFrameMode()
+                : (totalImages === 0 ? 'text' : totalImages === 1 ? 'first' : 'both');
+            generateBtn.textContent = mode === 'text' ? 'Generate Video'
+                : mode === 'first' ? 'Generate Video (image → video)'
                 : 'Generate Video (first + last frame)';
             const vi = node.element.querySelector('.model-indicator');
             if (vi) vi.textContent = VIDEO_MODELS[node.data.model]?.label || node.data.model;

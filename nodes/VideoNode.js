@@ -48,6 +48,23 @@ export class VideoNode extends NodeBase {
                     <button class="icon-btn node-clone prompt-clone-btn" title="Clone Node"><svg class="icon"><use href="#i-copy"/></svg></button>
                 </div>
                 <select class="model-select video-model-select">${modelOptions}</select>
+                <select class="resolution-select video-framemode-select" title="How connected images are used">
+                    <option value="auto">Frames: auto from inputs</option>
+                    <option value="text">Text only — ignore images</option>
+                    <option value="first">Image → video (first frame)</option>
+                    <option value="both">First + last frame</option>
+                </select>
+                <div class="video-frames">
+                    <div class="video-frame-slot" data-slot="first">
+                        <div class="video-frame-thumb"></div>
+                        <span class="video-frame-lbl">First frame</span>
+                    </div>
+                    <button class="icon-btn video-frame-swap" title="Swap first / last"><svg class="icon"><use href="#i-refresh"/></svg></button>
+                    <div class="video-frame-slot" data-slot="last">
+                        <div class="video-frame-thumb"></div>
+                        <span class="video-frame-lbl">Last frame</span>
+                    </div>
+                </div>
                 <div class="video-mode-row">
                     <svg class="icon"><use href="#i-image"/></svg>
                     <span class="video-mode-label">Text → Video</span>
@@ -78,6 +95,7 @@ export class VideoNode extends NodeBase {
             data: {
                 prompt: '', model: 'bytedance/seedance-2.0',
                 resolution: '720p', aspectRatio: '16:9', duration: 5, audio: true,
+                frameMode: 'auto', swapFrames: false,
                 connectedImages: []
             },
             position: { x, y }
@@ -125,14 +143,79 @@ export class VideoNode extends NodeBase {
             }
         };
 
-        // Frame mapping hint — driven by how many images are connected
-        node.updateModeLabel = () => {
-            const n = (node.data.connectedImages || []).length;
-            const lbl = nodeEl.querySelector('.video-mode-label');
-            if (n === 0)      lbl.textContent = 'Text → Video';
-            else if (n === 1) lbl.textContent = 'Image → Video · input 1 = first frame';
-            else              lbl.textContent = 'First + last frame · inputs 1 & 2';
+        // ── Frames ──────────────────────────────────────────────────────
+        const frameModeSel = nodeEl.querySelector('.video-framemode-select');
+        const framesEl     = nodeEl.querySelector('.video-frames');
+        const thumbFirst   = nodeEl.querySelector('.video-frame-slot[data-slot="first"] .video-frame-thumb');
+        const thumbLast    = nodeEl.querySelector('.video-frame-slot[data-slot="last"] .video-frame-thumb');
+        const swapBtn      = nodeEl.querySelector('.video-frame-swap');
+
+        // Connected images with pixels, in slot order (optionally swapped)
+        const orderedSources = () => {
+            const imgs = (node.data.connectedImages || []).filter(n => n.data.imageData);
+            if (node.data.swapFrames && imgs.length > 1) [imgs[0], imgs[1]] = [imgs[1], imgs[0]];
+            return imgs;
         };
+
+        // Resolve 'auto' against what's connected → 'text' | 'first' | 'both'
+        node.effectiveFrameMode = () => {
+            const n = orderedSources().length;
+            const m = node.data.frameMode || 'auto';
+            if (m === 'text') return 'text';
+            if (m === 'first') return n >= 1 ? 'first' : 'text';
+            if (m === 'both')  return n >= 2 ? 'both' : n === 1 ? 'first' : 'text';
+            return n === 0 ? 'text' : n === 1 ? 'first' : 'both';
+        };
+
+        // [firstFrameDataUrl | null, lastFrameDataUrl | null] for the API call
+        node.getFrames = () => {
+            const src = orderedSources();
+            const mode = node.effectiveFrameMode();
+            return [
+                mode === 'text' ? null : (src[0]?.data.imageData || null),
+                mode === 'both' ? (src[1]?.data.imageData || null) : null
+            ];
+        };
+
+        const paintThumb = (el, dataUrl, active) => {
+            el.innerHTML = '';
+            el.classList.toggle('filled', !!dataUrl);
+            el.classList.toggle('inactive', !active);
+            if (dataUrl) {
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.draggable = false;
+                el.appendChild(img);
+            }
+        };
+
+        node.updateModeLabel = () => {
+            const mode = node.effectiveFrameMode();
+            const [first, last] = node.getFrames();
+            const n = orderedSources().length;
+            paintThumb(thumbFirst, first, mode !== 'text');
+            paintThumb(thumbLast, last, mode === 'both');
+            framesEl.classList.toggle('mode-text', mode === 'text');
+            swapBtn.disabled = n < 2;
+            const lbl = nodeEl.querySelector('.video-mode-label');
+            lbl.textContent = mode === 'text' ? 'Text → Video'
+                : mode === 'first' ? 'Image → Video · first frame'
+                : 'First + last frame';
+            if (n === 0 && (node.data.frameMode === 'first' || node.data.frameMode === 'both')) {
+                lbl.textContent += ' · connect image(s)';
+            }
+        };
+
+        frameModeSel.addEventListener('change', (e) => {
+            node.data.frameMode = e.target.value;
+            node.updateModeLabel();
+            callbacks.updateGenerateButton(node);
+        });
+        swapBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            node.data.swapFrames = !node.data.swapFrames;
+            node.updateModeLabel();
+        });
 
         const updateCounter = (text) => {
             const chars = text.length;
@@ -164,6 +247,7 @@ export class VideoNode extends NodeBase {
             syncCaps();
             textarea.value = node.data.prompt || '';
             updateCounter(textarea.value);
+            frameModeSel.value = ['auto', 'text', 'first', 'both'].includes(node.data.frameMode) ? node.data.frameMode : 'auto';
             node.updateModeLabel();
         };
         syncCaps();

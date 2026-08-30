@@ -461,6 +461,8 @@ class App {
                     videoRef: node.data.videoRef || null,  // server ID — never store raw videoData
                     duration: node.data.duration ?? null,
                     audio: node.data.audio ?? null,
+                    frameMode: node.data.frameMode || null,
+                    swapFrames: node.data.swapFrames || false,
                     targetFormat: node.data.targetFormat || null,
                     formatOptions: node.data.formatOptions || null,
                     promptEdited: node.data.promptEdited || false,

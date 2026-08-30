@@ -347,10 +347,12 @@ export class APIManager {
 
         let timer = null;
         try {
-            const frameSources = (node.data.connectedImages || [])
-                .map(n => n.data.imageData).filter(Boolean).slice(0, 2);
+            // Frame slots come from the node (mode + swap aware): [first, last]
+            const slots = node.getFrames
+                ? node.getFrames()
+                : (node.data.connectedImages || []).map(n => n.data.imageData).filter(Boolean).slice(0, 2);
             const frames = [];
-            for (const src of frameSources) frames.push(await this.compressImage(src, 1280));
+            for (const src of slots) frames.push(src ? await this.compressImage(src, 1280) : null);
 
             const res = await fetch('/api/generate-video', {
                 method: 'POST',
