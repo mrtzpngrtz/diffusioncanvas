@@ -3729,9 +3729,14 @@ body.dark-mode .login-hero::before {
 
 /* ============ FORMAT CHANGER NODE ============ */
 
+.format-node {
+    min-width: 280px;
+}
+
+/* One option per row — two columns truncated the labels */
 .format-options {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     border-bottom: 1px solid var(--border-light);
 }
 
@@ -3746,13 +3751,10 @@ body.dark-mode .login-hero::before {
     color: var(--text);
     cursor: pointer;
     user-select: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-.format-option:nth-child(odd) {
-    border-right: 1px solid var(--border-light);
+.format-option + .format-option {
+    border-top: 1px solid var(--border-light);
 }
 
 .format-option:hover {
