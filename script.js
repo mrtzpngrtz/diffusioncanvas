@@ -131,6 +131,7 @@ class App {
         document.getElementById('addCompNode').addEventListener('click', () => this.addNode('comp'));
         document.getElementById('addOutpaintNode').addEventListener('click', () => this.addNode('outpaint'));
         document.getElementById('addChatNode').addEventListener('click', () => this.addNode('chat'));
+        document.getElementById('addCompareNode').addEventListener('click', () => this.addNode('compare'));
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
         document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
@@ -267,6 +268,7 @@ class App {
                     case 'addComp': newNode = this.nodeManager.createNode('comp', canvasX, canvasY); break;
                     case 'addOutpaint': newNode = this.nodeManager.createNode('outpaint', canvasX, canvasY); break;
                     case 'addChat': newNode = this.nodeManager.createNode('chat', canvasX, canvasY); break;
+                    case 'addCompare': newNode = this.nodeManager.createNode('compare', canvasX, canvasY); break;
                 }
                 
                 // Handle connection creation from context menu
@@ -494,6 +496,8 @@ class App {
                     history: node.type === 'chat' ? (node.data.history || []).slice(-40) : null,
                     promptMode: node.type === 'chat' ? node.data.promptMode !== false : null,
                     fromChatId: node.data.fromChatId || null,
+                    split: node.type === 'compare' ? node.data.split : null,
+                    swap: node.type === 'compare' ? !!node.data.swap : null,
                     // Composite layers: file layers keep their PNG inline, input layers only the source id
                     layers: node.type === 'comp' && node.data.layers
                         ? node.data.layers.map(l => ({ ...l, src: l.kind === 'file' ? l.src : null }))

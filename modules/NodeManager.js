@@ -11,6 +11,7 @@ import { ImageTo3DNode, IMAGE_TO_3D_MODELS } from '../nodes/ImageTo3DNode.js';
 import { CompNode } from '../nodes/CompNode.js';
 import { OutpaintNode } from '../nodes/OutpaintNode.js';
 import { ChatNode, CHAT_MODELS } from '../nodes/ChatNode.js';
+import { CompareNode } from '../nodes/CompareNode.js';
 
 export class NodeManager {
     constructor(canvasManager, connectionManager, uiManager, apiManager) {
@@ -110,6 +111,9 @@ export class NodeManager {
             case 'chat':
                 node = new ChatNode().create(nodeId, x, y, callbacks);
                 break;
+            case 'compare':
+                node = new CompareNode().create(nodeId, x, y, callbacks);
+                break;
             case 'videoresult': {
                 const vidData = data?.videoUrl || data?.videoData || null;
                 node = new VideoResultNode().create(nodeId, x, y, vidData, data?.sourceNode, callbacks);
@@ -178,7 +182,7 @@ export class NodeManager {
                     if (node.restoreViewer && node.data.modelData && node.data.modelType) {
                         node.restoreViewer().catch(console.error);
                     }
-                } else if (['video', 'format', 'imageto3d', 'comp', 'outpaint', 'chat'].includes(type)) {
+                } else if (['video', 'format', 'imageto3d', 'comp', 'outpaint', 'chat', 'compare'].includes(type)) {
                     node.syncSettingsUI?.();
                     this.updateGenerateButton(node);
                 } else if (type === 'videoresult') {
@@ -1098,6 +1102,11 @@ export class NodeManager {
                     const cloneClearBtn = newNode.element.querySelector('.clear-button');
                     if (cloneClearBtn) cloneClearBtn.style.display = '';
                 }
+                break;
+            case 'compare':
+                newNode = this.createNode('compare', newPosition.x, newPosition.y, {
+                    split: originalNode.data.split, swap: originalNode.data.swap
+                });
                 break;
             case 'chat':
                 newNode = this.createNode('chat', newPosition.x, newPosition.y, {
