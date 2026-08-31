@@ -371,13 +371,39 @@ function nearestSupportedRatio(sourceWidth, sourceHeight, supported, fallback = 
     return best;
 }
 
+// Gemini can answer 200 OK with no image: a filter fired, or generation stopped
+// early. Turn the reason code into something the canvas can actually show.
+const EMPTY_RESPONSE_REASONS = {
+    SAFETY: 'Blocked by the safety filter (prompt or input image).',
+    IMAGE_SAFETY: 'The generated image was blocked by the safety filter.',
+    PROHIBITED_CONTENT: 'Blocked as prohibited content.',
+    BLOCKLIST: 'The prompt contains a blocked term.',
+    SPII: 'Blocked for containing sensitive personal information.',
+    RECITATION: 'Blocked to avoid reciting protected content.',
+    MAX_TOKENS: 'The model ran out of output budget before returning an image.',
+    OTHER: 'The model stopped without returning an image.'
+};
+
+function describeEmptyResponse(finishReason, blockReason) {
+    const detail = EMPTY_RESPONSE_REASONS[blockReason] || EMPTY_RESPONSE_REASONS[finishReason];
+    const code = blockReason || finishReason || 'UNKNOWN';
+    return detail
+        ? `${detail} (${code}) Try rephrasing the prompt or using a different input image.`
+        : `The model returned no content (${code}). Try again or rephrase the prompt.`;
+}
+
 // Resolve the client's aspectRatio for one provider. 'original' (the default)
 // maps to whichever supported ratio is closest to the source medium.
 function resolveAspectRatio(requested, sourceWidth, sourceHeight, supported, fallback = '1:1') {
     if (requested === 'original') {
         return nearestSupportedRatio(sourceWidth, sourceHeight, supported, fallback);
     }
-    return supported.includes(requested) ? requested : fallback;
+    if (supported.includes(requested)) return requested;
+    // Asked for a ratio this provider does not offer (e.g. 4:5 on Gemini) —
+    // snap to the closest one it does rather than dropping to the fallback.
+    const m = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(requested || '');
+    if (m) return nearestSupportedRatio(Number(m[1]), Number(m[2]), supported, fallback);
+    return fallback;
 }
 
 // ── FLUX.2 (Black Forest Labs) generation ───────────────────────────────────
@@ -1086,7 +1112,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             const imageSizeParam = resolutionToImageSize[resolution] || '2K';
 
             // Valid aspect ratios for Gemini image models
-            const GEMINI_ASPECT_RATIOS = ['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'];
+            const GEMINI_ASPECT_RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'];
             const geminiAspectRatio = resolveAspectRatio(userAspectRatio, sourceWidth, sourceHeight, GEMINI_ASPECT_RATIOS);
             console.log('Requested aspect ratio:', userAspectRatio, '→ using:', geminiAspectRatio);
 
@@ -1108,7 +1134,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
             // Gemini 3 models support imageSize; Gemini 2.5 only supports aspectRatio
             const isGemini3 = selectedModel.startsWith('gemini-3');
-            const responseFormatImage = isGemini3
+            const geminiImageConfig = isGemini3
                 ? { aspectRatio: geminiAspectRatio, imageSize: imageSizeParam }
                 : { aspectRatio: geminiAspectRatio };
 
@@ -1120,25 +1146,39 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                 contents,
                 config: {
                     responseModalities: ['TEXT', 'IMAGE'],
-                    responseFormat: { image: responseFormatImage }
+                    imageConfig: geminiImageConfig
                 }
             });
             console.log(`Gemini responded in ${Date.now() - t0}ms`);
 
             // Process response
             if (!response || !response.candidates || !response.candidates[0]) {
-                console.error('Unexpected API response structure:', JSON.stringify(response, null, 2));
-                return res.status(500).json({ 
-                    error: 'Unexpected response from AI model.'
+                const blockReason = response?.promptFeedback?.blockReason || null;
+                console.error(
+                    'No candidates in response. blockReason:', blockReason || 'none',
+                    '\nresponse:', JSON.stringify(response, null, 2)
+                );
+                return res.status(500).json({
+                    error: describeEmptyResponse(null, blockReason),
+                    blockReason
                 });
             }
 
             const candidate = response.candidates[0];
-            
+
             if (!candidate.content || !candidate.content.parts) {
-                console.error('No content in response:', JSON.stringify(candidate, null, 2));
-                return res.status(500).json({ 
-                    error: 'No content returned from AI model.'
+                const finishReason = candidate.finishReason || 'UNKNOWN';
+                const blockReason = response.promptFeedback?.blockReason || null;
+                console.error(
+                    'No content in response. finishReason:', finishReason,
+                    'blockReason:', blockReason || 'none',
+                    '\ncandidate:', JSON.stringify(candidate, null, 2),
+                    '\npromptFeedback:', JSON.stringify(response.promptFeedback || null)
+                );
+                return res.status(500).json({
+                    error: describeEmptyResponse(finishReason, blockReason),
+                    finishReason,
+                    blockReason
                 });
             }
 
