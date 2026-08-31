@@ -3,6 +3,7 @@ import { PromptNode } from '../nodes/PromptNode.js';
 import { ActionNode } from '../nodes/ActionNode.js';
 import { DrawNode } from '../nodes/DrawNode.js';
 import { ResultNode } from '../nodes/ResultNode.js';
+import { bindPromptOverlayToggle } from '../nodes/NodeBase.js';
 import { ThreeDNode } from '../nodes/ThreeDNode.js';
 import { VideoNode, VIDEO_MODELS } from '../nodes/VideoNode.js';
 import { VideoResultNode } from '../nodes/VideoResultNode.js';
@@ -767,10 +768,13 @@ export class NodeManager {
                     const metaEl = document.createElement('div');
                     metaEl.className = 'result-meta result-meta-has-data result-meta-visible';
                     metaEl.innerHTML = `
-                        <div class="result-meta-prompt">${meta.prompt || ''}</div>
-                        <div class="result-meta-model">${meta.model || ''}</div>
+                        <div class="result-meta-prompt"></div>
+                        <div class="result-meta-model"></div>
                         <button class="result-meta-copy" title="Copy prompt">copy</button>
                     `;
+                    // PNG text chunks are untrusted — set as text, never as markup
+                    metaEl.querySelector('.result-meta-prompt').textContent = meta.prompt || '';
+                    metaEl.querySelector('.result-meta-model').textContent = meta.model || '';
                     metaEl.querySelector('.result-meta-copy').addEventListener('click', (e) => {
                         e.stopPropagation();
                         // capture before the async boundary — currentTarget is null after dispatch
@@ -781,10 +785,7 @@ export class NodeManager {
                         });
                     });
                     wrapper.appendChild(metaEl);
-                    wrapper.addEventListener('click', (e) => {
-                        if (e.target.closest('button, canvas')) return;
-                        metaEl.classList.toggle('result-meta-visible');
-                    });
+                    bindPromptOverlayToggle(node.element, metaEl);
                 }
 
                 content.appendChild(wrapper);
@@ -809,6 +810,7 @@ export class NodeManager {
         actionButtons.className = 'image-actions';
         actionButtons.innerHTML = `
             <button class="icon-btn star-btn" title="Star"><svg class="icon"><use href="#i-star"/></svg></button>
+            <button class="icon-btn meta-btn" title="Prompt / model"><svg class="icon"><use href="#i-chat"/></svg></button>
             <button class="icon-btn lightbox-btn" title="View Full Size"><svg class="icon"><use href="#i-maximize"/></svg></button>
             <button class="icon-btn download-btn" title="Download"><svg class="icon"><use href="#i-download"/></svg></button>
             <button class="icon-btn icon-btn-std" title="Toggle size: standard / large"><svg class="icon"><use href="#i-fit"/></svg></button>
@@ -821,6 +823,7 @@ export class NodeManager {
 
         actionButtons.querySelector('.node-clone').addEventListener('click', () => this.cloneNode(node.id));
         const starBtn     = actionButtons.querySelector('.star-btn');
+        const metaBtn     = actionButtons.querySelector('.meta-btn');
         const lightboxBtn = actionButtons.querySelector('.lightbox-btn');
         const downloadBtn = actionButtons.querySelector('.download-btn');
         const stdBtn = actionButtons.querySelector('.icon-btn-std');
@@ -832,6 +835,17 @@ export class NodeManager {
             starBtn.classList.toggle('starred', node.data.starred);
             node.element.classList.toggle('starred', node.data.starred);
         });
+
+        // Only meaningful when the image carries prompt metadata
+        const metaEl = wrapper.querySelector('.result-meta');
+        if (metaEl) {
+            metaBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                metaEl.classList.toggle('result-meta-visible');
+            });
+        } else {
+            metaBtn.remove();
+        }
 
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();

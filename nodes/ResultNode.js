@@ -1,4 +1,4 @@
-import { NodeBase } from './NodeBase.js';
+import { NodeBase, bindPromptOverlayToggle } from './NodeBase.js';
 
 export class ResultNode extends NodeBase {
     create(nodeId, x, y, imageUrl, sourcePromptNode, callbacks) {
@@ -73,26 +73,7 @@ export class ResultNode extends NodeBase {
             metaEl.classList.toggle('result-meta-has-data', !!(p || m));
         };
 
-        // Toggle the prompt overlay on a tap on the image.
-        // startDrag calls setPointerCapture on the node, which retargets the
-        // following click to the node element — the wrapper never saw it. So
-        // listen on the node and use the element the press actually landed on.
-        let tapX = 0, tapY = 0, tapTarget = null;
-        nodeEl.addEventListener('pointerdown', (e) => {
-            tapX = e.clientX; tapY = e.clientY; tapTarget = e.target;
-        });
-
-        nodeEl.addEventListener('click', (e) => {
-            const t = tapTarget;
-            tapTarget = null;
-            if (!t || e.shiftKey) return;
-            if (!t.closest('.image-wrapper')) return;
-            if (t.closest('button, canvas, .connection-point, .resize-handle')) return;
-            // a drag also ends in a click — only a press that stayed put is a tap
-            if (Math.hypot(e.clientX - tapX, e.clientY - tapY) > 4) return;
-            if (!metaEl.classList.contains('result-meta-has-data')) return;
-            metaEl.classList.toggle('result-meta-visible');
-        });
+        bindPromptOverlayToggle(nodeEl, metaEl);
 
         img.onload = () => {
             node.data.originalWidth = img.naturalWidth;

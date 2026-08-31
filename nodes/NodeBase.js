@@ -61,3 +61,27 @@ export class NodeBase {
         return html;
     }
 }
+
+// Tap on the image toggles the prompt/model overlay. The node takes pointer
+// capture on pointerdown (NodeManager.startDrag), so the browser retargets the
+// click to the node element — a listener on the image wrapper never sees it.
+// Bind on the node and decide from the element the press actually landed on.
+export function bindPromptOverlayToggle(nodeEl, metaEl) {
+    let tapX = 0, tapY = 0, tapTarget = null;
+
+    nodeEl.addEventListener('pointerdown', (e) => {
+        tapX = e.clientX; tapY = e.clientY; tapTarget = e.target;
+    });
+
+    nodeEl.addEventListener('click', (e) => {
+        const t = tapTarget;
+        tapTarget = null;
+        if (!t || e.shiftKey) return;
+        if (!t.closest('.image-wrapper')) return;
+        if (t.closest('button, canvas, .connection-point, .resize-handle')) return;
+        // a drag also ends in a click — only a press that stayed put is a tap
+        if (Math.hypot(e.clientX - tapX, e.clientY - tapY) > 4) return;
+        if (!metaEl.classList.contains('result-meta-has-data')) return;
+        metaEl.classList.toggle('result-meta-visible');
+    });
+}
