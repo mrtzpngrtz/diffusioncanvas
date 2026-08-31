@@ -73,13 +73,22 @@ export class ResultNode extends NodeBase {
             metaEl.classList.toggle('result-meta-has-data', !!(p || m));
         };
 
-        // A node drag ends in a click on the wrapper — only treat it as a tap when
-        // the pointer stayed put, otherwise moving the node flips the prompt overlay on.
-        let tapX = 0, tapY = 0;
-        wrapper.addEventListener('pointerdown', (e) => { tapX = e.clientX; tapY = e.clientY; });
+        // Toggle the prompt overlay on a tap on the image.
+        // startDrag calls setPointerCapture on the node, which retargets the
+        // following click to the node element — the wrapper never saw it. So
+        // listen on the node and use the element the press actually landed on.
+        let tapX = 0, tapY = 0, tapTarget = null;
+        nodeEl.addEventListener('pointerdown', (e) => {
+            tapX = e.clientX; tapY = e.clientY; tapTarget = e.target;
+        });
 
-        wrapper.addEventListener('click', (e) => {
-            if (e.target.closest('button, canvas')) return;
+        nodeEl.addEventListener('click', (e) => {
+            const t = tapTarget;
+            tapTarget = null;
+            if (!t || e.shiftKey) return;
+            if (!t.closest('.image-wrapper')) return;
+            if (t.closest('button, canvas, .connection-point, .resize-handle')) return;
+            // a drag also ends in a click — only a press that stayed put is a tap
             if (Math.hypot(e.clientX - tapX, e.clientY - tapY) > 4) return;
             if (!metaEl.classList.contains('result-meta-has-data')) return;
             metaEl.classList.toggle('result-meta-visible');
@@ -96,6 +105,7 @@ export class ResultNode extends NodeBase {
         actionButtons.className = 'image-actions';
         actionButtons.innerHTML = `
             <button class="icon-btn star-btn" title="Star"><svg class="icon"><use href="#i-star"/></svg></button>
+            <button class="icon-btn meta-btn" title="Prompt / model"><svg class="icon"><use href="#i-chat"/></svg></button>
             <button class="icon-btn lightbox-btn" title="View Full Size"><svg class="icon"><use href="#i-maximize"/></svg></button>
             <button class="icon-btn download-btn" title="Download"><svg class="icon"><use href="#i-download"/></svg></button>
             <button class="icon-btn icon-btn-std" title="Toggle size: standard / large"><svg class="icon"><use href="#i-fit"/></svg></button>
@@ -109,6 +119,7 @@ export class ResultNode extends NodeBase {
         );
 
         const starBtn    = actionButtons.querySelector('.star-btn');
+        const metaBtn    = actionButtons.querySelector('.meta-btn');
         const lightboxBtn = actionButtons.querySelector('.lightbox-btn');
         const downloadBtn = actionButtons.querySelector('.download-btn');
         const stdBtn = actionButtons.querySelector('.icon-btn-std');
@@ -119,6 +130,13 @@ export class ResultNode extends NodeBase {
             node.data.starred = !node.data.starred;
             starBtn.classList.toggle('starred', node.data.starred);
             node.element.classList.toggle('starred', node.data.starred);
+        });
+
+        metaBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (metaEl.classList.contains('result-meta-has-data')) {
+                metaEl.classList.toggle('result-meta-visible');
+            }
         });
 
         lightboxBtn.addEventListener('click', (e) => {

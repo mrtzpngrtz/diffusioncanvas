@@ -1648,7 +1648,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     opacity: 0;
     transform: translateX(-4px);
     transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
-    z-index: 5;
+    z-index: 8; /* above the prompt overlay, so its toggle stays reachable */
     pointer-events: none;
 }
 
