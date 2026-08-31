@@ -1557,6 +1557,8 @@ body.dark-mode .theme-icon-moon { display: block; }
     line-height: normal;
 }
 
+.result-meta > * { flex-shrink: 0; } /* no squeezing when the prompt scrolls */
+
 .result-meta-copy {
     pointer-events: all;
     align-self: flex-start;
@@ -1579,6 +1581,11 @@ body.dark-mode .theme-icon-moon { display: block; }
 
 .result-meta.result-meta-visible {
     display: flex;
+    /* Long prompts used to grow past the image and, being click-through, left no
+       way to dismiss the overlay — keep it inside the frame and clickable. */
+    max-height: 100%;
+    overflow-y: auto;
+    pointer-events: auto;
     animation: fade-in var(--t-fast) var(--ease);
 }
 

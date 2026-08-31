@@ -73,8 +73,14 @@ export class ResultNode extends NodeBase {
             metaEl.classList.toggle('result-meta-has-data', !!(p || m));
         };
 
+        // A node drag ends in a click on the wrapper — only treat it as a tap when
+        // the pointer stayed put, otherwise moving the node flips the prompt overlay on.
+        let tapX = 0, tapY = 0;
+        wrapper.addEventListener('pointerdown', (e) => { tapX = e.clientX; tapY = e.clientY; });
+
         wrapper.addEventListener('click', (e) => {
             if (e.target.closest('button, canvas')) return;
+            if (Math.hypot(e.clientX - tapX, e.clientY - tapY) > 4) return;
             if (!metaEl.classList.contains('result-meta-has-data')) return;
             metaEl.classList.toggle('result-meta-visible');
         });
