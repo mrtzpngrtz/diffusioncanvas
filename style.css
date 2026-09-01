@@ -460,7 +460,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     border-radius: var(--r-node);
     box-shadow: var(--shadow-soft);
     padding: 0;
-    min-width: 220px; /* matches the JS resize floor */
+    min-width: 160px; /* matches MIN_NODE_WIDTH in NodeManager */
     cursor: move;
     user-select: none;
     pointer-events: auto;
@@ -470,6 +470,41 @@ body.dark-mode .theme-icon-moon { display: block; }
 
 .node:hover {
     box-shadow: var(--shadow-pop);
+}
+
+/* A node the user has resized vertically: the content fills the box that was
+   drawn instead of the box snapping back to what the content wants.
+   No overflow:hidden on .node — the ports sit outside its border box. */
+.node.node-free-height {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.node.node-free-height > .node-header {
+    flex: 0 0 auto;
+}
+
+.node.node-free-height > .node-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+
+.node.node-free-height .image-wrapper {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Letterbox rather than crop or distort */
+.node.node-free-height .image-wrapper img,
+.node.node-free-height .image-wrapper video,
+.node.node-free-height > .node-content > img,
+.node.node-free-height > .node-content > video {
+    height: 100%;
+    object-fit: contain;
 }
 
 .node-header {
@@ -747,7 +782,7 @@ body.dark-mode .theme-icon-moon { display: block; }
 .prompt-node {
     display: flex;
     flex-direction: column;
-    min-height: 220px;
+    min-height: 120px;
 }
 
 .prompt-node .node-content {
@@ -1220,9 +1255,25 @@ body.dark-mode .theme-icon-moon { display: block; }
     transform: translateY(-50%);
 }
 
+/* Generous invisible grab area — the dot stays small, the target is not */
+.connection-point::after {
+    content: '';
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+}
+
 .connection-point:hover {
     background: var(--accent);
     transform: translateY(-50%) scale(1.45);
+}
+
+/* Nearest compatible port while dragging a connection — it will snap here */
+.connection-point.snap-target {
+    background: var(--accent);
+    transform: translateY(-50%) scale(1.8);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
+    opacity: 1 !important;
 }
 
 /* On borderless media nodes the ports rest faint, full on hover */

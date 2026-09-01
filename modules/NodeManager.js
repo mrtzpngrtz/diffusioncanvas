@@ -4,6 +4,11 @@ import { ActionNode } from '../nodes/ActionNode.js';
 import { DrawNode } from '../nodes/DrawNode.js';
 import { ResultNode } from '../nodes/ResultNode.js';
 import { bindPromptOverlayToggle } from '../nodes/NodeBase.js';
+
+// Resize floors — low enough to shrink a node to a thumbnail, high enough that
+// the header stays readable and the resize handle stays reachable.
+const MIN_NODE_WIDTH = 160;
+const MIN_NODE_HEIGHT = 90;
 import { ThreeDNode } from '../nodes/ThreeDNode.js';
 import { VideoNode, VIDEO_MODELS } from '../nodes/VideoNode.js';
 import { VideoResultNode } from '../nodes/VideoResultNode.js';
@@ -303,17 +308,17 @@ export class NodeManager {
     handleMouseMove(e) {
         if (this.isResizing && this.resizedNode) {
             const zoom = this.canvasManager.zoom;
+            const el = this.resizedNode.element;
             const deltaX = (e.clientX - this.resizeStart.x) / zoom;
-            // 220 matches the CSS min-width of image/result nodes — below that
-            // the CSS floor wins anyway and the handle drifts away from the corner
-            const newWidth = Math.max(220, this.resizeStart.width + deltaX);
-            this.resizedNode.element.style.width = `${newWidth}px`;
+            const deltaY = (e.clientY - this.resizeStart.y) / zoom;
 
-            // Prompt nodes also resize vertically
-            if (this.resizedNode.type === 'prompt') {
-                const deltaY = (e.clientY - this.resizeStart.y) / zoom;
-                const newHeight = Math.max(180, this.resizeStart.height + deltaY);
-                this.resizedNode.element.style.height = `${newHeight}px`;
+            el.style.width = `${Math.max(MIN_NODE_WIDTH, this.resizeStart.width + deltaX)}px`;
+
+            // Any node resizes vertically too, but only once the drag actually
+            // moves on that axis — a purely horizontal drag leaves the height auto.
+            if (Math.abs(deltaY) > 2 || el.classList.contains('node-free-height')) {
+                el.classList.add('node-free-height');
+                el.style.height = `${Math.max(MIN_NODE_HEIGHT, this.resizeStart.height + deltaY)}px`;
             }
 
             this.connectionManager.drawConnections();
@@ -361,10 +366,12 @@ export class NodeManager {
     handleMouseUp(e) {
         if (this.isResizing) {
             if (this.resizedNode) {
-                // Persist final width for serialization
-                this.resizedNode.data.nodeWidth = this.resizedNode.element.offsetWidth;
-                if (this.resizedNode.type === 'prompt') {
-                    this.resizedNode.data.nodeHeight = this.resizedNode.element.offsetHeight;
+                // Persist final size for serialization
+                const el = this.resizedNode.element;
+                this.resizedNode.data.nodeWidth = el.offsetWidth;
+                if (el.classList.contains('node-free-height')) {
+                    this.resizedNode.data.nodeHeight = el.offsetHeight;
+                    this.resizedNode.data.freeHeight = true;
                 }
             }
             this.isResizing = false;

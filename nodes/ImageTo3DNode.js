@@ -112,6 +112,12 @@ export class ImageTo3DNode extends NodeBase {
         nodeEl.querySelectorAll('.connection-point').forEach(point => {
             this.setupConnectionPoint(point, nodeId, callbacks.startConnection);
         });
+        // Resize handle — every node type is freely resizable
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'resize-handle';
+        nodeEl.appendChild(resizeHandle);
+        this.setupNodeResize(nodeEl, node, resizeHandle, callbacks.startResize);
+
         this.setupNodeDragging(nodeEl, node, callbacks.startDrag);
 
         return node;

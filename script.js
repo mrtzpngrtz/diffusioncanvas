@@ -518,6 +518,8 @@ class App {
                     fov: node.data.fov || null,
                     imageWidth: node.data.imageWidth,
                     nodeWidth: node.element ? node.element.offsetWidth : null,
+                    // only a height the user drew — otherwise the node keeps sizing to its content
+                    freeHeight: !!node.element?.classList.contains('node-free-height'),
                     nodeHeight: node.element ? node.element.offsetHeight : null,
                     prompt: node.data.prompt,
                     aspectRatio: node.data.aspectRatio,
@@ -574,7 +576,9 @@ class App {
             if (nodeData.data.nodeWidth && tempNode.element) {
                 tempNode.element.style.width = nodeData.data.nodeWidth + 'px';
             }
-            if (nodeData.data.nodeHeight && nodeData.type === 'prompt' && tempNode.element) {
+            const keepsHeight = nodeData.data.freeHeight || nodeData.type === 'prompt';
+            if (nodeData.data.nodeHeight && keepsHeight && tempNode.element) {
+                tempNode.element.classList.add('node-free-height');
                 tempNode.element.style.height = nodeData.data.nodeHeight + 'px';
             }
             

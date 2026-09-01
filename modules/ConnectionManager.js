@@ -22,20 +22,27 @@ export class ConnectionManager {
                 const zoom = this.canvasManager.zoom;
                 const panX = this.canvasManager.panX;
                 const panY = this.canvasManager.panY;
-                const mouseX = (e.clientX - container.left) / zoom - panX;
-                const mouseY = (e.clientY - container.top) / zoom - panY;
-                this.tempConnectionEnd.x = mouseX;
-                this.tempConnectionEnd.y = mouseY;
+
+                // Snap the loose end onto the nearest compatible port so the
+                // line shows where the drop will land before letting go
+                const snap = this.findSnapTarget(e.clientX, e.clientY);
+                this.highlightSnapTarget(snap);
+                const src = snap ? this.portCenter(snap) : { x: e.clientX, y: e.clientY };
+
+                this.tempConnectionEnd.x = (src.x - container.left) / zoom - panX;
+                this.tempConnectionEnd.y = (src.y - container.top) / zoom - panY;
                 this.drawConnections();
             }
         });
 
         document.addEventListener('pointerup', (e) => {
             if (this.isConnecting) {
-                const endPoint = document.elementFromPoint(e.clientX, e.clientY);
+                const endPoint = this.findSnapTarget(e.clientX, e.clientY)
+                    || document.elementFromPoint(e.clientX, e.clientY);
                 if (!endPoint || (endPoint.id !== 'connectionCanvas' && !endPoint.classList.contains('connection-point'))) {
                     this.isConnecting = false;
                     this.connectionStart = null;
+                    this.highlightSnapTarget(null);
                     this.drawConnections();
                 }
             }
@@ -59,11 +66,9 @@ export class ConnectionManager {
         
         const connectionMouseUp = (upEvent) => {
             if (this.isConnecting && this.connectionStart) {
-                const endPoint = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
-                const isOverConnectionPoint = endPoint && endPoint.classList.contains('connection-point') &&
-                                              endPoint.dataset.node !== this.connectionStart.nodeId &&
-                                              ((this.connectionStart.type === 'output' && endPoint.classList.contains('input')) ||
-                                               (this.connectionStart.type === 'input' && endPoint.classList.contains('output')));
+                const endPoint = this.findSnapTarget(upEvent.clientX, upEvent.clientY);
+                this.highlightSnapTarget(null);
+                const isOverConnectionPoint = !!endPoint;
 
                 if (isOverConnectionPoint) {
                     // If it's a valid connection point, create the connection
@@ -89,6 +94,7 @@ export class ConnectionManager {
                 if (!isOverConnectionPoint && !upEvent.target.closest('#contextMenu')) {
                      this.isConnecting = false;
                      this.connectionStart = null;
+                     this.highlightSnapTarget(null);
                 }
                 
                 this.drawConnections();
@@ -97,6 +103,41 @@ export class ConnectionManager {
         };
 
         document.addEventListener('pointerup', connectionMouseUp);
+    }
+
+    // Screen-space centre of a port
+    portCenter(pointEl) {
+        const r = pointEl.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+
+    // Nearest port that would make a valid connection, within SNAP_RADIUS screen
+    // pixels — the ports are small, so hitting them exactly should not be the price
+    // of making a connection.
+    findSnapTarget(clientX, clientY) {
+        if (!this.connectionStart) return null;
+        const wanted = this.connectionStart.type === 'output' ? 'input' : 'output';
+        const SNAP_RADIUS = 60;
+
+        let best = null;
+        let bestDist = SNAP_RADIUS;
+        for (const point of document.querySelectorAll(`.connection-point.${wanted}`)) {
+            if (point.dataset.node === this.connectionStart.nodeId) continue;
+            const c = this.portCenter(point);
+            const dist = Math.hypot(clientX - c.x, clientY - c.y);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = point;
+            }
+        }
+        return best;
+    }
+
+    highlightSnapTarget(pointEl) {
+        if (this._snapTarget === pointEl) return;
+        this._snapTarget?.classList.remove('snap-target');
+        this._snapTarget = pointEl;
+        pointEl?.classList.add('snap-target');
     }
 
     createConnection(fromNodeId, toNodeId, fromType, toType) {
