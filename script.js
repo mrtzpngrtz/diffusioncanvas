@@ -162,6 +162,15 @@ class App {
                 e.preventDefault();
                 if (this.historyStack.length > 0) this._restoreHistory(0);
             }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (inInput || active?.isContentEditable) return;
+                if (!this.nodeManager.selectedNodes.size) return;
+                e.preventDefault(); // Backspace would navigate back
+                this._pushHistory('Before delete');
+                this.nodeManager.deleteSelectedNodes();
+                this.connectionManager.drawConnections();
+                this.canvasManager.updateMinimap();
+            }
             if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
                 if (inInput) return;
                 e.preventDefault();

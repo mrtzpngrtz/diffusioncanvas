@@ -1039,6 +1039,21 @@ export class NodeManager {
         });
     }
 
+    // Delete everything currently selected. Falls back to the node under the
+    // pointer so a single unselected node still responds to the Delete key.
+    deleteSelectedNodes() {
+        const ids = this.selectedNodes.size > 0
+            ? [...this.selectedNodes]
+            : (this.draggedNode ? [this.draggedNode.id] : []);
+        if (!ids.length) return 0;
+
+        for (const id of ids) this.removeNode(id);
+        this.selectedNodes.clear();
+
+        this.uiManager.updateStatus(`Removed ${ids.length} node${ids.length > 1 ? 's' : ''}`);
+        return ids.length;
+    }
+
     copySelectedNodes() {
         const ids = this.selectedNodes.size > 0
             ? [...this.selectedNodes]
