@@ -1497,6 +1497,53 @@ app.get('/api/admin/storage', isAdmin, async (req, res) => {
     }
 });
 
+// Blobs carry no metadata of their own — in Redis mode not even a timestamp.
+// Boards and their versions do, so walk them once and remember, per blob, the
+// earliest state it appeared in: that is when the image was made, and which
+// board it belonged to. Cached, because it reads every board state.
+const IMAGE_INDEX_TTL = 5 * 60 * 1000;
+const VERSIONS_PER_BOARD = 10;
+let imageIndexCache = { at: 0, map: null };
+
+function collectRefs(state, into, ts, boardName) {
+    if (!ts || !state || !Array.isArray(state.nodes)) return;
+    for (const node of state.nodes) {
+        const data = node?.data || {};
+        for (const ref of [data.imageRef, data.videoRef, data.modelRef]) {
+            if (!ref) continue;
+            const prev = into.get(ref);
+            if (!prev || ts < prev.ts) into.set(ref, { ts, boardName });
+        }
+    }
+}
+
+async function getImageIndex() {
+    if (imageIndexCache.map && Date.now() - imageIndexCache.at < IMAGE_INDEX_TTL) {
+        return imageIndexCache.map;
+    }
+
+    const map = new Map();
+    const users = await storage.getUsers();
+    for (const user of users) {
+        const boards = await storage.getBoards(user.id);
+        for (const board of boards) {
+            const name = board.name || board.id;
+            collectRefs(await storage.getBoardState(board.id), map, Date.parse(board.updatedAt), name);
+
+            // Older states hold images the current one no longer references —
+            // exactly the ones an overwrite lost. Bounded so this stays cheap.
+            const versions = await storage.getVersions(user.id, board.id);
+            for (let i = 0; i < Math.min(versions.length, VERSIONS_PER_BOARD); i++) {
+                const state = await storage.getVersionState(user.id, board.id, i);
+                collectRefs(state, map, Date.parse(versions[i].savedAt), name);
+            }
+        }
+    }
+
+    imageIndexCache = { at: Date.now(), map };
+    return map;
+}
+
 // GET /api/admin/images — every stored image blob, newest first.
 // Blobs survive a board being overwritten, so this is also the recovery path
 // for images whose board state is gone.
@@ -1506,6 +1553,17 @@ app.get('/api/admin/images', isAdmin, async (req, res) => {
         const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
         const all = await storage.listImages();
         const totalBytes = all.reduce((sum, img) => sum + (img.bytes || 0), 0);
+
+        const index = await getImageIndex();
+        for (const img of all) {
+            const hit = index.get(img.id);
+            img.board = hit ? hit.boardName : null;
+            // the blob's own timestamp when there is one, else when it first
+            // showed up in a board
+            img.date = img.mtime || hit?.ts || null;
+        }
+        all.sort((a, b) => (b.date || 0) - (a.date || 0));
+
         res.json({
             total: all.length,
             totalBytes,

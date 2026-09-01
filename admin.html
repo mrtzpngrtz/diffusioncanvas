@@ -248,6 +248,37 @@
             opacity: 1;
         }
 
+        .image-day-header {
+            grid-column: 1 / -1;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 0 6px;
+        }
+
+        .image-cell-board {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 5px 7px;
+            background: linear-gradient(rgba(0,0,0,0.85), transparent);
+            font-size: 10px;
+            color: rgba(255,255,255,0.85);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .image-cell:hover .image-cell-board {
+            opacity: 1;
+        }
+
         .image-gallery-bar {
             display: flex;
             align-items: center;
@@ -673,6 +704,7 @@
         // overwritten, so this doubles as the recovery view for lost boards.
         const IMAGE_PAGE = 200;
         let imagesShown = 0;
+        let lastDayLabel = null;
 
         async function loadImages(append = false) {
             const loadingEl = document.getElementById('imagesLoading');
@@ -682,6 +714,7 @@
 
             if (!append) {
                 imagesShown = 0;
+                lastDayLabel = null;
                 gridEl.innerHTML = '';
             }
             loadingEl.style.display = 'flex';
@@ -691,7 +724,17 @@
                 if (!res.ok) throw new Error('Failed');
                 const data = await res.json();
 
-                data.images.forEach(img => gridEl.appendChild(imageCell(img)));
+                data.images.forEach(img => {
+                    const day = dayLabel(img.date);
+                    if (day !== lastDayLabel) {
+                        lastDayLabel = day;
+                        const header = document.createElement('div');
+                        header.className = 'image-day-header';
+                        header.textContent = day;
+                        gridEl.appendChild(header);
+                    }
+                    gridEl.appendChild(imageCell(img));
+                });
                 imagesShown += data.images.length;
 
                 summaryEl.textContent = `${imagesShown} of ${data.total} images · ${fmtBytes(data.totalBytes)} total`;
@@ -703,6 +746,17 @@
             } finally {
                 loadingEl.style.display = 'none';
             }
+        }
+
+        function dayLabel(ts) {
+            if (!ts) return 'Unknown date';
+            const d = new Date(ts);
+            const today = new Date();
+            const yest = new Date(today.getTime() - 86400000);
+            const sameDay = (a, b) => a.toDateString() === b.toDateString();
+            if (sameDay(d, today)) return 'Today';
+            if (sameDay(d, yest)) return 'Yesterday';
+            return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
         }
 
         function imageCell(img) {
@@ -719,10 +773,20 @@
             el.alt = img.id;
             a.appendChild(el);
 
+            if (img.board) {
+                const board = document.createElement('div');
+                board.className = 'image-cell-board';
+                board.textContent = img.board;
+                a.appendChild(board);
+            }
+
             const meta = document.createElement('div');
             meta.className = 'image-cell-meta';
-            const when = img.mtime ? new Date(img.mtime).toLocaleString() : '';
-            meta.innerHTML = `<span>${fmtBytes(img.bytes || 0)}</span><span>${when}</span>`;
+            const size = document.createElement('span');
+            size.textContent = fmtBytes(img.bytes || 0);
+            const when = document.createElement('span');
+            when.textContent = img.date ? new Date(img.date).toLocaleTimeString() : '';
+            meta.append(size, when);
             a.appendChild(meta);
 
             return a;
