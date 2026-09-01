@@ -134,6 +134,52 @@
             font-family: var(--font-mono);
         }
 
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .tab:hover {
+            color: var(--text-color);
+        }
+
+        .tab.active {
+            color: var(--text-color);
+            border-bottom-color: var(--accent-color);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .section-hint {
+            flex: 1;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
         /* Sections */
         .section {
             background: var(--card-bg);
@@ -146,7 +192,8 @@
         .section-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: baseline;
+            gap: 16px;
             margin-bottom: 24px;
         }
 
@@ -528,8 +575,8 @@
                 <a href="/" class="btn">
                     <span>← Back to Canvas</span>
                 </a>
-                <button onclick="refreshData()" class="btn">
-                    <span>↻ Refresh Data</span>
+                <button onclick="refreshActiveTab()" class="btn">
+                    <span>&#8635; Refresh</span>
                 </button>
             </div>
         </div>
@@ -553,89 +600,112 @@
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-header">
-                <h2>Model Credit Costs</h2>
-                <button type="submit" form="settingsForm" class="btn btn-primary btn-sm">Save Changes</button>
-            </div>
-            <form id="settingsForm">
-                <div id="modelCostsContainer" class="model-costs-grid">
-                    <div class="loading-overlay" style="display: flex;">Loading settings...</div>
+        <nav class="tabs" id="tabNav">
+            <button class="tab" data-tab="users">Users</button>
+            <button class="tab" data-tab="settings">Settings</button>
+            <button class="tab" data-tab="storage">Storage</button>
+            <button class="tab" data-tab="images">Images</button>
+        </nav>
+
+        <!-- ── USERS ─────────────────────────────────────────────────────── -->
+        <div class="tab-panel" id="panel-users">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Registered Users</h2>
+                    <button onclick="loadUsers()" class="btn btn-sm">&#8635; Refresh</button>
                 </div>
-            </form>
+
+                <div id="loadingUsers" class="loading-overlay">Loading users...</div>
+
+                <div class="table-container">
+                    <table class="users-table" id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Provider</th>
+                                <th>Role</th>
+                                <th>Credits</th>
+                                <th>Used</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="noUsers" class="loading-overlay">No users found</div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2>Add New User</h2>
+                    <span class="section-hint">Local accounts only &mdash; Google users appear on first sign-in</span>
+                </div>
+                <form id="addUserForm" class="form-grid">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" class="input-field" placeholder="user@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" class="input-field" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="isAdmin">
+                        <label for="isAdmin" style="margin-bottom: 0; cursor: pointer;">Grant Admin Privileges</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </form>
+            </div>
         </div>
 
-        <div class="section">
-            <div class="section-header">
-                <h2>Add New User</h2>
+        <!-- ── SETTINGS ──────────────────────────────────────────────────── -->
+        <div class="tab-panel" id="panel-settings">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Model Credit Costs</h2>
+                    <span class="section-hint">Credits charged per generation, by model</span>
+                    <button type="submit" form="settingsForm" class="btn btn-primary btn-sm">Save Changes</button>
+                </div>
+                <form id="settingsForm">
+                    <div id="modelCostsContainer" class="model-costs-grid">
+                        <div class="loading-overlay" style="display: flex;">Loading settings...</div>
+                    </div>
+                </form>
             </div>
-            <form id="addUserForm" class="form-grid">
-                <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" class="input-field" placeholder="user@example.com" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" class="input-field" placeholder="••••••••" required>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="isAdmin">
-                    <label for="isAdmin" style="margin-bottom: 0; cursor: pointer;">Grant Admin Privileges</label>
-                </div>
-                <button type="submit" class="btn btn-primary">Create User</button>
-            </form>
         </div>
 
-        <div class="section">
-            <div class="section-header">
-                <h2>Registered Users</h2>
+        <!-- ── STORAGE ───────────────────────────────────────────────────── -->
+        <div class="tab-panel" id="panel-storage">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Board Storage</h2>
+                    <span class="section-hint">Space used per user, largest boards first</span>
+                    <button onclick="loadStorage()" class="btn btn-sm">&#8635; Refresh</button>
+                </div>
+                <div id="storageLoading" class="loading-overlay" style="display:flex;">Loading...</div>
+                <div id="storageList"></div>
             </div>
-            
-            <div id="loadingUsers" class="loading-overlay">Loading users...</div>
-            
-            <div class="table-container">
-                <table class="users-table" id="usersTable">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Email</th>
-                            <th>Provider</th>
-                            <th>Role</th>
-                            <th>Credits</th>
-                            <th>Used</th>
-                            <th>Joined</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="usersTableBody">
-                        <!-- Populated by JS -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="noUsers" class="loading-overlay">No users found</div>
-        </div>
-    </div>
-
-        <div class="section">
-            <div class="section-header">
-                <h2>Board Storage</h2>
-                <button onclick="loadStorage()" class="btn btn-sm">↻ Refresh</button>
-            </div>
-            <div id="storageLoading" class="loading-overlay" style="display:flex;">Loading...</div>
-            <div id="storageList"></div>
         </div>
 
-        <div class="section">
-            <div class="section-header">
-                <h2>Image Blobs</h2>
-                <button onclick="loadImages()" class="btn btn-sm">↻ Refresh</button>
+        <!-- ── IMAGES ────────────────────────────────────────────────────── -->
+        <div class="tab-panel" id="panel-images">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Image Blobs</h2>
+                    <span class="section-hint">Every stored image, newest first &mdash; blobs outlive the boards that used them</span>
+                    <button onclick="loadImages()" class="btn btn-sm">&#8635; Refresh</button>
+                </div>
+                <div class="image-gallery-bar">
+                    <span id="imagesSummary">&mdash;</span>
+                    <button id="imagesMoreBtn" class="btn btn-sm" style="display:none;" onclick="loadImages(true)">Load more</button>
+                </div>
+                <div id="imagesLoading" class="loading-overlay" style="display:flex;">Loading...</div>
+                <div id="imageGrid" class="image-grid"></div>
             </div>
-            <div class="image-gallery-bar">
-                <span id="imagesSummary">—</span>
-                <button id="imagesMoreBtn" class="btn btn-sm" style="display:none;" onclick="loadImages(true)">Load more</button>
-            </div>
-            <div id="imagesLoading" class="loading-overlay" style="display:flex;">Loading...</div>
-            <div id="imageGrid" class="image-grid"></div>
         </div>
     </div>
 
@@ -693,11 +763,53 @@
             }
         }
 
+        // ── Tabs ────────────────────────────────────────────────────────────
+        // Each tab loads its data the first time it is opened; the header button
+        // reloads whatever is currently on screen.
+        const TABS = {
+            users:    { load: loadUsers,    loaded: false },
+            settings: { load: loadSettings, loaded: false },
+            storage:  { load: loadStorage,  loaded: false },
+            images:   { load: loadImages,   loaded: false }
+        };
+        let activeTab = 'users';
+
+        function showTab(name, { force = false } = {}) {
+            if (!TABS[name]) name = 'users';
+            activeTab = name;
+
+            document.querySelectorAll('.tab').forEach(btn =>
+                btn.classList.toggle('active', btn.dataset.tab === name));
+            document.querySelectorAll('.tab-panel').forEach(panel =>
+                panel.classList.toggle('active', panel.id === `panel-${name}`));
+
+            if (location.hash.slice(1) !== name) history.replaceState(null, '', `#${name}`);
+
+            if (force || !TABS[name].loaded) {
+                TABS[name].loaded = true;
+                TABS[name].load();
+            }
+        }
+
+        function setupTabs() {
+            document.getElementById('tabNav').addEventListener('click', (e) => {
+                const btn = e.target.closest('.tab');
+                if (btn) showTab(btn.dataset.tab);
+            });
+            window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
+            showTab(location.hash.slice(1) || 'users');
+        }
+
+        // The user stats come from the users list and the storage total, so both
+        // are needed for the header row no matter which tab is open.
         function refreshData() {
-            loadUsers();
-            loadSettings();
-            loadStorage();
-            loadImages();
+            setupTabs();
+            if (activeTab !== 'users') { TABS.users.loaded = true; loadUsers(); }
+            if (activeTab !== 'storage') { TABS.storage.loaded = true; loadStorage(); }
+        }
+
+        function refreshActiveTab() {
+            showTab(activeTab, { force: true });
         }
 
         // Image blobs — content-addressed, never deleted when a board is
