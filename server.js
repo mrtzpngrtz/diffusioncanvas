@@ -1693,10 +1693,26 @@ app.get('/api/admin/images/archive', isAdmin, async (req, res) => {
         const slice = all.slice(offset, offset + limit);
 
         const bytes = slice.reduce((sum, img) => sum + (img.bytes || 0), 0);
-        if (bytes > ARCHIVE_MAX_BYTES) {
+        const tooLarge = bytes > ARCHIVE_MAX_BYTES || slice.length > ARCHIVE_MAX_FILES;
+
+        // ?probe=1 — what this request would produce, without producing it. The
+        // admin page asks first so a refusal arrives as a message, not as a
+        // failed download of a JSON file.
+        if (req.query.probe) {
+            return res.json({
+                total: all.length,
+                count: slice.length,
+                bytes,
+                tooLarge,
+                maxBytes: ARCHIVE_MAX_BYTES,
+                maxFiles: ARCHIVE_MAX_FILES
+            });
+        }
+
+        if (tooLarge) {
             return res.status(413).json({
-                error: `That is ${(bytes / 1073741824).toFixed(1)} GB — too much for one archive. `
-                     + 'Pull it in parts with ?offset= and ?limit=.',
+                error: `That is ${(bytes / 1073741824).toFixed(1)} GB across ${slice.length} files — `
+                     + 'too much for one archive. Pull it in parts with ?offset= and ?limit=.',
                 total: all.length,
                 bytes
             });
@@ -1706,11 +1722,14 @@ app.get('/api/admin/images/archive', isAdmin, async (req, res) => {
         res.setHeader('Content-Type', 'application/zip');
         res.setHeader('Content-Disposition', `attachment; filename="diffusion-canvas-images${part}.zip"`);
 
-        // one blob at a time, waiting for drain — never the whole store at once
+        // one blob at a time, waiting for drain — never the whole store at once.
+        // Both listeners come off again, or a long archive leaks one per write.
         const write = (chunk) => new Promise((resolve, reject) => {
             if (res.write(chunk)) return resolve();
-            res.once('drain', resolve);
-            res.once('error', reject);
+            const onDrain = () => { res.off('error', onError); resolve(); };
+            const onError = (err) => { res.off('drain', onDrain); reject(err); };
+            res.once('drain', onDrain);
+            res.once('error', onError);
         });
 
         const entries = [];

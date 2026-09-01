@@ -326,6 +326,13 @@
             opacity: 1;
         }
 
+        #archiveParts {
+            display: inline-flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+
         .image-gallery-bar {
             display: flex;
             align-items: center;
@@ -703,7 +710,8 @@
                     <span id="imagesSummary">&mdash;</span>
                 <span class="section-hint">Dates are when a blob was first stored or first seen in a board</span>
                     <button id="imagesMoreBtn" class="btn btn-sm" style="display:none;" onclick="loadImages(true)">Load more</button>
-                <a class="btn btn-sm" href="/api/admin/images/archive" download>&#8595; Download all (ZIP)</a>
+                <button class="btn btn-sm" onclick="downloadArchive()">&#8595; Download all (ZIP)</button>
+                <span id="archiveParts"></span>
                 </div>
                 <div id="imagesLoading" class="loading-overlay" style="display:flex;">Loading...</div>
                 <div id="imageGrid" class="image-grid"></div>
@@ -859,6 +867,54 @@
                 showToast('Failed to load images', 'error');
             } finally {
                 loadingEl.style.display = 'none';
+            }
+        }
+
+        // Ask what the archive would be before starting it: a refusal then shows
+        // up as a message instead of a download that saves the error as JSON.
+        async function downloadArchive(offset = 0, limit = 0) {
+            const partsEl = document.getElementById('archiveParts');
+            partsEl.textContent = 'checking…';
+            const range = `offset=${offset}${limit ? `&limit=${limit}` : ''}`;
+
+            try {
+                const res = await fetch(`/api/admin/images/archive?${range}&probe=1`, { credentials: 'include' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const info = await res.json();
+
+                if (!info.count) {
+                    partsEl.textContent = 'nothing to download';
+                    return;
+                }
+
+                if (info.tooLarge) {
+                    partsEl.textContent = '';
+                    offerArchiveParts(info);
+                    showToast('Too large for one archive — pick a part', 'error');
+                    return;
+                }
+
+                partsEl.textContent = `${info.count} files · ${fmtBytes(info.bytes)} — starting…`;
+                window.location.href = `/api/admin/images/archive?${range}`;
+                setTimeout(() => { partsEl.textContent = ''; }, 8000);
+            } catch (e) {
+                partsEl.textContent = '';
+                showToast(`Archive failed: ${e.message}`, 'error');
+            }
+        }
+
+        // Split the store into chunks small enough for a plain ZIP
+        function offerArchiveParts(info) {
+            const partsEl = document.getElementById('archiveParts');
+            const perPart = Math.max(1, Math.floor(info.count * (info.maxBytes * 0.8) / info.bytes));
+            partsEl.innerHTML = '';
+
+            for (let start = 0; start < info.total; start += perPart) {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-sm';
+                btn.textContent = `${start + 1}–${Math.min(start + perPart, info.total)}`;
+                btn.onclick = () => downloadArchive(start, perPart);
+                partsEl.appendChild(btn);
             }
         }
 
