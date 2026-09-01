@@ -701,6 +701,7 @@
                 </div>
                 <div class="image-gallery-bar">
                     <span id="imagesSummary">&mdash;</span>
+                <span class="section-hint">Dates are when a blob was first stored or first seen in a board</span>
                     <button id="imagesMoreBtn" class="btn btn-sm" style="display:none;" onclick="loadImages(true)">Load more</button>
                 </div>
                 <div id="imagesLoading" class="loading-overlay" style="display:flex;">Loading...</div>
@@ -877,7 +878,10 @@
             a.href = `/api/images/${img.id}`;
             a.target = '_blank';
             a.rel = 'noopener';
-            a.title = img.id;
+            const exact = img.date ? new Date(img.date).toLocaleString() : 'unknown';
+            a.title = `${img.id}
+first seen: ${exact}${img.board ? `
+board: ${img.board}` : ''}`;
 
             const el = document.createElement('img');
             el.loading = 'lazy';

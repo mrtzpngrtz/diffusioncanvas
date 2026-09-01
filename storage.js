@@ -240,10 +240,16 @@ export const storage = {
 
     // ── Image blob storage (keeps board state lean) ───────────────────────────
 
+    // Blob ids are content hashes, so a re-upload carries identical bytes.
+    // Writing it again would only reset the file's mtime — and that mtime is
+    // the one honest record of when the image was made.
     async saveImage(id, dataUrl) {
         if (useRedis()) {
             const r = await getRedis();
+            if (await r.exists(`image:${id}`)) return;
             await r.set(`image:${id}`, dataUrl);
+            // Redis keys carry no timestamp of their own — keep one alongside
+            await r.set(`image_ts:${id}`, String(Date.now()));
             return;
         }
         const dir = path.join(DATA_DIR, 'images');
@@ -252,7 +258,12 @@ export const storage = {
         const base64 = dataUrl.split(',')[1] || '';
         const mime   = (dataUrl.split(';')[0] || 'data:image/png').slice(5);
         const ext    = mime.split('/')[1] || 'png';
-        await fs.writeFile(path.join(dir, `${id}.${ext}`), Buffer.from(base64, 'base64'));
+        const file   = path.join(dir, `${id}.${ext}`);
+        try {
+            await fs.access(file);
+            return; // already stored — leave it, and its mtime, alone
+        } catch {}
+        await fs.writeFile(file, Buffer.from(base64, 'base64'));
         await fs.writeFile(path.join(dir, `${id}.mime`), mime, 'utf-8');
     },
 
@@ -293,6 +304,19 @@ export const storage = {
                 }
                 if (out.length >= limit) break;
             }
+
+            // Timestamps written on first save (missing for blobs stored before that)
+            for (let i = 0; i < out.length; i += 200) {
+                const chunk = out.slice(i, i + 200);
+                try {
+                    const stamps = await r.mGet(chunk.map(img => `image_ts:${img.id}`));
+                    chunk.forEach((img, n) => {
+                        const ts = parseInt(stamps[n], 10);
+                        if (ts) img.mtime = ts;
+                    });
+                } catch {}
+            }
+            out.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
             return out;
         }
 

@@ -1502,7 +1502,7 @@ app.get('/api/admin/storage', isAdmin, async (req, res) => {
 // earliest state it appeared in: that is when the image was made, and which
 // board it belonged to. Cached, because it reads every board state.
 const IMAGE_INDEX_TTL = 5 * 60 * 1000;
-const VERSIONS_PER_BOARD = 10;
+const VERSIONS_PER_BOARD = 20;
 let imageIndexCache = { at: 0, map: null };
 
 function collectRefs(state, into, ts, boardName) {
@@ -1558,9 +1558,12 @@ app.get('/api/admin/images', isAdmin, async (req, res) => {
         for (const img of all) {
             const hit = index.get(img.id);
             img.board = hit ? hit.boardName : null;
-            // the blob's own timestamp when there is one, else when it first
-            // showed up in a board
-            img.date = img.mtime || hit?.ts || null;
+            // Take the earliest evidence there is. A blob's mtime can be younger
+            // than the image (an older store rewrote the file on every re-upload),
+            // and a board's updatedAt only says when it was last saved — whichever
+            // is older is the closer guess at when the image was made.
+            const stamps = [img.mtime, hit?.ts].filter(Boolean);
+            img.date = stamps.length ? Math.min(...stamps) : null;
         }
         all.sort((a, b) => (b.date || 0) - (a.date || 0));
 
