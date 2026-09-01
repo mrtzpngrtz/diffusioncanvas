@@ -1551,21 +1551,8 @@ app.get('/api/admin/images', isAdmin, async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit, 10) || 500, 5000);
         const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
-        const all = await storage.listImages();
+        const all = await describeImages(await storage.listImages());
         const totalBytes = all.reduce((sum, img) => sum + (img.bytes || 0), 0);
-
-        const index = await getImageIndex();
-        for (const img of all) {
-            const hit = index.get(img.id);
-            img.board = hit ? hit.boardName : null;
-            // Take the earliest evidence there is. A blob's mtime can be younger
-            // than the image (an older store rewrote the file on every re-upload),
-            // and a board's updatedAt only says when it was last saved — whichever
-            // is older is the closer guess at when the image was made.
-            const stamps = [img.mtime, hit?.ts].filter(Boolean);
-            img.date = stamps.length ? Math.min(...stamps) : null;
-        }
-        all.sort((a, b) => (b.date || 0) - (a.date || 0));
 
         res.json({
             total: all.length,
@@ -1576,6 +1563,190 @@ app.get('/api/admin/images', isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error listing images:', error);
         res.status(500).json({ error: 'Failed to list images' });
+    }
+});
+
+// ── ZIP writer ──────────────────────────────────────────────────────────────
+// Images are already compressed, so entries are stored, not deflated. That
+// keeps this to a header writer and a CRC — no dependency, and no buffering of
+// the whole archive in memory. Plain ZIP (no zip64), hence the guards below.
+
+let crcTable = null;
+function crc32(buf) {
+    if (!crcTable) {
+        crcTable = new Int32Array(256);
+        for (let n = 0; n < 256; n++) {
+            let c = n;
+            for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            crcTable[n] = c;
+        }
+    }
+    let crc = -1;
+    for (let i = 0; i < buf.length; i++) crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+    return (crc ^ -1) >>> 0;
+}
+
+// ZIP stores DOS date/time: year counted from 1980, seconds in 2s steps
+function dosDateTime(ms) {
+    const d = new Date(ms || Date.now());
+    const year = Math.max(d.getFullYear(), 1980);
+    return {
+        date: ((year - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(),
+        time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)
+    };
+}
+
+function zipLocalHeader(nameBuf, crc, size, dt) {
+    const buf = Buffer.alloc(30 + nameBuf.length);
+    buf.writeUInt32LE(0x04034b50, 0);
+    buf.writeUInt16LE(20, 4);        // version needed
+    buf.writeUInt16LE(0x0800, 6);    // flags: UTF-8 names
+    buf.writeUInt16LE(0, 8);         // method: stored
+    buf.writeUInt16LE(dt.time, 10);
+    buf.writeUInt16LE(dt.date, 12);
+    buf.writeUInt32LE(crc, 14);
+    buf.writeUInt32LE(size, 18);
+    buf.writeUInt32LE(size, 22);
+    buf.writeUInt16LE(nameBuf.length, 26);
+    buf.writeUInt16LE(0, 28);
+    nameBuf.copy(buf, 30);
+    return buf;
+}
+
+function zipCentralEntry(e) {
+    const buf = Buffer.alloc(46 + e.nameBuf.length);
+    buf.writeUInt32LE(0x02014b50, 0);
+    buf.writeUInt16LE(20, 4);        // version made by
+    buf.writeUInt16LE(20, 6);        // version needed
+    buf.writeUInt16LE(0x0800, 8);
+    buf.writeUInt16LE(0, 10);        // method: stored
+    buf.writeUInt16LE(e.dt.time, 12);
+    buf.writeUInt16LE(e.dt.date, 14);
+    buf.writeUInt32LE(e.crc, 16);
+    buf.writeUInt32LE(e.size, 20);
+    buf.writeUInt32LE(e.size, 24);
+    buf.writeUInt16LE(e.nameBuf.length, 28);
+    buf.writeUInt16LE(0, 30);        // extra
+    buf.writeUInt16LE(0, 32);        // comment
+    buf.writeUInt16LE(0, 34);        // disk
+    buf.writeUInt16LE(0, 36);        // internal attrs
+    buf.writeUInt32LE(0, 38);        // external attrs
+    buf.writeUInt32LE(e.offset, 42);
+    e.nameBuf.copy(buf, 46);
+    return buf;
+}
+
+function zipEndRecord(count, size, offset) {
+    const buf = Buffer.alloc(22);
+    buf.writeUInt32LE(0x06054b50, 0);
+    buf.writeUInt16LE(0, 4);
+    buf.writeUInt16LE(0, 6);
+    buf.writeUInt16LE(count, 8);
+    buf.writeUInt16LE(count, 10);
+    buf.writeUInt32LE(size, 12);
+    buf.writeUInt32LE(offset, 16);
+    buf.writeUInt16LE(0, 20);
+    return buf;
+}
+
+// A blob is named by its content hash, which says nothing about what it is —
+// so name the archive entries by date, board and id.
+function archiveName(img, taken) {
+    const stamp = img.date
+        ? new Date(img.date).toISOString().slice(0, 16).replace('T', '_').replace(':', '')
+        : 'undated';
+    const board = (img.board || 'no-board').replace(/[^a-zA-Z0-9 _-]/g, '').trim().slice(0, 40) || 'no-board';
+    const ext = img.ext || 'png';
+    let name = `${stamp}__${board}__${img.id}.${ext}`;
+    let n = 2;
+    while (taken.has(name)) name = `${stamp}__${board}__${img.id}_${n++}.${ext}`;
+    taken.add(name);
+    return name;
+}
+
+// Dates and board names for a blob listing — the enrichment the gallery uses
+async function describeImages(all) {
+    const index = await getImageIndex();
+    for (const img of all) {
+        const hit = index.get(img.id);
+        img.board = hit ? hit.boardName : null;
+        // Earliest evidence there is: a blob mtime can be younger than the
+        // image, and a board updatedAt only says when it was last saved.
+        const stamps = [img.mtime, hit?.ts].filter(Boolean);
+        img.date = stamps.length ? Math.min(...stamps) : null;
+    }
+    all.sort((a, b) => (b.date || 0) - (a.date || 0));
+    return all;
+}
+
+// GET /api/admin/images/archive — every blob as one ZIP.
+// offset/limit pull a large store in parts.
+const ARCHIVE_MAX_BYTES = 3 * 1024 * 1024 * 1024; // plain ZIP: stay clear of 4GB
+const ARCHIVE_MAX_FILES = 60000;                  // and of the 16-bit entry count
+
+app.get('/api/admin/images/archive', isAdmin, async (req, res) => {
+    try {
+        const all = await describeImages(await storage.listImages());
+
+        const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+        const limit = Math.min(parseInt(req.query.limit, 10) || all.length, ARCHIVE_MAX_FILES);
+        const slice = all.slice(offset, offset + limit);
+
+        const bytes = slice.reduce((sum, img) => sum + (img.bytes || 0), 0);
+        if (bytes > ARCHIVE_MAX_BYTES) {
+            return res.status(413).json({
+                error: `That is ${(bytes / 1073741824).toFixed(1)} GB — too much for one archive. `
+                     + 'Pull it in parts with ?offset= and ?limit=.',
+                total: all.length,
+                bytes
+            });
+        }
+
+        const part = (offset || slice.length < all.length) ? `-${offset + 1}-${offset + slice.length}` : '';
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="diffusion-canvas-images${part}.zip"`);
+
+        // one blob at a time, waiting for drain — never the whole store at once
+        const write = (chunk) => new Promise((resolve, reject) => {
+            if (res.write(chunk)) return resolve();
+            res.once('drain', resolve);
+            res.once('error', reject);
+        });
+
+        const entries = [];
+        const taken = new Set();
+        let position = 0;
+
+        for (const img of slice) {
+            const blob = await storage.getImage(img.id);
+            if (!blob) continue;
+            if (!img.ext) img.ext = (blob.mimeType || 'image/png').split('/')[1] || 'png';
+
+            const nameBuf = Buffer.from(archiveName(img, taken), 'utf8');
+            const crc = crc32(blob.buffer);
+            const dt = dosDateTime(img.date);
+            const header = zipLocalHeader(nameBuf, crc, blob.buffer.length, dt);
+
+            await write(header);
+            await write(blob.buffer);
+
+            entries.push({ nameBuf, crc, size: blob.buffer.length, dt, offset: position });
+            position += header.length + blob.buffer.length;
+        }
+
+        const centralStart = position;
+        let centralSize = 0;
+        for (const entry of entries) {
+            const buf = zipCentralEntry(entry);
+            await write(buf);
+            centralSize += buf.length;
+        }
+        await write(zipEndRecord(entries.length, centralSize, centralStart));
+        res.end();
+    } catch (error) {
+        console.error('Error building image archive:', error);
+        if (!res.headersSent) res.status(500).json({ error: 'Failed to build archive' });
+        else res.end();
     }
 });
 
