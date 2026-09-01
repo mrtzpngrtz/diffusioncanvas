@@ -31,6 +31,28 @@ async function writeJSON(file, data) {
 function stateFile(boardId)    { return path.join(DATA_DIR, `state_${boardId}.json`); }
 function versionsFile(boardId) { return path.join(DATA_DIR, `versions_${boardId}.json`); }
 
+// ── Per-user write lock ───────────────────────────────────────────────────────
+// The board list is stored as one blob per user, so every write is a
+// read-modify-write of the whole list. Two overlapping requests (two tabs both
+// autosaving) would otherwise drop one another's changes: serialise them.
+
+const userLocks = new Map();
+
+async function withUserLock(userId, fn) {
+    const previous = userLocks.get(userId) || Promise.resolve();
+    let release;
+    const current = previous.then(() => new Promise(r => { release = r; }));
+    userLocks.set(userId, current);
+    await previous.catch(() => {});
+    try {
+        return await fn();
+    } finally {
+        release();
+        // let the map shrink again once this user goes quiet
+        if (userLocks.get(userId) === current) userLocks.delete(userId);
+    }
+}
+
 // ── Redis client (lazy) ───────────────────────────────────────────────────────
 
 let redis = null;
@@ -116,6 +138,11 @@ export const storage = {
         }
         await writeJSON(SETTINGS_FILE, settings);
     },
+
+    // Run a read-modify-write of one user's boards without another request
+    // interleaving. Everything that reads boards and then writes them back
+    // belongs inside this.
+    withUserLock,
 
     // Returns board metadata only (no state) — fast, small file
     async getBoards(userId) {

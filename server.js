@@ -1306,7 +1306,7 @@ app.get('/api/boards', isAuthenticated, async (req, res) => {
 // POST /api/boards — create or update a board
 app.post('/api/boards', isAuthenticated, async (req, res) => {
     try {
-        const { name, state, preview } = req.body;
+        const { name, state, preview, baseUpdatedAt, force } = req.body;
         let { id } = req.body;
 
         if (!name || !name.trim()) {
@@ -1320,24 +1320,47 @@ app.post('/api/boards', isAuthenticated, async (req, res) => {
             id = `${req.user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         }
 
-        const boards = await storage.getBoards(req.user.id);
-        const existing = boards.findIndex(b => b.id === id);
-        const now = new Date().toISOString();
-        const createdAt = existing >= 0 ? boards[existing].createdAt : now;
-        const board = { id, name: name.trim(), createdAt, updatedAt: now, preview: preview || null, state };
+        const result = await storage.withUserLock(req.user.id, async () => {
+            const boards = await storage.getBoards(req.user.id);
+            const existing = boards.findIndex(b => b.id === id);
 
-        if (existing >= 0) {
-            storage.getBoardState(id).then(oldState => {
-                if (oldState) storage.pushVersion(req.user.id, id, oldState)
-                    .catch(e => console.warn('pushVersion failed (non-fatal):', e.message));
-            }).catch(() => {});
-            boards[existing] = board;
-        } else {
-            boards.push(board);
-        }
+            // Optimistic locking: the client sends the updatedAt it last saw. A
+            // newer stamp on disk means someone else (another tab) has saved in
+            // the meantime — refuse rather than overwrite their work.
+            if (existing >= 0 && baseUpdatedAt && !force && boards[existing].updatedAt !== baseUpdatedAt) {
+                return {
+                    status: 409,
+                    body: {
+                        error: 'This board was saved somewhere else in the meantime.',
+                        conflict: true,
+                        updatedAt: boards[existing].updatedAt,
+                        name: boards[existing].name
+                    }
+                };
+            }
 
-        await storage.setBoards(req.user.id, boards);
-        res.json({ id: board.id, name: board.name, createdAt: board.createdAt, updatedAt: board.updatedAt });
+            const now = new Date().toISOString();
+            const createdAt = existing >= 0 ? boards[existing].createdAt : now;
+            const board = { id, name: name.trim(), createdAt, updatedAt: now, preview: preview || null, state };
+
+            if (existing >= 0) {
+                storage.getBoardState(id).then(oldState => {
+                    if (oldState) storage.pushVersion(req.user.id, id, oldState)
+                        .catch(e => console.warn('pushVersion failed (non-fatal):', e.message));
+                }).catch(() => {});
+                boards[existing] = board;
+            } else {
+                boards.push(board);
+            }
+
+            await storage.setBoards(req.user.id, boards);
+            return {
+                status: 200,
+                body: { id: board.id, name: board.name, createdAt: board.createdAt, updatedAt: board.updatedAt }
+            };
+        });
+
+        res.status(result.status).json(result.body);
     } catch (error) {
         console.error('Error saving board:', error);
         res.status(500).json({ error: 'Failed to save board' });
@@ -1403,13 +1426,17 @@ app.patch('/api/boards/:id', isAuthenticated, async (req, res) => {
     try {
         const { name } = req.body;
         if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
-        const boards = await storage.getBoards(req.user.id);
-        const idx = boards.findIndex(b => b.id === req.params.id);
-        if (idx === -1) return res.status(404).json({ error: 'Board not found' });
-        boards[idx].name = name.trim();
-        boards[idx].updatedAt = new Date().toISOString();
-        await storage.setBoards(req.user.id, boards);
-        res.json({ id: boards[idx].id, name: boards[idx].name, updatedAt: boards[idx].updatedAt });
+        const renamed = await storage.withUserLock(req.user.id, async () => {
+            const boards = await storage.getBoards(req.user.id);
+            const idx = boards.findIndex(b => b.id === req.params.id);
+            if (idx === -1) return null;
+            boards[idx].name = name.trim();
+            boards[idx].updatedAt = new Date().toISOString();
+            await storage.setBoards(req.user.id, boards);
+            return { id: boards[idx].id, name: boards[idx].name, updatedAt: boards[idx].updatedAt };
+        });
+        if (!renamed) return res.status(404).json({ error: 'Board not found' });
+        res.json(renamed);
     } catch (error) {
         res.status(500).json({ error: 'Failed to rename board' });
     }
@@ -1418,9 +1445,11 @@ app.patch('/api/boards/:id', isAuthenticated, async (req, res) => {
 // DELETE /api/boards/:id — delete a board
 app.delete('/api/boards/:id', isAuthenticated, async (req, res) => {
     try {
-        const boards = await storage.getBoards(req.user.id);
-        const filtered = boards.filter(b => b.id !== req.params.id);
-        await storage.setBoards(req.user.id, filtered);
+        await storage.withUserLock(req.user.id, async () => {
+            const boards = await storage.getBoards(req.user.id);
+            const filtered = boards.filter(b => b.id !== req.params.id);
+            await storage.setBoards(req.user.id, filtered);
+        });
         res.json({ message: 'Board deleted' });
     } catch (error) {
         console.error('Error deleting board:', error);

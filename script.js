@@ -45,6 +45,10 @@ class App {
 
         this.currentBoardId = null;
         this.currentBoardName = null;
+        // updatedAt of the server version this tab is working from, and the flag
+        // that parks autosave once another tab has saved over it
+        this.currentBoardUpdatedAt = null;
+        this.saveConflict = false;
 
         // History stack — in-memory snapshots, max 30 entries
         this.historyStack = [];      // [{state, timestamp, label, nodeCount}]
@@ -390,7 +394,7 @@ class App {
     startAutoSave() {
         // Server autosave every 30s
         setInterval(() => {
-            if (this.currentBoardId) {
+            if (this.currentBoardId && !this.saveConflict) {
                 this._autoSaveToServer();
             }
         }, 30000);
@@ -410,7 +414,13 @@ class App {
 
             const state = this.serializeCanvas();
             const preview = this._generatePreview();
-            const body = JSON.stringify({ id: this.currentBoardId, name: this.currentBoardName, state, preview });
+            const body = JSON.stringify({
+                id: this.currentBoardId,
+                name: this.currentBoardName,
+                state,
+                preview,
+                baseUpdatedAt: this.currentBoardUpdatedAt
+            });
             const sizeMB = (new TextEncoder().encode(body).length / 1048576).toFixed(1);
             show('saving', `● saving… ${sizeMB} MB`);
             const res = await fetch('/api/boards', {
@@ -419,7 +429,20 @@ class App {
                 credentials: 'include',
                 body
             });
+            if (res.status === 409) {
+                // Another tab saved this board — park autosave rather than
+                // overwrite whatever they did.
+                this.saveConflict = true;
+                show('error', '✕ changed elsewhere');
+                this.uiManager.updateStatus(
+                    'This board was saved in another tab — autosave stopped. Use "Save as new" to keep this version.',
+                    '#e74c3c'
+                );
+                return;
+            }
             if (!res.ok) throw new Error(res.statusText);
+            const savedMeta = await res.json().catch(() => null);
+            if (savedMeta?.updatedAt) this.currentBoardUpdatedAt = savedMeta.updatedAt;
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
             const mm = String(now.getMinutes()).padStart(2, '0');
@@ -450,6 +473,8 @@ class App {
                         if (meta) {
                             this.currentBoardId = sessionBoardId;
                             this.currentBoardName = meta.name;
+                            this.currentBoardUpdatedAt = meta.updatedAt || null;
+                            this.saveConflict = false;
                             this._updateBoardUI();
                         }
                     }
@@ -946,13 +971,17 @@ Object.assign(App.prototype, {
         await this._saveBoardToServer(name.trim(), null);
     },
 
-    async _saveBoardToServer(name, id) {
+    async _saveBoardToServer(name, id, force = false) {
         this.uiManager.updateStatus('Saving board...');
         try {
             const state = this.serializeCanvas();
             const preview = this._generatePreview();
             const body = { name, state, preview };
-            if (id) body.id = id;
+            if (id) {
+                body.id = id;
+                body.baseUpdatedAt = this.currentBoardUpdatedAt;
+                if (force) body.force = true;
+            }
 
             const res = await fetch('/api/boards', {
                 method: 'POST',
@@ -960,6 +989,18 @@ Object.assign(App.prototype, {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+
+            if (res.status === 409) {
+                const info = await res.json().catch(() => ({}));
+                const when = info.updatedAt ? new Date(info.updatedAt).toLocaleTimeString() : 'just now';
+                const overwrite = await this._confirm(
+                    `"${name}" was saved somewhere else at ${when} — probably another tab.\n\n` +
+                    'OK overwrites that version with this canvas.\n' +
+                    'Cancel keeps it and saves this canvas as a new board.'
+                );
+                if (overwrite) return this._saveBoardToServer(name, id, true);
+                return this._saveBoardToServer(`${name} (${when})`, null);
+            }
 
             if (!res.ok) {
                 let errMsg = `HTTP ${res.status}`;
@@ -970,6 +1011,8 @@ Object.assign(App.prototype, {
             const saved = await res.json();
             this.currentBoardId = saved.id;
             this.currentBoardName = saved.name;
+            this.currentBoardUpdatedAt = saved.updatedAt || null;
+            this.saveConflict = false;
             this._updateBoardUI();
             this._pushHistory(`Saved: ${saved.name}`);
             this.uiManager.updateStatus(`"${saved.name}" saved`, '#27ae60');
@@ -1014,6 +1057,8 @@ Object.assign(App.prototype, {
 
             this.currentBoardId = boardId;
             this.currentBoardName = meta ? meta.name : 'Board';
+            this.currentBoardUpdatedAt = meta ? meta.updatedAt : null;
+            this.saveConflict = false;
             this._updateBoardUI();
             this.uiManager.updateStatus(`"${this.currentBoardName}" loaded`, '#27ae60');
         } catch (err) {
