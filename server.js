@@ -1497,6 +1497,27 @@ app.get('/api/admin/storage', isAdmin, async (req, res) => {
     }
 });
 
+// GET /api/admin/images — every stored image blob, newest first.
+// Blobs survive a board being overwritten, so this is also the recovery path
+// for images whose board state is gone.
+app.get('/api/admin/images', isAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit, 10) || 500, 5000);
+        const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+        const all = await storage.listImages();
+        const totalBytes = all.reduce((sum, img) => sum + (img.bytes || 0), 0);
+        res.json({
+            total: all.length,
+            totalBytes,
+            offset,
+            images: all.slice(offset, offset + limit)
+        });
+    } catch (error) {
+        console.error('Error listing images:', error);
+        res.status(500).json({ error: 'Failed to list images' });
+    }
+});
+
 // Update user credits (admin only)
 app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
     try {

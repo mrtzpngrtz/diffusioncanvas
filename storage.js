@@ -11,7 +11,7 @@ const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const BOARDS_FILE   = path.join(DATA_DIR, 'boards.json');  // metadata only — no state
 
-const MAX_VERSIONS = 10;
+const MAX_VERSIONS = 40;
 
 // ── File helpers ─────────────────────────────────────────────────────────────
 
@@ -26,6 +26,14 @@ async function readJSON(file, fallback) {
 
 async function writeJSON(file, data) {
     await fs.writeFile(file, JSON.stringify(data, null, 2));
+}
+
+// An autosave every 30s would otherwise rotate real history out of the ring
+// within minutes, even while nothing on the canvas changes.
+function sameSnapshot(entry, snapshot) {
+    if (!entry) return false;
+    try { return JSON.stringify(entry.state) === JSON.stringify(snapshot); }
+    catch { return false; }
 }
 
 function stateFile(boardId)    { return path.join(DATA_DIR, `state_${boardId}.json`); }
@@ -207,12 +215,14 @@ export const storage = {
             const r = await getRedis();
             const val = await r.get(`versions:${userId}:${boardId}`);
             const list = val ? JSON.parse(val) : [];
+            if (sameSnapshot(list[0], snapshot)) return;
             list.unshift({ savedAt: new Date().toISOString(), state: snapshot });
             await r.set(`versions:${userId}:${boardId}`, JSON.stringify(list.slice(0, MAX_VERSIONS)));
             return;
         }
         const file = versionsFile(boardId);
         const list = await readJSON(file, []);
+        if (sameSnapshot(list[0], snapshot)) return;
         list.unshift({ savedAt: new Date().toISOString(), state: snapshot });
         await writeJSON(file, list.slice(0, MAX_VERSIONS));
     },
@@ -264,6 +274,50 @@ export const storage = {
             const buffer = await fs.readFile(path.join(dir, imgFile));
             return { buffer, mimeType: mime };
         } catch { return null; }
+    },
+
+    // Every stored image blob, newest first. Blobs are content-addressed and not
+    // owned by a user, so this is admin-only territory.
+    async listImages(limit = 5000) {
+        if (useRedis()) {
+            const r = await getRedis();
+            const out = [];
+            // node-redis v5 yields a batch of keys per step, v4 a single key
+            for await (const step of r.scanIterator({ MATCH: 'image:*', COUNT: 200 })) {
+                for (const key of Array.isArray(step) ? step : [step]) {
+                    const name = String(key);
+                    // data-URL length, so ~4/3 of the real image bytes
+                    let bytes = 0;
+                    try { bytes = await r.strLen(name); } catch {}
+                    out.push({ id: name.slice('image:'.length), bytes, mtime: null, ext: null });
+                }
+                if (out.length >= limit) break;
+            }
+            return out;
+        }
+
+        const dir = path.join(DATA_DIR, 'images');
+        let files;
+        try { files = await fs.readdir(dir); }
+        catch { return []; }
+
+        const out = [];
+        for (const file of files) {
+            if (file.endsWith('.mime')) continue;
+            const dot = file.lastIndexOf('.');
+            if (dot < 0) continue;
+            try {
+                const stat = await fs.stat(path.join(dir, file));
+                out.push({
+                    id: file.slice(0, dot),
+                    ext: file.slice(dot + 1),
+                    bytes: stat.size,
+                    mtime: stat.mtimeMs
+                });
+            } catch {}
+        }
+        out.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+        return out.slice(0, limit);
     },
 
     async init() {
