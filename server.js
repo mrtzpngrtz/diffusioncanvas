@@ -1113,8 +1113,15 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
             // Valid aspect ratios for Gemini image models
             const GEMINI_ASPECT_RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'];
+            // 'original' with no source size would land on the 1:1 fallback and
+            // squash an edit into a square. When there is an input image, say
+            // nothing instead and let the model follow it.
+            const keepInputRatio = userAspectRatio === 'original'
+                && !(sourceWidth > 0 && sourceHeight > 0)
+                && images && images.length > 0;
             const geminiAspectRatio = resolveAspectRatio(userAspectRatio, sourceWidth, sourceHeight, GEMINI_ASPECT_RATIOS);
-            console.log('Requested aspect ratio:', userAspectRatio, '→ using:', geminiAspectRatio);
+            console.log('Requested aspect ratio:', userAspectRatio, '→ using:',
+                keepInputRatio ? 'input image ratio (no source size sent)' : geminiAspectRatio);
 
             // Build the contents array
             let contents = [];
@@ -1134,9 +1141,9 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
             // Gemini 3 models support imageSize; Gemini 2.5 only supports aspectRatio
             const isGemini3 = selectedModel.startsWith('gemini-3');
-            const geminiImageConfig = isGemini3
-                ? { aspectRatio: geminiAspectRatio, imageSize: imageSizeParam }
-                : { aspectRatio: geminiAspectRatio };
+            const geminiImageConfig = {};
+            if (!keepInputRatio) geminiImageConfig.aspectRatio = geminiAspectRatio;
+            if (isGemini3) geminiImageConfig.imageSize = imageSizeParam;
 
             // Generate using Gemini model
             console.log(`Calling Gemini ${selectedModel} with ${contents.length - 1} image(s), aspectRatio=${geminiAspectRatio}, imageSize=${imageSizeParam}`);

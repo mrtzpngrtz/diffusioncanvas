@@ -647,6 +647,10 @@ class App {
                             img.src = src;
                             img.onload = () => {
                                 tempNode.data.image = img;
+                                // "keep source ratio" reads these — without them a
+                                // restored board generates at the 1:1 fallback
+                                tempNode.data.originalWidth = img.naturalWidth;
+                                tempNode.data.originalHeight = img.naturalHeight;
                                 const content = tempNode.element.querySelector('.node-content');
                                 content.innerHTML = '';
                                 const wrapper = document.createElement('div');

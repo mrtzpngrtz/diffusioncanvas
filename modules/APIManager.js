@@ -73,12 +73,24 @@ export class APIManager {
         if (node.type === 'outpaint' && node.data.originalWidth > 0) {
             return { sourceWidth: node.data.originalWidth, sourceHeight: node.data.originalHeight };
         }
-        const source = (node.data.connectedImages || [])
-            .find(n => n.data.originalWidth > 0 && n.data.originalHeight > 0);
-        return {
-            sourceWidth: source ? source.data.originalWidth : null,
-            sourceHeight: source ? source.data.originalHeight : null
+        // Fall back to the loaded <img> — not every path records the dimensions
+        // on the node, and a missing size silently costs the source ratio.
+        const sizeOf = (n) => {
+            if (n.data.originalWidth > 0 && n.data.originalHeight > 0) {
+                return { sourceWidth: n.data.originalWidth, sourceHeight: n.data.originalHeight };
+            }
+            const img = n.data.image;
+            if (img?.naturalWidth > 0) {
+                return { sourceWidth: img.naturalWidth, sourceHeight: img.naturalHeight };
+            }
+            return null;
         };
+
+        for (const n of node.data.connectedImages || []) {
+            const size = sizeOf(n);
+            if (size) return size;
+        }
+        return { sourceWidth: null, sourceHeight: null };
     }
 
     async callAPI(prompt, images = [], model, aspectRatio = '1:1', resolution = 'hd', outputFormat = 'jpg', steps, guidance, sourceWidth = null, sourceHeight = null) {
