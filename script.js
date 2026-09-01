@@ -167,40 +167,37 @@ class App {
                 e.preventDefault();
                 this.nodeManager.copySelectedNodes();
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-                if (inInput) return;
-                // Image paste is handled by the 'paste' event listener below
-                // Only paste nodes if no image data is in the clipboard items
-                const items = (window.event || e)?.clipboardData?.items;
-                const hasImage = items && [...items].some(i => i.type.startsWith('image/'));
-                if (!hasImage) {
-                    e.preventDefault();
-                    this.nodeManager.pasteNodes();
-                }
-            }
+            // Ctrl+V is deliberately not handled here: a keydown carries no
+            // clipboard, and calling preventDefault on it stops the browser from
+            // ever firing the paste event. The paste listener below decides.
+
         });
 
-        // Paste images from clipboard (Ctrl+V with image, or browser paste)
+        // Paste: an image from the system clipboard becomes an image node,
+        // anything else falls back to the nodes copied with Ctrl+C.
         document.addEventListener('paste', (e) => {
             const active = document.activeElement;
             const inInput = active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT');
             if (inInput) return;
 
-            const items = e.clipboardData?.items;
-            if (!items) return;
+            const items = e.clipboardData?.items ? [...e.clipboardData.items] : [];
+            const imageItem = items.find(i => i.kind === 'file' && i.type.startsWith('image/'));
 
-            for (const item of items) {
-                if (item.type.startsWith('image/')) {
+            if (imageItem) {
+                const blob = imageItem.getAsFile();
+                if (blob) {
                     e.preventDefault();
-                    const blob = item.getAsFile();
-                    if (!blob) continue;
-                    const file = new File([blob], 'pasted-image.png', { type: blob.type || 'image/png' });
+                    const ext = (blob.type || 'image/png').split('/')[1] || 'png';
+                    const file = new File([blob], `pasted-image.${ext}`, { type: blob.type || 'image/png' });
                     const center = this.canvasManager.getViewportCenter();
                     const node = this.nodeManager.createNode('image', center.x, center.y);
                     if (node) this.nodeManager.handleImageFile(file, node);
                     return;
                 }
             }
+
+            e.preventDefault();
+            this.nodeManager.pasteNodes();
         });
     }
 
