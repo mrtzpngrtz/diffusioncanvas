@@ -4,6 +4,7 @@ import { CanvasManager } from './modules/CanvasManager.js';
 import { NodeManager } from './modules/NodeManager.js';
 import { ConnectionManager } from './modules/ConnectionManager.js';
 import { APIManager } from './modules/APIManager.js';
+import { AreaManager } from './modules/AreaManager.js';
 
 class App {
     constructor() {
@@ -30,11 +31,16 @@ class App {
         this.connectionManager.canvasManager = this.canvasManager;
         
         this.canvasManager.nodeManager = this.nodeManager;
-        
+
+        this.areaManager = new AreaManager(this.canvasManager, this.nodeManager, this.uiManager);
+        // the marquee handler asks the area manager first whether a drag is its own
+        this.nodeManager.areaManager = this.areaManager;
+
         // Initialize managers
         this.connectionManager.init();
         this.canvasManager.init();
         this.nodeManager.init();
+        this.areaManager.init();
 
         // Canvas-drawn UI (connections, minimap) reads the theme at draw time —
         // repaint both immediately when the theme flips.
@@ -237,6 +243,7 @@ class App {
     }
 
     _clearCanvasImmediate() {
+        this.areaManager?.clear();
         this.nodeManager.clearSelection();
         while (this.nodeManager.nodes.length > 0) {
             this.nodeManager.removeNode(this.nodeManager.nodes[0].id);
@@ -279,6 +286,11 @@ class App {
                     case 'addOutpaint': newNode = this.nodeManager.createNode('outpaint', canvasX, canvasY); break;
                     case 'addChat': newNode = this.nodeManager.createNode('chat', canvasX, canvasY); break;
                     case 'addCompare': newNode = this.nodeManager.createNode('compare', canvasX, canvasY); break;
+                    case 'addArea':
+                        // Draw one right here rather than making the user find alt-drag
+                        this.areaManager.createArea({ x: canvasX, y: canvasY });
+                        this.uiManager.updateStatus('Work area added — drag its header to move it with the nodes inside', '#667eea');
+                        break;
                 }
                 
                 // Handle connection creation from context menu
@@ -506,6 +518,7 @@ class App {
             panX: this.canvasManager.panX,
             panY: this.canvasManager.panY,
             nodeIdCounter: this.nodeManager.nodeIdCounter,
+            areas: this.areaManager.serialize(),
             nodes: this.nodeManager.nodes.map(node => ({
                 id: node.id,
                 type: node.type,
@@ -579,6 +592,7 @@ class App {
         this.canvasManager.panY = state.panY || 0;
         this.nodeManager.nodeIdCounter = state.nodeIdCounter || 0;
         this.canvasManager.applyZoom();
+        this.areaManager.restore(state.areas);
 
         // Recreate nodes
         // First pass: Create nodes

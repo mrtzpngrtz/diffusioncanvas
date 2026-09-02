@@ -419,6 +419,11 @@ export class NodeManager {
             if (e.button !== 0) return;
             if (this.connectionManager.isConnecting) return;
             if (this.canvasManager.isSpaceDown) return;
+            // Alt-drag (or an armed area) draws a work area instead of selecting
+            if (this.areaManager?.handleBackgroundPointerDown(e)) {
+                e.preventDefault();
+                return;
+            }
             e.preventDefault();
             this.isMarquee = true;
             this.marqueeStart = { x: e.clientX, y: e.clientY };

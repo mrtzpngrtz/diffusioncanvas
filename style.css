@@ -461,6 +461,9 @@ body.dark-mode .theme-icon-moon { display: block; }
     box-shadow: var(--shadow-soft);
     padding: 0;
     min-width: 160px; /* matches MIN_NODE_WIDTH in NodeManager */
+    /* Own stacking context: without one, in-node layers (draw canvas z-index 2,
+       ports, toolbars) join the canvas' context and paint over every other node. */
+    isolation: isolate;
     cursor: move;
     user-select: none;
     pointer-events: auto;
@@ -1823,6 +1826,97 @@ body.dark-mode .theme-icon-moon { display: block; }
 .result-node .resize-handle::after {
     color: rgba(255, 255, 255, 0.75);
     filter: drop-shadow(0 0 2px rgba(0,0,0,0.6));
+}
+
+/* ============ WORK AREAS ============ */
+
+/* Sits inside the transformed node canvas, so areas pan and zoom with the graph */
+.work-area-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.work-area {
+    position: absolute;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--text) 4%, transparent);
+    /* The body stays click-through: a marquee drag or a pan across an area
+       must reach the canvas, not the rectangle lying over it. */
+    pointer-events: none;
+}
+
+.work-area.dragging {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.work-area-header {
+    position: absolute;
+    left: 0;
+    top: -26px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    cursor: move;
+    pointer-events: auto;
+}
+
+.work-area-title {
+    color: var(--text);
+    outline: none;
+    white-space: nowrap;
+}
+
+.work-area-title[contenteditable="true"] {
+    cursor: text;
+    text-decoration: underline dotted;
+}
+
+.work-area-count {
+    opacity: 0.6;
+}
+
+.work-area-close {
+    padding: 0 2px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.work-area-close:hover {
+    color: var(--text);
+}
+
+.work-area-resize {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    width: 16px;
+    height: 16px;
+    border-right: 2px solid var(--border);
+    border-bottom: 2px solid var(--border);
+    border-radius: 0 0 8px 0;
+    cursor: nwse-resize;
+    pointer-events: auto;
+}
+
+.work-area-resize:hover {
+    border-color: var(--accent);
 }
 
 /* ============ CONTEXT MENU ============ */
