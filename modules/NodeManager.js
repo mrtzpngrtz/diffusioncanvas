@@ -533,10 +533,16 @@ export class NodeManager {
             generateBtn.disabled = !hasContent || !hasImages; // needs a source image
         } else if (node.type === 'outpaint') {
             const ready = hasImages && !!node.data.imageData;
-            generateBtn.textContent = ready
-                ? `Outpaint → ${node.data.originalWidth}×${node.data.originalHeight}`
-                : 'Outpaint (connect an image)';
-            generateBtn.disabled = !hasContent || !ready;
+            const size = `${node.data.originalWidth}×${node.data.originalHeight}`;
+            if (!ready) {
+                generateBtn.textContent = 'Outpaint (connect an image)';
+            } else if (node.data.cropOnly) {
+                // Nothing to paint — this one is cut locally, so it needs no prompt
+                generateBtn.textContent = `Crop → ${size}`;
+            } else {
+                generateBtn.textContent = `Outpaint → ${size}`;
+            }
+            generateBtn.disabled = !ready || (!node.data.cropOnly && !hasContent);
         } else if (chainSteps > 1) {
             generateBtn.textContent = `Generate chain (${chainSteps} steps)`;
         } else if (hasImages) {
@@ -661,6 +667,20 @@ export class NodeManager {
                 this._placeVideoResultNode(node, result);
                 this.uiManager.updateStatus('Video generated!', '#27ae60');
             }
+            return;
+        }
+
+        // An outpaint frame that only crops has already produced the final image
+        // on its own canvas — sending it through a model would cost credits and
+        // repaint pixels that are correct.
+        if (node.type === 'outpaint' && node.data.cropOnly && node.data.imageData) {
+            this._placeResultNode(node, {
+                image: node.data.imageData,
+                prompt: `Cropped to ${node.data.originalWidth}×${node.data.originalHeight}`,
+                model: 'crop'
+            });
+            this.uiManager.updateStatus(
+                `Cropped to ${node.data.originalWidth}×${node.data.originalHeight}`, '#27ae60');
             return;
         }
 
@@ -1155,6 +1175,7 @@ export class NodeManager {
             case 'outpaint':
                 newNode = this.createNode('outpaint', newPosition.x, newPosition.y, {
                     pad: { ...(originalNode.data.pad || {}) },
+                    presetMode: originalNode.data.presetMode,
                     prompt: originalNode.data.prompt,
                     promptEdited: originalNode.data.promptEdited,
                     model: originalNode.data.model,

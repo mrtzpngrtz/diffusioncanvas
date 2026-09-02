@@ -4291,6 +4291,33 @@ body.dark-mode .comp-stage {
     color: var(--surface);
 }
 
+/* Preset mode switch — reads as a state, not as another ratio button */
+.outpaint-mode {
+    padding: 3px 8px;
+    margin-right: 4px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+
+.outpaint-mode:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+.outpaint-mode.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
 .outpaint-node .outpaint-prompt {
     min-height: 72px;
 }

@@ -1,16 +1,26 @@
 import { NodeBase } from './NodeBase.js';
 
-// Outpainting node — drag the frame larger than the connected image; the
-// padded canvas (image + blank borders) is sent to an image-edit model with
-// an outpainting prompt. The padded canvas' aspect ratio drives the output.
+// Outpaint / crop node — drag the frame outward past the connected image and
+// the padded canvas (image + blank borders) goes to an image-edit model with an
+// outpainting prompt. Drag inward and the frame crops instead; a frame that only
+// crops needs no model at all and is cut locally.
 
-const MAX_EXPORT = 2048;
+const MAX_EXPORT = 2048;      // cap for what is sent to a model
+const MAX_CROP_EXPORT = 4096; // a local crop keeps its resolution
 const MAX_PAD = 1.5;          // each side can grow up to 150 % of the image size
+const MAX_CROP = 0.45;        // and shrink by at most 45 %, so something is left
+const MIN_SPAN = 0.1;         // never crop an axis below 10 % of the image
 const HANDLE = 14;            // handle hit size in CSS px
 const FILL = '#ffffff';       // blank-canvas colour the prompt refers to
 
 export function buildOutpaintPrompt() {
     return 'Outpaint this image. The plain white areas around the picture are empty canvas: fill them by naturally continuing the scene — extend backgrounds, surfaces, textures, perspective and lighting seamlessly. Keep the original picture content exactly as it is, do not crop or move it, and add nothing that contradicts it. Output the complete canvas as one coherent image.';
+}
+
+// True when no side is padded — nothing to paint, so nothing to generate.
+export function isCropOnly(pad) {
+    const sides = [pad.top, pad.right, pad.bottom, pad.left];
+    return sides.every(v => v <= 0) && sides.some(v => v < 0);
 }
 
 export class OutpaintNode extends NodeBase {
@@ -27,11 +37,12 @@ export class OutpaintNode extends NodeBase {
             <div class="node-content">
                 <div class="outpaint-stage">
                     <canvas class="outpaint-canvas"></canvas>
-                    <div class="outpaint-empty">Connect an image, then drag the frame edges</div>
+                    <div class="outpaint-empty">Connect an image, then drag the frame edges — out to extend, in to crop</div>
                 </div>
                 <div class="outpaint-bar">
                     <span class="outpaint-info">—</span>
                     <div class="outpaint-presets">
+                        <button class="outpaint-mode" title="How the presets reach the ratio">extend</button>
                         <button class="outpaint-preset" data-ratio="1:1">1:1</button>
                         <button class="outpaint-preset" data-ratio="4:5">4:5</button>
                         <button class="outpaint-preset" data-ratio="3:2">3:2</button>
@@ -78,7 +89,9 @@ export class OutpaintNode extends NodeBase {
             type: 'outpaint',
             element: nodeEl,
             data: {
-                pad: { top: 0, right: 0.25, bottom: 0, left: 0.25 }, // fractions of image width/height
+                pad: { top: 0, right: 0.25, bottom: 0, left: 0.25 }, // fractions of image size; negative crops
+                presetMode: 'extend',                                // how presets reach a ratio
+                cropOnly: false,                                     // set from pad — no model needed
                 prompt: buildOutpaintPrompt(),
                 promptEdited: false,
                 model: 'gemini-3.1-flash-image',
@@ -98,6 +111,7 @@ export class OutpaintNode extends NodeBase {
         const emptyEl  = nodeEl.querySelector('.outpaint-empty');
         const infoEl   = nodeEl.querySelector('.outpaint-info');
         const textarea = nodeEl.querySelector('.outpaint-prompt');
+        const modeBtn  = nodeEl.querySelector('.outpaint-mode');
         const modelSel = nodeEl.querySelector('.outpaint-model-select');
         const resSel   = nodeEl.querySelector('.resolution-select');
         const fmtSel   = nodeEl.querySelector('.output-format-select');
@@ -117,12 +131,14 @@ export class OutpaintNode extends NodeBase {
             img.src = key;
         });
 
-        // Geometry of the padded canvas in image pixels
+        // Geometry of the frame in image pixels. Negative padding pulls an edge
+        // inward: the canvas shrinks and the image is drawn at a negative offset,
+        // so the part outside the canvas is simply cut off.
         const geom = (img) => {
             const p = node.data.pad;
             const iw = img.naturalWidth, ih = img.naturalHeight;
-            const W = Math.round(iw * (1 + p.left + p.right));
-            const H = Math.round(ih * (1 + p.top + p.bottom));
+            const W = Math.max(Math.round(iw * MIN_SPAN), Math.round(iw * (1 + p.left + p.right)));
+            const H = Math.max(Math.round(ih * MIN_SPAN), Math.round(ih * (1 + p.top + p.bottom)));
             return { iw, ih, W, H, ox: Math.round(iw * p.left), oy: Math.round(ih * p.top) };
         };
 
@@ -180,21 +196,34 @@ export class OutpaintNode extends NodeBase {
             mids.forEach(([hx, hy]) => ctx.fillRect(hx - hs / 2, hy - hs / 2, hs, hs));
             ctx.restore();
 
-            infoEl.textContent = `${g.W} × ${g.H} · ${ratioLabel(g.W, g.H)}`;
+            const cropOnly = isCropOnly(node.data.pad);
+            const mixed = !cropOnly && Object.values(node.data.pad).some(v => v < 0);
+            const what = cropOnly ? 'crop' : (mixed ? 'crop + extend' : 'extend');
+            infoEl.textContent = `${g.W} × ${g.H} · ${ratioLabel(g.W, g.H)} · ${what}`;
 
             // Export synchronously so refresh() before generation sees the final canvas
             if (exportNow) exportPadded(img, g);
         };
 
         const exportPadded = (img, g) => {
-            const k = Math.min(1, MAX_EXPORT / Math.max(g.W, g.H));
+            const cropOnly = isCropOnly(node.data.pad);
+            node.data.cropOnly = cropOnly;
+
+            // A crop is the finished image, not a model input: keep the pixels
+            // and honour the chosen format instead of always re-encoding to JPEG.
+            const cap = cropOnly ? MAX_CROP_EXPORT : MAX_EXPORT;
+            const k = Math.min(1, cap / Math.max(g.W, g.H));
             const oc = document.createElement('canvas');
             oc.width = Math.round(g.W * k); oc.height = Math.round(g.H * k);
             const octx = oc.getContext('2d');
             octx.fillStyle = FILL;
             octx.fillRect(0, 0, oc.width, oc.height);
             octx.drawImage(img, g.ox * k, g.oy * k, g.iw * k, g.ih * k);
-            node.data.imageData = oc.toDataURL('image/jpeg', 0.95);
+
+            const mime = cropOnly
+                ? ({ png: 'image/png', webp: 'image/webp' }[node.data.outputFormat] || 'image/jpeg')
+                : 'image/jpeg';
+            node.data.imageData = oc.toDataURL(mime, 0.95);
             node.data.originalWidth = oc.width;
             node.data.originalHeight = oc.height;
             callbacks.updateGenerateButton(node);
@@ -232,12 +261,15 @@ export class OutpaintNode extends NodeBase {
             // CSS px → image px: canvas.width / p.w preview px per css px, then / k → image px
             const cssToImg = (canvas.width / p.w) / node._k;
             const dx = (p.x - start.x) * cssToImg, dy = (p.y - start.y) * cssToImg;
-            const clamp = (v) => Math.min(MAX_PAD, Math.max(0, v));
+            const clamp = (v) => Math.min(MAX_PAD, Math.max(-MAX_CROP, v));
             const np = { ...pad };
             if (side === 'left')   np.left   = clamp(pad.left   - dx / g.iw);
             if (side === 'right')  np.right  = clamp(pad.right  + dx / g.iw);
             if (side === 'top')    np.top    = clamp(pad.top    - dy / g.ih);
             if (side === 'bottom') np.bottom = clamp(pad.bottom + dy / g.ih);
+            // two opposite crops must still leave a frame
+            if (1 + np.left + np.right < MIN_SPAN) { np.left = pad.left; np.right = pad.right; }
+            if (1 + np.top + np.bottom < MIN_SPAN) { np.top = pad.top; np.bottom = pad.bottom; }
             node.data.pad = np;
             render(false);
         });
@@ -254,17 +286,43 @@ export class OutpaintNode extends NodeBase {
                 if (r === 'reset') { node.data.pad = { top: 0, right: 0, bottom: 0, left: 0 }; return render(); }
                 const [a, b] = r.split(':').map(Number);
                 const target = a / b, cur = img.naturalWidth / img.naturalHeight;
-                if (target > cur) {
-                    const extra = (target * img.naturalHeight - img.naturalWidth) / img.naturalWidth / 2;
-                    node.data.pad = { top: 0, bottom: 0, left: Math.min(MAX_PAD, extra), right: Math.min(MAX_PAD, extra) };
+                const iw = img.naturalWidth, ih = img.naturalHeight;
+
+                // Same target ratio, two ways to get there: add canvas on the
+                // short axis, or take away from the long one.
+                const widen = (frac) => ({ top: 0, bottom: 0, left: frac, right: frac });
+                const heighten = (frac) => ({ left: 0, right: 0, top: frac, bottom: frac });
+                const grow = (v) => Math.min(MAX_PAD, v);
+                const cut = (v) => -Math.min(MAX_CROP, v);
+
+                if (node.data.presetMode === 'crop') {
+                    node.data.pad = target > cur
+                        ? heighten(cut((ih - iw / target) / ih / 2))   // too tall — trim top/bottom
+                        : widen(cut((iw - ih * target) / iw / 2));     // too wide — trim sides
                 } else {
-                    const extra = (img.naturalWidth / target - img.naturalHeight) / img.naturalHeight / 2;
-                    node.data.pad = { left: 0, right: 0, top: Math.min(MAX_PAD, extra), bottom: Math.min(MAX_PAD, extra) };
+                    node.data.pad = target > cur
+                        ? widen(grow((target * ih - iw) / iw / 2))
+                        : heighten(grow((iw / target - ih) / ih / 2));
                 }
                 render();
             });
         });
         nodeEl.querySelector('.outpaint-presets').addEventListener('pointerdown', (e) => e.stopPropagation());
+
+        const syncModeBtn = () => {
+            const crop = node.data.presetMode === 'crop';
+            modeBtn.textContent = crop ? 'crop' : 'extend';
+            modeBtn.classList.toggle('active', crop);
+            modeBtn.title = crop
+                ? 'Presets crop the image to the ratio — click to extend instead'
+                : 'Presets add canvas to reach the ratio — click to crop instead';
+        };
+        modeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            node.data.presetMode = node.data.presetMode === 'crop' ? 'extend' : 'crop';
+            syncModeBtn();
+        });
+        syncModeBtn();
 
         // ── Prompt / settings ─────────────────────────────────────────
         textarea.value = node.data.prompt;
@@ -281,7 +339,10 @@ export class OutpaintNode extends NodeBase {
         });
         modelSel.addEventListener('change', (e) => { node.data.model = e.target.value; callbacks.updateGenerateButton(node); });
         resSel.addEventListener('change', (e) => { node.data.resolution = e.target.value; });
-        fmtSel.addEventListener('change', (e) => { node.data.outputFormat = e.target.value; });
+        fmtSel.addEventListener('change', (e) => {
+            node.data.outputFormat = e.target.value;
+            if (node.data.cropOnly) render(); // a crop is encoded here, not by a model
+        });
 
         // Connection changes (ConnectionManager hook) → re-render from the new source
         node.updateModeLabel = () => { render(); };
@@ -289,7 +350,9 @@ export class OutpaintNode extends NodeBase {
 
         node.syncSettingsUI = () => {
             node.data.pad = { top: 0, right: 0, bottom: 0, left: 0, ...(node.data.pad || {}) };
+            node.data.presetMode = node.data.presetMode === 'crop' ? 'crop' : 'extend';
             node.data.aspectRatio = 'original';
+            syncModeBtn();
             if ([...modelSel.options].some(o => o.value === node.data.model)) modelSel.value = node.data.model;
             else node.data.model = modelSel.value;
             resSel.value = node.data.resolution || 'hd';

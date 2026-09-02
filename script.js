@@ -524,6 +524,7 @@ class App {
                     seed: node.data.seed ?? null,
                     modelRef: node.data.modelRef || null,  // server blob ID for large 3D models
                     pad: node.type === 'outpaint' ? node.data.pad : null,
+                    presetMode: node.type === 'outpaint' ? node.data.presetMode : null,
                     history: node.type === 'chat' ? (node.data.history || []).slice(-40) : null,
                     promptMode: node.type === 'chat' ? node.data.promptMode !== false : null,
                     fromChatId: node.data.fromChatId || null,
