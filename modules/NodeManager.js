@@ -4,6 +4,7 @@ import { ActionNode } from '../nodes/ActionNode.js';
 import { DrawNode } from '../nodes/DrawNode.js';
 import { ResultNode } from '../nodes/ResultNode.js';
 import { bindPromptOverlayToggle } from '../nodes/NodeBase.js';
+import { createDrawSurface, drawToolbarHTML } from './DrawTools.js';
 
 // Resize floors — low enough to shrink a node to a thumbnail, high enough that
 // the header stays readable and the resize handle stays reachable.
@@ -76,7 +77,7 @@ export class NodeManager {
             handleImageFile: (file, n) => this.handleImageFile(file, n),
             updateGenerateButton: (n) => this.updateGenerateButton(n),
             generateImage: (n) => this.handleGenerateImage(n),
-            openLightbox: (src) => this.uiManager.openLightbox(src),
+            openLightbox: (src, node) => this.uiManager.openLightbox(src, node),
             downloadImage: (src, name, meta) => this.downloadImage(src, name, meta),
             updateDrawNodeImage: (n) => this.updateDrawNodeImage(n),
             setupDraw: (n, w) => this._setupDrawOverlay(n, w),
@@ -881,7 +882,7 @@ export class NodeManager {
 
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.uiManager.openLightbox(node.data.imageData);
+            this.uiManager.openLightbox(node.data.imageData, node);
         });
 
         downloadBtn.addEventListener('click', (e) => {
@@ -925,121 +926,15 @@ export class NodeManager {
             mi.src = node.data.maskData;
         }
 
-        // Toolbar
         const tb = document.createElement('div');
         tb.className = 'draw-toolbar';
-        tb.innerHTML = `
-            <button class="draw-tool active" data-tool="brush" title="Brush"><svg class="icon"><use href="#i-pencil"/></svg></button>
-            <button class="draw-tool" data-tool="text" title="Text"><svg class="icon"><use href="#i-type"/></svg></button>
-            <button class="draw-tool" data-tool="eraser" title="Eraser"><svg class="icon"><use href="#i-eraser"/></svg></button>
-            <span class="draw-sep"></span>
-            <input class="draw-color" type="color" value="#ff3300">
-            <input class="draw-size" type="range" min="2" max="80" value="12">
-            <span class="draw-sep"></span>
-            <button class="draw-clear" title="Clear drawing"><svg class="icon"><use href="#i-trash"/></svg></button>
-            <button class="draw-collapse-btn" title="Collapse toolbar"><svg class="icon"><use href="#i-chevron-down"/></svg></button>
-            <button class="draw-done" title="Done drawing"><svg class="icon"><use href="#i-check"/></svg></button>
-        `;
+        tb.innerHTML = drawToolbarHTML({ collapse: true, done: true });
         wrapper.appendChild(tb);
 
-        let drawing = false, tool = 'brush', color = '#ff3300', size = 12, lx, ly;
-        const ctx = oc.getContext('2d');
-
-        const canvasPos = (e) => {
-            const r = oc.getBoundingClientRect();
-            return { x: (e.clientX - r.left) * oc.width / r.width, y: (e.clientY - r.top) * oc.height / r.height };
-        };
-        const save = () => { node.data.maskData = oc.toDataURL('image/png'); };
-
-        const placeText = (e) => {
-            const p = canvasPos(e);
-            const r = oc.getBoundingClientRect();
-            const scaleX = r.width / oc.width, scaleY = r.height / oc.height;
-            const inp = document.createElement('input');
-            inp.className = 'draw-text-input';
-            inp.style.cssText = `left:${r.left + p.x * scaleX}px;top:${r.top + p.y * scaleY}px;font-size:${size * 2 * scaleX}px;color:${color};`;
-            document.body.appendChild(inp);
-            let committed = false;
-            const commit = () => {
-                if (committed) return;
-                committed = true;
-                const t = inp.value.trim();
-                if (t) {
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.font = `bold ${size * 2}px sans-serif`;
-                    ctx.fillStyle = color;
-                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                    ctx.shadowBlur = size * 0.5;
-                    ctx.fillText(t, p.x, p.y);
-                    ctx.shadowBlur = 0;
-                    save();
-                }
-                inp.remove();
-            };
-            inp.addEventListener('keydown', (ev) => {
-                ev.stopPropagation();
-                if (ev.key === 'Enter') commit();
-                if (ev.key === 'Escape') { committed = true; inp.remove(); }
-            });
-            // Delay blur listener so focus events settle before we attach it
-            setTimeout(() => inp.addEventListener('blur', commit, { once: true }), 50);
-            inp.focus();
-        };
-
-        // Text tool uses 'click' (fires after mouseup) to avoid immediate-blur from canvas mouseup
-        oc.addEventListener('click', (e) => {
-            if (tool !== 'text') return;
-            e.stopPropagation();
-            placeText(e);
-        });
-
-        oc.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-            if (tool === 'text') return;
-            drawing = true;
-            oc.setPointerCapture(e.pointerId);
-            const p = canvasPos(e);
-            lx = p.x; ly = p.y;
-            ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-            ctx.beginPath();
-            ctx.arc(lx, ly, size / 2, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-        });
-
-        oc.addEventListener('pointermove', (e) => {
-            if (!drawing) return;
-            const p = canvasPos(e);
-            ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-            ctx.beginPath();
-            ctx.moveTo(lx, ly);
-            ctx.lineTo(p.x, p.y);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = size;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-            lx = p.x; ly = p.y;
-        });
-
-        const endDraw = () => { if (drawing) { drawing = false; save(); } };
-        oc.addEventListener('pointerup', endDraw);
-        oc.addEventListener('pointercancel', endDraw);
-
-        tb.querySelectorAll('.draw-tool').forEach(b => b.addEventListener('click', (e) => {
-            e.stopPropagation();
-            tool = b.dataset.tool;
-            tb.querySelectorAll('.draw-tool').forEach(x => x.classList.remove('active'));
-            b.classList.add('active');
-            oc.style.cursor = tool === 'text' ? 'text' : tool === 'eraser' ? 'cell' : 'crosshair';
-        }));
-
-        tb.querySelector('.draw-color').addEventListener('input', (e) => { color = e.target.value; e.stopPropagation(); });
-        tb.querySelector('.draw-size').addEventListener('input', (e) => { size = +e.target.value; e.stopPropagation(); });
-        tb.querySelector('.draw-clear').addEventListener('click', (e) => {
-            e.stopPropagation();
-            ctx.clearRect(0, 0, oc.width, oc.height);
-            node.data.maskData = null;
+        createDrawSurface({
+            canvas: oc,
+            toolbar: tb,
+            onChange: () => { node.data.maskData = oc.toDataURL('image/png'); }
         });
 
         const collapseBtn = tb.querySelector('.draw-collapse-btn');

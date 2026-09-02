@@ -165,6 +165,7 @@ class App {
             const inInput = active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT');
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
                 if (inInput) return;
+                if (this.uiManager._lightboxDrawing) return; // the lightbox undoes its own strokes
                 e.preventDefault();
                 if (this.historyStack.length > 0) this._restoreHistory(0);
             }

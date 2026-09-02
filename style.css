@@ -1584,6 +1584,16 @@ body.dark-mode .theme-icon-moon { display: block; }
     animation: fade-in var(--t-fast) var(--ease);
 }
 
+/* The stage sizes itself to the image, so the drawing canvas can sit exactly
+   on top of it however the image ends up being scaled. */
+.lightbox-stage {
+    position: relative;
+    display: flex;
+    line-height: 0;
+    cursor: default;
+    animation: rise-in var(--t-med) var(--ease);
+}
+
 .lightbox img {
     max-width: 90vw;
     max-height: 90vh;
@@ -1591,7 +1601,88 @@ body.dark-mode .theme-icon-moon { display: block; }
     border: none;
     border-radius: 0;
     box-shadow: var(--shadow-pop);
-    animation: rise-in var(--t-med) var(--ease);
+}
+
+.lightbox-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    touch-action: none;
+}
+
+.lightbox.drawing {
+    cursor: default;
+}
+
+.lightbox.drawing .lightbox-canvas {
+    cursor: crosshair;
+}
+
+.lightbox-actions {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 2;
+}
+
+.lightbox-actions .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+
+.lightbox-actions .btn-ghost:hover,
+.lightbox-actions .btn-ghost.active {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+.lightbox-actions .btn-ghost.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+/* The shared draw toolbar, floating at the bottom instead of pinned to a node */
+.draw-toolbar.lightbox-toolbar {
+    position: fixed;
+    top: auto;
+    left: 50%;
+    right: auto;
+    bottom: 24px;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 92vw;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-pop);
+    z-index: 3;
+}
+
+/* Filled-shape toggle: only meaningful for rectangle and ellipse */
+.draw-fill.active {
+    background: var(--text);
+    color: var(--surface);
+}
+
+.draw-fill.disabled {
+    opacity: 0.35;
+    pointer-events: none;
 }
 
 /* ============ RESULT NODE METADATA ============ */
@@ -3437,6 +3528,8 @@ body.dark-mode .login-hero::before {
 .draw-toolbar.collapsed .draw-color,
 .draw-toolbar.collapsed .draw-size,
 .draw-toolbar.collapsed .draw-clear,
+.draw-toolbar.collapsed .draw-undo,
+.draw-toolbar.collapsed .draw-fill,
 .draw-toolbar.collapsed .draw-sep { display: none; }
 
 .draw-tool {
@@ -3492,7 +3585,9 @@ body.dark-mode .login-hero::before {
     flex-shrink: 0;
 }
 
-.draw-clear {
+.draw-clear,
+.draw-undo,
+.draw-fill {
     background: none;
     border: none;
     color: rgba(255, 255, 255, 0.45);
@@ -3508,7 +3603,9 @@ body.dark-mode .login-hero::before {
     transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 
-.draw-clear:hover {
+.draw-clear:hover,
+.draw-undo:hover,
+.draw-fill:hover {
     background: rgba(var(--accent-rgb), 0.6);
     color: #fff;
 }
@@ -4431,6 +4528,8 @@ body.dark-mode .comp-stage {
 
 .draw-toolbar .draw-tool,
 .draw-toolbar .draw-clear,
+.draw-toolbar .draw-undo,
+.draw-toolbar .draw-fill,
 .draw-toolbar .draw-collapse-btn {
     width: 28px;
     height: 26px;

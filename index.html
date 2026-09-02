@@ -52,6 +52,12 @@
         <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35M8 11h6"/></symbol>
         <symbol id="i-split" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M8 10l-2 2 2 2M16 10l2 2-2 2"/></symbol>
         <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+        <symbol id="i-square" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/></symbol>
+        <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/></symbol>
+        <symbol id="i-line" viewBox="0 0 24 24"><path d="M5 19 19 5"/></symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 19 19 5M11 5h8v8"/></symbol>
+        <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10H9"/></symbol>
+        <symbol id="i-fill" viewBox="0 0 24 24"><path d="M5 12 12 5l7 7-7 7-7-7z"/><path d="M19 15c1.5 2 2 2.7 2 3.5a2 2 0 0 1-4 0c0-.8.5-1.5 2-3.5z"/></symbol>
         <symbol id="i-expand" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M10 4l2-2 2 2M10 20l2 2 2-2M4 10l-2 2 2 2M20 10l2 2-2 2"/></symbol>
         <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5M3 17.5l9 5 9-5"/></symbol>
         <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></symbol>
@@ -198,7 +204,15 @@
 
     <!-- Lightbox -->
     <div class="lightbox" id="lightbox">
-        <img id="lightboxImage" src="" alt="Full size image">
+        <div class="lightbox-stage" id="lightboxStage">
+            <img id="lightboxImage" src="" alt="Full size image">
+            <canvas id="lightboxCanvas" class="lightbox-canvas"></canvas>
+        </div>
+        <div class="draw-toolbar lightbox-toolbar" id="lightboxToolbar"></div>
+        <div class="lightbox-actions">
+            <button class="btn-ghost" id="lightboxDrawBtn" title="Annotate this image"><svg class="icon"><use href="#i-pencil"/></svg>Draw</button>
+            <button class="btn-ghost" id="lightboxCloseBtn" title="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
     </div>
 
     <!-- Confirm Dialog -->

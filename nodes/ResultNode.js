@@ -122,7 +122,7 @@ export class ResultNode extends NodeBase {
 
         lightboxBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            callbacks.openLightbox(node.data.imageData);
+            callbacks.openLightbox(node.data.imageData, node);
         });
 
         downloadBtn.addEventListener('click', (e) => {

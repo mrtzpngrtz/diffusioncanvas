@@ -1,3 +1,4 @@
+import { createDrawSurface, drawToolbarHTML } from './DrawTools.js';
 export class UIManager {
     constructor() {
         this.themeToggle = document.getElementById('themeToggle');
@@ -59,33 +60,117 @@ export class UIManager {
     setupLightbox() {
         if (!this.lightbox || !this.lightboxImage) return;
 
-        this.lightbox.addEventListener('click', () => this.closeLightbox());
-        
-        // Prevent closing when clicking the image itself
-        this.lightboxImage.addEventListener('click', (e) => {
+        this.lightboxStage = document.getElementById('lightboxStage');
+        this.lightboxCanvas = document.getElementById('lightboxCanvas');
+        this.lightboxToolbar = document.getElementById('lightboxToolbar');
+        this._lightboxNode = null;
+        this._lightboxDrawing = false;
+
+        // Backdrop closes; anything inside the stage or the controls does not
+        this.lightbox.addEventListener('click', (e) => {
+            if (e.target === this.lightbox) this.closeLightbox();
+        });
+        this.lightboxStage?.addEventListener('click', (e) => e.stopPropagation());
+        this.lightboxToolbar?.addEventListener('click', (e) => e.stopPropagation());
+
+        document.getElementById('lightboxCloseBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
+            this.closeLightbox();
         });
 
-        // Close lightbox with Escape key
+        document.getElementById('lightboxDrawBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleLightboxDraw(!this._lightboxDrawing);
+        });
+
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.lightbox.classList.contains('active')) {
-                this.closeLightbox();
+            if (!this.lightbox.classList.contains('active')) return;
+            if (e.key === 'Escape') this.closeLightbox();
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && this._lightboxDrawing) {
+                e.preventDefault();
+                e.stopPropagation();
+                this._lightboxSurface?.undo();
             }
         });
     }
 
-    openLightbox(imageSrc) {
-        if (this.lightbox && this.lightboxImage) {
-            this.lightboxImage.src = imageSrc;
-            this.lightbox.classList.add('active');
+    // The lightbox annotates the node it was opened from: the same mask, at the
+    // image's own resolution, on a canvas the size of the screen instead of a
+    // thumbnail. Drawing is opt-in so a plain look at an image stays a look.
+    _toggleLightboxDraw(on) {
+        if (!this.lightboxCanvas) return;
+        if (on && !this._lightboxNode) return; // nothing to annotate onto
+        this._lightboxDrawing = on;
+
+        this.lightbox.classList.toggle('drawing', on);
+        this.lightboxToolbar.classList.toggle('active', on);
+        document.getElementById('lightboxDrawBtn')?.classList.toggle('active', on);
+        this.lightboxCanvas.style.pointerEvents = on ? 'all' : 'none';
+
+        if (on && !this._lightboxSurface) {
+            this.lightboxToolbar.innerHTML = drawToolbarHTML({ done: true });
+            this._lightboxSurface = createDrawSurface({
+                canvas: this.lightboxCanvas,
+                toolbar: this.lightboxToolbar,
+                onChange: () => this._commitLightboxDrawing()
+            });
+            this.lightboxToolbar.querySelector('.draw-done')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._toggleLightboxDraw(false);
+            });
         }
     }
 
+    // Write the lightbox canvas back onto the node's own overlay, so the node
+    // shows the same annotation and the board saves it as usual.
+    _commitLightboxDrawing() {
+        const node = this._lightboxNode;
+        if (!node) return;
+        node.data.maskData = this.lightboxCanvas.toDataURL('image/png');
+
+        const target = node.data.drawCanvas;
+        if (!target) return;
+        const ctx = target.getContext('2d');
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.clearRect(0, 0, target.width, target.height);
+        ctx.drawImage(this.lightboxCanvas, 0, 0, target.width, target.height);
+    }
+
+    openLightbox(imageSrc, node = null) {
+        if (!this.lightbox || !this.lightboxImage) return;
+        this.lightboxImage.src = imageSrc;
+        this.lightbox.classList.add('active');
+
+        this._lightboxNode = node;
+        const drawBtn = document.getElementById('lightboxDrawBtn');
+        if (drawBtn) drawBtn.style.display = node ? '' : 'none';
+        if (!this.lightboxCanvas) return;
+
+        // Match the canvas to the image's own pixels, then carry over whatever
+        // has already been drawn on the node.
+        const setup = () => {
+            const w = this.lightboxImage.naturalWidth || 1024;
+            const h = this.lightboxImage.naturalHeight || 1024;
+            this.lightboxCanvas.width = w;
+            this.lightboxCanvas.height = h;
+            const ctx = this.lightboxCanvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+            if (node?.data.maskData) {
+                const mask = new Image();
+                mask.onload = () => ctx.drawImage(mask, 0, 0, w, h);
+                mask.src = node.data.maskData;
+            }
+        };
+        if (this.lightboxImage.complete && this.lightboxImage.naturalWidth) setup();
+        else this.lightboxImage.addEventListener('load', setup, { once: true });
+    }
+
     closeLightbox() {
-        if (this.lightbox && this.lightboxImage) {
-            this.lightbox.classList.remove('active');
-            this.lightboxImage.src = '';
-        }
+        if (!this.lightbox || !this.lightboxImage) return;
+        this._toggleLightboxDraw(false);
+        this.lightbox.classList.remove('active');
+        this.lightboxImage.src = '';
+        this._lightboxNode = null;
     }
 
     setupContextMenu() {
