@@ -396,7 +396,7 @@
     </div>
 
     <!-- Password Access Modal (Guest Visitor) -->
-    <div class="login-modal guest-access-modal" id="guestAccessModal">
+    <div class="login-modal guest-access-modal hidden" id="guestAccessModal">
         <div class="login-container guest-access-container">
             <div class="login-hero">
                 <h1 class="login-headline">
@@ -413,9 +413,13 @@
                 </div>
                 <button type="submit" class="btn login-btn" id="guestAccessSubmitBtn">Access Board</button>
                 <p id="guestAccessError" class="login-error"></p>
+                <div style="margin-top: 14px; text-align: center;">
+                    <a href="/" style="color: var(--text-muted); font-size: 11px; text-decoration: underline;">Go to regular login</a>
+                </div>
             </form>
         </div>
     </div>
+
 
 
     <!-- Context Menu -->
