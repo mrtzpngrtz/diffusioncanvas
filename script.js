@@ -145,25 +145,27 @@ class App {
     }
 
     setupToolbar() {
-        document.getElementById('addImageNode').addEventListener('click', () => this.addNode('image'));
-        document.getElementById('addPromptNode').addEventListener('click', () => this.addNode('prompt'));
-        document.getElementById('addActionNode').addEventListener('click', () => this.addNode('action'));
-        document.getElementById('addDrawNode').addEventListener('click', () => this.addNode('draw'));
-        document.getElementById('addThreeDNode').addEventListener('click', () => this.addNode('threed'));
-        document.getElementById('addVideoNode').addEventListener('click', () => this.addNode('video'));
-        document.getElementById('addFormatNode').addEventListener('click', () => this.addNode('format'));
-        document.getElementById('addImageTo3DNode').addEventListener('click', () => this.addNode('imageto3d'));
-        document.getElementById('addCompNode').addEventListener('click', () => this.addNode('comp'));
-        document.getElementById('addOutpaintNode').addEventListener('click', () => this.addNode('outpaint'));
-        document.getElementById('addChatNode').addEventListener('click', () => this.addNode('chat'));
-        document.getElementById('addCompareNode').addEventListener('click', () => this.addNode('compare'));
+        const canEdit = () => !this.isSharedGuestView;
+
+        document.getElementById('addImageNode').addEventListener('click', () => { if (canEdit()) this.addNode('image'); });
+        document.getElementById('addPromptNode').addEventListener('click', () => { if (canEdit()) this.addNode('prompt'); });
+        document.getElementById('addActionNode').addEventListener('click', () => { if (canEdit()) this.addNode('action'); });
+        document.getElementById('addDrawNode').addEventListener('click', () => { if (canEdit()) this.addNode('draw'); });
+        document.getElementById('addThreeDNode').addEventListener('click', () => { if (canEdit()) this.addNode('threed'); });
+        document.getElementById('addVideoNode').addEventListener('click', () => { if (canEdit()) this.addNode('video'); });
+        document.getElementById('addFormatNode').addEventListener('click', () => { if (canEdit()) this.addNode('format'); });
+        document.getElementById('addImageTo3DNode').addEventListener('click', () => { if (canEdit()) this.addNode('imageto3d'); });
+        document.getElementById('addCompNode').addEventListener('click', () => { if (canEdit()) this.addNode('comp'); });
+        document.getElementById('addOutpaintNode').addEventListener('click', () => { if (canEdit()) this.addNode('outpaint'); });
+        document.getElementById('addChatNode').addEventListener('click', () => { if (canEdit()) this.addNode('chat'); });
+        document.getElementById('addCompareNode').addEventListener('click', () => { if (canEdit()) this.addNode('compare'); });
         
         document.getElementById('resetAllSizes').addEventListener('click', () => this.resetAllImageSizes());
-        document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
+        document.getElementById('clearCanvas').addEventListener('click', () => { if (canEdit()) this.clearCanvas(); });
 
-        document.getElementById('saveBoardBtn').addEventListener('click', () => this.saveBoard());
-        document.getElementById('openBoardsBtn').addEventListener('click', () => this.toggleBoardsPanel());
-        document.getElementById('newBoardBtn').addEventListener('click', () => this.saveBoardAsNew());
+        document.getElementById('saveBoardBtn').addEventListener('click', () => { if (canEdit()) this.saveBoard(); });
+        document.getElementById('openBoardsBtn').addEventListener('click', () => { if (canEdit()) this.toggleBoardsPanel(); });
+        document.getElementById('newBoardBtn').addEventListener('click', () => { if (canEdit()) this.saveBoardAsNew(); });
         document.getElementById('downloadBoardBtn').addEventListener('click', () => {
             if (this.currentBoardId) this._downloadBoard(this.currentBoardId);
         });
@@ -185,6 +187,8 @@ class App {
                 if (this.historyStack.length > 0) this._restoreHistory(0);
             }
             if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (this.isSharedGuestView) return; // Cannot delete nodes in guest view
+
                 if (inInput || active?.isContentEditable) return;
                 if (!this.nodeManager.selectedNodes.size) return;
                 e.preventDefault(); // Backspace would navigate back
@@ -210,6 +214,8 @@ class App {
             const active = document.activeElement;
             const inInput = active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT');
             if (inInput) return;
+            if (this.isSharedGuestView) return; // No paste in guest view
+
 
             const items = e.clipboardData?.items ? [...e.clipboardData.items] : [];
             const imageItem = items.find(i => i.kind === 'file' && i.type.startsWith('image/'));
@@ -274,6 +280,8 @@ class App {
         if (!contextMenu) return;
 
         contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
+            if (this.isSharedGuestView) return; // Read-only for guest
+
             item.addEventListener('click', (e) => {
                 const action = e.target.dataset.action;
                 const rect = this.canvasManager.container.getBoundingClientRect();
@@ -585,6 +593,10 @@ class App {
             const topBarEl = document.getElementById('topBarBoardName');
             if (topBarEl) topBarEl.textContent = `${data.board.name} (Shared View)`;
             this.uiManager.updateStatus(`Viewing shared board: "${data.board.name}"`, '#27ae60');
+
+            // Add guest mode class to body to hide edit controls, save, delete, toolbar creation
+            document.body.classList.add('guest-mode');
+
 
             // Hide normal boards / save buttons for read-only guests
             const openBoardsBtn = document.getElementById('openBoardsBtn');

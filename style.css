@@ -3271,6 +3271,24 @@ body.dark-mode .theme-icon-moon { display: block; }
 }
 
 
+/* ============ GUEST VIEW MODE (READ-ONLY) ============ */
+body.guest-mode .toolbar-overlay,
+body.guest-mode .node-close,
+body.guest-mode #feedbackBtn,
+body.guest-mode #clearCanvas,
+body.guest-mode #saveBoardBtn,
+body.guest-mode #newBoardBtn,
+body.guest-mode #openBoardsBtn,
+body.guest-mode .autosave-badge,
+body.guest-mode #contextMenu {
+    display: none !important;
+}
+
+body.guest-mode .node {
+    user-select: none;
+}
+
+
 .boards-modal {
     display: none;
     position: fixed;
