@@ -3093,6 +3093,184 @@ body.dark-mode .theme-icon-moon { display: block; }
     stroke: currentColor;
 }
 
+/* ============ BOARD SHARING MODAL ============ */
+.share-modal-inner {
+    max-width: 520px;
+}
+
+.share-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px 24px;
+}
+
+.share-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+}
+
+.share-toggle-title {
+    font-weight: var(--fw-med);
+    font-size: 13px;
+    color: var(--text);
+}
+
+.share-toggle-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+
+.share-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.share-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.share-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: var(--border);
+    transition: 0.25s;
+    border-radius: 24px;
+}
+
+.share-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--surface);
+    transition: 0.25s;
+    border-radius: 50%;
+}
+
+.share-switch input:checked + .share-slider {
+    background-color: var(--accent);
+}
+
+.share-switch input:checked + .share-slider:before {
+    transform: translateX(20px);
+}
+
+.share-details-box {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: fadeIn 0.2s var(--ease);
+}
+
+.share-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.share-label {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+}
+
+.share-link-group,
+.share-password-group {
+    display: flex;
+    gap: 8px;
+}
+
+.share-input {
+    flex: 1;
+    padding: 9px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color var(--t-fast) var(--ease);
+}
+
+.share-input:focus {
+    border-color: var(--accent);
+}
+
+.share-copy-btn,
+.share-set-pw-btn {
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--text);
+    color: var(--surface);
+    border: 1px solid var(--text);
+    border-radius: var(--r-btn);
+    font-size: 11px;
+    font-weight: var(--fw-med);
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease);
+    white-space: nowrap;
+}
+
+.share-copy-btn:hover,
+.share-set-pw-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.share-pw-hint {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    margin-top: 4px;
+}
+
+.share-status-msg {
+    display: none;
+    padding: 10px 14px;
+    border-radius: var(--r-btn);
+    font-size: 12px;
+}
+
+.share-status-msg.success {
+    background: rgba(39, 174, 96, 0.12);
+    color: var(--ok);
+    border: 1px solid rgba(39, 174, 96, 0.3);
+}
+
+.share-status-msg.error {
+    background: rgba(231, 76, 60, 0.12);
+    color: var(--accent);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.guest-access-desc {
+    color: var(--text-muted);
+    font-size: 12.5px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+
 .boards-modal {
     display: none;
     position: fixed;
@@ -3366,6 +3544,7 @@ body.dark-mode .theme-icon-moon { display: block; }
 
 .board-card-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
 }
 
@@ -3374,7 +3553,7 @@ body.dark-mode .theme-icon-moon { display: block; }
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 5px 10px;
+    padding: 5px 8px;
     background: transparent;
     border: 1px solid var(--border);
     border-radius: var(--r-btn);
@@ -3385,9 +3564,17 @@ body.dark-mode .theme-icon-moon { display: block; }
     font-weight: var(--fw-light);
     transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
     line-height: 1;
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: fit-content;
     text-align: center;
 }
+
+.board-share-btn.shared-active {
+    color: var(--ok);
+    border-color: rgba(39, 174, 96, 0.4);
+    background: rgba(39, 174, 96, 0.08);
+}
+
 
 .board-btn .icon {
     width: 12px;

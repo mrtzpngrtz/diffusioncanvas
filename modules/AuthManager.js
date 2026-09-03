@@ -134,6 +134,10 @@ export class AuthManager {
     }
 
     async checkAuth() {
+        // If a share link is opened by a visitor, suppress forcing the regular login modal
+        const urlParams = new URLSearchParams(window.location.search);
+        const isShareLink = !!urlParams.get('share');
+
         try {
             const response = await fetch('/api/user', {
                 credentials: 'include'
@@ -170,16 +174,24 @@ export class AuthManager {
                 }
             } else {
                 // User is not authenticated
-                this.loginModal.classList.remove('hidden');
+                if (!isShareLink) {
+                    this.loginModal.classList.remove('hidden');
+                    await this.checkAvailableProviders();
+                } else {
+                    this.loginModal.classList.add('hidden');
+                }
                 this.userInfo.style.display = 'none';
-                // Check which providers are available
-                await this.checkAvailableProviders();
             }
         } catch (error) {
             console.error('Auth check failed:', error);
-            this.loginModal.classList.remove('hidden');
+            if (!isShareLink) {
+                this.loginModal.classList.remove('hidden');
+                await this.checkAvailableProviders();
+            } else {
+                this.loginModal.classList.add('hidden');
+            }
             this.userInfo.style.display = 'none';
-            await this.checkAvailableProviders();
         }
     }
+
 }

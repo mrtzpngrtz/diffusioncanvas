@@ -188,6 +188,27 @@ export const storage = {
         all[userId] = meta;
         await writeJSON(BOARDS_FILE, all);
     },
+    // Find a board and its owner userId by boardId
+    async findBoard(boardId) {
+        if (useRedis()) {
+            const r = await getRedis();
+            const users = await this.getUsers();
+            for (const u of users) {
+                const val = await r.get(`boards:${u.id}`);
+                const list = val ? JSON.parse(val) : [];
+                const b = list.find(item => item.id === boardId);
+                if (b) return { board: b, userId: u.id };
+            }
+            return null;
+        }
+        const all = await readJSON(BOARDS_FILE, {});
+        for (const [userId, boards] of Object.entries(all)) {
+            const b = boards.find(item => item.id === boardId);
+            if (b) return { board: b, userId };
+        }
+        return null;
+    },
+
 
     // Read full state for a single board — per-board file, never touches boards.json
     async getBoardState(boardId) {

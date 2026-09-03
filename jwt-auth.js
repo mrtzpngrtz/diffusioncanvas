@@ -44,3 +44,21 @@ export function getAuthUser(req) {
 export function clearAuthCookie(res) {
     res.clearCookie('auth_token');
 }
+
+export function generateShareToken(boardId) {
+    return jwt.sign(
+        { boardId, isShareGuest: true },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+}
+
+export function verifyShareToken(token) {
+    try {
+        const payload = jwt.verify(token, JWT_SECRET);
+        return payload?.isShareGuest ? payload : null;
+    } catch {
+        return null;
+    }
+}
+

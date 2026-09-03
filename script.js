@@ -85,6 +85,10 @@ class App {
 
         // Restore auto-save
         this.restoreAutoSavedCanvas();
+
+        // Check for shared board link
+        this.checkSharedBoardLink();
+
     }
 
     setupCanvasDrop() {
@@ -438,6 +442,8 @@ class App {
             badge.textContent = text;
         };
         show('saving', '● saving…');
+        if (this.isSharedGuestView) return; // Never auto-save or overwrite shared board from guest
+
         try {
             // Upload any images that don't have a server ref yet (one-time per image)
             await this._uploadPendingImages(show);
@@ -487,8 +493,118 @@ class App {
         }
     }
 
+    // ── SHARED BOARD LINK (GUEST VISITOR) ──────────────────────────────────
+    async checkSharedBoardLink() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const shareBoardId = urlParams.get('share');
+        if (!shareBoardId) return;
+
+        // Close boards panel and login modal
+        this.closeBoardsModal();
+        const loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.classList.add('hidden');
+
+        try {
+            // 1. Get info on whether a password is required
+            const infoRes = await fetch(`/api/share/info/${shareBoardId}`);
+            if (!infoRes.ok) {
+                const err = await infoRes.json().catch(() => ({}));
+                this.uiManager.updateStatus(err.error || 'Shared board not found', '#e74c3c');
+                return;
+            }
+
+            const info = await infoRes.json();
+            const headingEl = document.getElementById('guestBoardHeading');
+            if (headingEl) headingEl.textContent = info.name || 'Shared Board';
+
+            // 2. If no password needed, attempt immediate access
+            if (!info.hasPassword) {
+                await this._requestSharedBoardAccess(shareBoardId, '');
+                return;
+            }
+
+            // 3. Password required -> show Guest Access Modal
+            const guestModal = document.getElementById('guestAccessModal');
+            const guestForm = document.getElementById('guestAccessForm');
+            const guestPwInput = document.getElementById('guestPassword');
+            const guestError = document.getElementById('guestAccessError');
+            const guestSubmit = document.getElementById('guestAccessSubmitBtn');
+
+            if (guestModal) guestModal.classList.remove('hidden');
+            if (guestPwInput) {
+                guestPwInput.value = '';
+                guestPwInput.focus();
+            }
+            if (guestError) guestError.textContent = '';
+
+            guestForm.onsubmit = async (e) => {
+                e.preventDefault();
+                guestSubmit.disabled = true;
+                guestError.textContent = '';
+                const pw = guestPwInput.value;
+                const ok = await this._requestSharedBoardAccess(shareBoardId, pw);
+                guestSubmit.disabled = false;
+                if (ok && guestModal) {
+                    guestModal.classList.add('hidden');
+                }
+            };
+
+        } catch (err) {
+            console.error('Shared board initialization error:', err);
+        }
+    }
+
+    async _requestSharedBoardAccess(boardId, password) {
+        const guestError = document.getElementById('guestAccessError');
+        this._showLoading('Loading shared board...');
+        try {
+            const res = await fetch(`/api/share/access/${boardId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ password })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            this._hideLoading();
+
+            if (!res.ok) {
+                if (guestError) guestError.textContent = data.error || 'Incorrect password.';
+                return false;
+            }
+
+            // Successfully authenticated as guest: deserialize board state
+            this.currentBoardId = data.board.id;
+            this.currentBoardName = data.board.name;
+            this.isSharedGuestView = true;
+
+            await this.deserializeCanvas(data.state);
+
+            // Display banner / board title
+            this._updateBoardUI();
+            const topBarEl = document.getElementById('topBarBoardName');
+            if (topBarEl) topBarEl.textContent = `${data.board.name} (Shared View)`;
+            this.uiManager.updateStatus(`Viewing shared board: "${data.board.name}"`, '#27ae60');
+
+            // Hide normal boards / save buttons for read-only guests
+            const openBoardsBtn = document.getElementById('openBoardsBtn');
+            if (openBoardsBtn) openBoardsBtn.style.display = 'none';
+
+            return true;
+        } catch (e) {
+            this._hideLoading();
+            if (guestError) guestError.textContent = e.message || 'Failed to load board.';
+            return false;
+        }
+    }
+
+
 
     async restoreAutoSavedCanvas() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('share')) return; // handled by checkSharedBoardLink
+
+
         // If refreshed within the same tab session, restore the last board silently
         const sessionBoardId = sessionStorage.getItem('diffusionCanvas_sessionBoardId');
         if (sessionBoardId) {
@@ -886,6 +1002,7 @@ Object.assign(App.prototype, {
                         </div>
                         <div class="board-card-actions">
                             <button class="board-btn board-load-btn" data-id="${b.id}"><svg class="icon"><use href="#i-upload"/></svg>Load</button>
+                            <button class="board-btn board-share-btn${b.share?.enabled ? ' shared-active' : ''}" data-id="${b.id}" data-name="${this._escHtml(b.name)}" title="Share board with link and password"><svg class="icon"><use href="#i-share"/></svg>${b.share?.enabled ? 'Shared' : 'Share'}</button>
                             <button class="board-btn board-download-btn" data-id="${b.id}"><svg class="icon"><use href="#i-download"/></svg>Download</button>
                             <button class="board-btn board-versions-btn" data-id="${b.id}" data-name="${this._escHtml(b.name)}"><svg class="icon"><use href="#i-refresh"/></svg>Versions</button>
                             <button class="board-btn board-delete-btn" data-id="${b.id}" title="Delete"><svg class="icon"><use href="#i-trash"/></svg></button>
@@ -900,6 +1017,10 @@ Object.assign(App.prototype, {
             });
             listEl.querySelectorAll('.board-download-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => { e.stopPropagation(); this._downloadBoard(btn.dataset.id); });
+            listEl.querySelectorAll('.board-share-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => { e.stopPropagation(); this._openShareModal(btn.dataset.id, btn.dataset.name); });
+            });
+
             });
             listEl.querySelectorAll('.board-rename-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => { e.stopPropagation(); this._renameBoard(btn.dataset.id, btn.dataset.name); });
@@ -1185,6 +1306,130 @@ Object.assign(App.prototype, {
             this.uiManager.updateStatus('Failed to delete board', '#e74c3c');
         }
     },
+    // ── SHARE BOARD MODAL ───────────────────────────────────────────────────
+    _openShareModal(boardId, boardName) {
+        const modal = document.getElementById('shareBoardModal');
+        if (!modal) return;
+        const titleEl = document.getElementById('shareModalBoardTitle');
+        const toggle = document.getElementById('shareEnableToggle');
+        const detailsBox = document.getElementById('shareDetailsBox');
+        const linkInput = document.getElementById('shareLinkInput');
+        const pwInput = document.getElementById('sharePasswordInput');
+        const pwHint = document.getElementById('sharePwStatusHint');
+        const statusMsg = document.getElementById('shareStatusMsg');
+
+        titleEl.textContent = `Share "${boardName || 'Board'}"`;
+        pwInput.value = '';
+        statusMsg.style.display = 'none';
+        statusMsg.textContent = '';
+
+        const origin = window.location.origin;
+        const shareUrl = `${origin}/?share=${boardId}`;
+        linkInput.value = shareUrl;
+
+        // Fetch current share status
+        fetch('/api/boards', { credentials: 'include' })
+            .then(res => res.json())
+            .then(boards => {
+                const b = Array.isArray(boards) ? boards.find(x => x.id === boardId) : null;
+                const isEnabled = !!(b?.share?.enabled);
+                const hasPw = !!(b?.share?.hasPassword);
+
+                toggle.checked = isEnabled;
+                detailsBox.style.display = isEnabled ? 'block' : 'none';
+                pwHint.textContent = hasPw ? '● Password currently set' : '○ No password set (open access)';
+                pwHint.style.color = hasPw ? 'var(--ok)' : 'var(--text-muted)';
+            })
+            .catch(() => {});
+
+        // Wire toggle
+        toggle.onchange = async () => {
+            const enabled = toggle.checked;
+            detailsBox.style.display = enabled ? 'block' : 'none';
+            try {
+                const res = await fetch(`/api/boards/${boardId}/share`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ enabled })
+                });
+                if (!res.ok) throw new Error('Update failed');
+                statusMsg.style.display = 'block';
+                statusMsg.className = 'share-status-msg success';
+                statusMsg.textContent = enabled ? 'Sharing enabled!' : 'Sharing disabled.';
+                this._loadBoardsList();
+            } catch (err) {
+                statusMsg.style.display = 'block';
+                statusMsg.className = 'share-status-msg error';
+                statusMsg.textContent = 'Failed to update share status.';
+            }
+        };
+
+        // Wire save password button
+        const saveBtn = document.getElementById('shareSaveBtn');
+        saveBtn.onclick = async () => {
+            const password = pwInput.value.trim();
+            saveBtn.disabled = true;
+            try {
+                const res = await fetch(`/api/boards/${boardId}/share`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        enabled: toggle.checked,
+                        password: password || undefined,
+                        removePassword: password === '' && confirm('Remove password protection? Anyone with the link will be able to view without a password.')
+                    })
+                });
+                if (!res.ok) throw new Error('Save failed');
+                const data = await res.json();
+                const hasPw = !!data.share?.hasPassword;
+                pwHint.textContent = hasPw ? '● Password currently set' : '○ No password set (open access)';
+                pwHint.style.color = hasPw ? 'var(--ok)' : 'var(--text-muted)';
+                pwInput.value = '';
+                statusMsg.style.display = 'block';
+                statusMsg.className = 'share-status-msg success';
+                statusMsg.textContent = 'Password settings updated!';
+                this._loadBoardsList();
+            } catch (err) {
+                statusMsg.style.display = 'block';
+                statusMsg.className = 'share-status-msg error';
+                statusMsg.textContent = 'Failed to save password.';
+            } finally {
+                saveBtn.disabled = false;
+            }
+        };
+
+        // Copy link
+        const copyBtn = document.getElementById('shareCopyBtn');
+        copyBtn.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                const originalHtml = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<svg class="icon"><use href="#i-check"/></svg><span>Copied!</span>';
+                setTimeout(() => { copyBtn.innerHTML = originalHtml; }, 2000);
+            } catch {
+                linkInput.select();
+                document.execCommand('copy');
+            }
+        };
+
+        modal.classList.add('active');
+
+        // Close handlers
+        const closeBtn = document.getElementById('shareBoardModalClose');
+        const onClose = () => {
+            modal.classList.remove('active');
+            closeBtn.removeEventListener('click', onClose);
+            modal.removeEventListener('click', onBackdrop);
+        };
+        const onBackdrop = (e) => {
+            if (e.target === modal) onClose();
+        };
+        closeBtn.addEventListener('click', onClose);
+        modal.addEventListener('click', onBackdrop);
+    },
+
 
     _updateBoardUI() {
         const name = this.currentBoardName || '';

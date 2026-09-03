@@ -15,7 +15,7 @@ import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import passport from './auth.js';
 import bcrypt from 'bcryptjs';
-import { setAuthCookie, getAuthUser, clearAuthCookie } from './jwt-auth.js';
+import { setAuthCookie, getAuthUser, clearAuthCookie, generateShareToken, verifyShareToken } from './jwt-auth.js';
 import { storage } from './storage.js';
 import { runAgentTask, getTask, listTasks } from './modules/AgentWorker.js';
 
@@ -1281,9 +1281,14 @@ app.post('/api/images', isAuthenticated, async (req, res) => {
     }
 });
 
-// GET /api/images/:id — serve image binary
-app.get('/api/images/:id', isAuthenticated, async (req, res) => {
+// GET /api/images/:id — serve image binary (allows authenticated users OR guests with a valid board share token)
+app.get('/api/images/:id', async (req, res) => {
     try {
+        const user = getAuthUser(req);
+        const shareGuest = req.cookies.share_token ? verifyShareToken(req.cookies.share_token) : null;
+        if (!user && !shareGuest) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
         const img = await storage.getImage(req.params.id);
         if (!img) return res.status(404).send();
         res.setHeader('Content-Type', img.mimeType);
@@ -1293,6 +1298,7 @@ app.get('/api/images/:id', isAuthenticated, async (req, res) => {
         res.status(500).send();
     }
 });
+
 // ── FEEDBACK & CLI AGENT API ───────────────────────────────────────────────
 
 const feedbackLimiter = rateLimit({
@@ -1362,6 +1368,13 @@ app.get('/api/boards', isAuthenticated, async (req, res) => {
                 const { state, ...m } = b;
                 m.size = JSON.stringify(b).length; // bytes including state
                 m.nodeCount = state?.nodes?.length || 0;
+                // Expose safe share flags only (never hash)
+                if (b.share) {
+                    m.share = {
+                        enabled: !!b.share.enabled,
+                        hasPassword: !!b.share.hasPassword
+                    };
+                }
                 return m;
             })
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -1525,6 +1538,125 @@ app.delete('/api/boards/:id', isAuthenticated, async (req, res) => {
         res.status(500).json({ error: 'Failed to delete board' });
     }
 });
+
+// ── BOARD SHARING API ────────────────────────────────────────────────────────
+
+// POST /api/boards/:id/share — configure sharing (owner only)
+app.post('/api/boards/:id/share', isAuthenticated, async (req, res) => {
+    try {
+        const { enabled, password, removePassword } = req.body;
+        const boardId = req.params.id;
+
+        const updated = await storage.withUserLock(req.user.id, async () => {
+            const boards = await storage.getBoards(req.user.id);
+            const idx = boards.findIndex(b => b.id === boardId);
+            if (idx === -1) return null;
+
+            const b = boards[idx];
+            b.share = b.share || { enabled: false, hasPassword: false };
+            if (typeof enabled === 'boolean') b.share.enabled = enabled;
+
+            if (password && typeof password === 'string' && password.trim()) {
+                const salt = await bcrypt.genSalt(10);
+                b.share.passwordHash = await bcrypt.hash(password.trim(), salt);
+                b.share.hasPassword = true;
+            } else if (removePassword) {
+                delete b.share.passwordHash;
+                b.share.hasPassword = false;
+            }
+
+            b.share.updatedAt = new Date().toISOString();
+            b.updatedAt = new Date().toISOString();
+            await storage.setBoards(req.user.id, boards);
+            return {
+                id: b.id,
+                share: {
+                    enabled: b.share.enabled,
+                    hasPassword: !!b.share.hasPassword
+                }
+            };
+        });
+
+        if (!updated) return res.status(404).json({ error: 'Board not found' });
+        res.json(updated);
+    } catch (err) {
+        console.error('Share configuration error:', err);
+        res.status(500).json({ error: 'Failed to configure sharing' });
+    }
+});
+
+// GET /api/share/info/:id — public check if a shared board exists and requires a password
+app.get('/api/share/info/:id', async (req, res) => {
+    try {
+        const hit = await storage.findBoard(req.params.id);
+        if (!hit || !hit.board || !hit.board.share || !hit.board.share.enabled) {
+            return res.status(404).json({ error: 'Shared board not found or sharing disabled.' });
+        }
+
+        res.json({
+            id: hit.board.id,
+            name: hit.board.name,
+            hasPassword: !!hit.board.share.hasPassword,
+            updatedAt: hit.board.updatedAt
+        });
+    } catch (err) {
+        console.error('Share info error:', err);
+        res.status(500).json({ error: 'Failed to retrieve shared board info' });
+    }
+});
+
+// POST /api/share/access/:id — verify password (if any) and get shared board state + guest token
+app.post('/api/share/access/:id', async (req, res) => {
+    try {
+        const { password = '' } = req.body;
+        const hit = await storage.findBoard(req.params.id);
+        if (!hit || !hit.board || !hit.board.share || !hit.board.share.enabled) {
+            return res.status(404).json({ error: 'Shared board not found or link has expired.' });
+        }
+
+        const shareConfig = hit.board.share;
+
+        // If password is required, verify bcrypt hash
+        if (shareConfig.hasPassword && shareConfig.passwordHash) {
+            if (!password) {
+                return res.status(401).json({ error: 'Password required', needsPassword: true });
+            }
+            const match = await bcrypt.compare(password, shareConfig.passwordHash);
+            if (!match) {
+                return res.status(401).json({ error: 'Incorrect password', needsPassword: true });
+            }
+        }
+
+        // Get board canvas state
+        const state = await storage.getBoardState(hit.board.id);
+        if (!state) {
+            return res.status(404).json({ error: 'Board canvas state is empty or missing.' });
+        }
+
+        // Issue a share token cookie so the visitor can fetch image blobs
+        const shareToken = generateShareToken(hit.board.id);
+        res.cookie('share_token', shareToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        res.json({
+            success: true,
+            board: {
+                id: hit.board.id,
+                name: hit.board.name,
+                updatedAt: hit.board.updatedAt
+            },
+            state
+        });
+    } catch (err) {
+        console.error('Share access error:', err);
+        res.status(500).json({ error: 'Failed to access shared board' });
+    }
+});
+
 
 // GET /api/admin/storage — per-user board storage stats (admin only)
 app.get('/api/admin/storage', isAdmin, async (req, res) => {
