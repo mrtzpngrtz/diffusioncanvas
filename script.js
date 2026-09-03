@@ -5,6 +5,7 @@ import { NodeManager } from './modules/NodeManager.js';
 import { ConnectionManager } from './modules/ConnectionManager.js';
 import { APIManager } from './modules/APIManager.js';
 import { AreaManager } from './modules/AreaManager.js';
+import { FeedbackManager } from './modules/FeedbackManager.js';
 
 class App {
     constructor() {
@@ -60,6 +61,15 @@ class App {
         this.historyStack = [];      // [{state, timestamp, label, nodeCount}]
         this.historyCurrentIdx = -1; // index of the currently displayed state (-1 = live)
 
+        this.feedbackManager = new FeedbackManager({
+            uiManager: this.uiManager,
+            nodeManager: this.nodeManager,
+            getBoardInfo: () => ({
+                id: this.currentBoardId,
+                name: this.currentBoardName
+            })
+        });
+
         this.init();
     }
 
@@ -68,6 +78,7 @@ class App {
         this.setupStorage();
         this.setupContextMenu();
         this.setupCanvasDrop();
+        this.feedbackManager.init();
 
         // Start auto-save
         this.startAutoSave();

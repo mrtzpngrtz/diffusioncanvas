@@ -10,11 +10,15 @@ import OpenAI, { toFile } from 'openai';
 import path from 'path';
 import os from 'os';
 import { promises as fsp } from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import passport from './auth.js';
 import bcrypt from 'bcryptjs';
 import { setAuthCookie, getAuthUser, clearAuthCookie } from './jwt-auth.js';
 import { storage } from './storage.js';
+import { runAgentTask, getTask, listTasks } from './modules/AgentWorker.js';
+
 
 // Fail fast if required secrets are missing
 if (!process.env.SESSION_SECRET) {
@@ -28,6 +32,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const execFileAsync = promisify(execFile);
 
 const app = express();
 
@@ -1288,6 +1293,63 @@ app.get('/api/images/:id', isAuthenticated, async (req, res) => {
         res.status(500).send();
     }
 });
+// ── FEEDBACK & CLI AGENT API ───────────────────────────────────────────────
+
+const feedbackLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 15,
+    message: { error: 'Too many feedback requests. Please wait a few minutes before submitting again.' }
+});
+
+app.post('/api/feedback', isAuthenticated, feedbackLimiter, async (req, res) => {
+    try {
+        const { type = 'feedback', title, description, runAgent = true, diagnostics = null } = req.body;
+        if (!title || !title.trim() || !description || !description.trim()) {
+            return res.status(400).json({ error: 'Title and description are required.' });
+        }
+
+        const safeTitle = title.trim();
+        const safeDesc = description.trim();
+        const userEmail = req.user?.email || req.user?.displayName || 'user';
+
+        let agentTask = null;
+        if (runAgent) {
+            agentTask = await runAgentTask({
+                type,
+                title: safeTitle,
+                description: safeDesc,
+                diagnostics,
+                userEmail,
+                repoDir: __dirname,
+                baseBranch: process.env.GIT_BASE_BRANCH || 'coolify'
+            });
+        }
+
+        res.json({
+            success: true,
+            taskId: agentTask?.id || null,
+            agentBranch: agentTask?.branch || null,
+            agentDispatched: !!agentTask
+        });
+    } catch (err) {
+        console.error('Feedback API error:', err);
+        res.status(500).json({ error: err.message || 'Failed to process request' });
+    }
+});
+
+// GET /api/agent/status/:taskId — poll progress of autonomous agent
+app.get('/api/agent/status/:taskId', isAuthenticated, (req, res) => {
+    const task = getTask(req.params.taskId);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    res.json(task);
+});
+
+// GET /api/agent/tasks — list recent agent tasks (admin only)
+app.get('/api/agent/tasks', isAdmin, (req, res) => {
+    res.json(listTasks());
+});
+
+
 
 // ── BOARDS API ─────────────────────────────────────────────────────────────
 
