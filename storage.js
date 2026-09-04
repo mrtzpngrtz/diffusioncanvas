@@ -126,16 +126,35 @@ export const storage = {
                 'anthropic/claude-sonnet-5': 1,
                 'anthropic/claude-opus-5': 2,
                 'google/gemini-3.7-flash': 1
+            },
+            apiKeys: {
+                openrouterApiKey: '',
+                anthropicApiKey: '',
+                githubToken: ''
+            },
+            agentSettings: {
+                model: 'sonnet'
+            },
+            chatSettings: {
+                defaultModel: 'anthropic/claude-sonnet-5'
             }
         };
+        let saved = {};
         if (useRedis()) {
             const r = await getRedis();
             const val = await r.get('settings');
-            const saved = val ? JSON.parse(val) : {};
-            return { ...defaults, ...saved, modelCosts: { ...defaults.modelCosts, ...(saved.modelCosts || {}) } };
+            saved = val ? JSON.parse(val) : {};
+        } else {
+            saved = await readJSON(SETTINGS_FILE, {});
         }
-        const saved = await readJSON(SETTINGS_FILE, {});
-        return { ...defaults, ...saved, modelCosts: { ...defaults.modelCosts, ...(saved.modelCosts || {}) } };
+        return {
+            ...defaults,
+            ...saved,
+            modelCosts: { ...defaults.modelCosts, ...(saved.modelCosts || {}) },
+            apiKeys: { ...defaults.apiKeys, ...(saved.apiKeys || {}) },
+            agentSettings: { ...defaults.agentSettings, ...(saved.agentSettings || {}) },
+            chatSettings: { ...defaults.chatSettings, ...(saved.chatSettings || {}) }
+        };
     },
 
     async setSettings(settings) {

@@ -228,6 +228,18 @@ app.get('/api/auth/providers', (req, res) => {
     res.json(providers);
 });
 
+// Public/authenticated app configuration (safe client-facing config)
+app.get('/api/config', async (req, res) => {
+    try {
+        const settings = await storage.getSettings().catch(() => ({}));
+        res.json({
+            chatDefaultModel: settings?.chatSettings?.defaultModel || 'anthropic/claude-sonnet-5'
+        });
+    } catch {
+        res.json({ chatDefaultModel: 'anthropic/claude-sonnet-5' });
+    }
+});
+
 // Serve index.html at root
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -544,7 +556,8 @@ function pruneVideoJobs() {
 }
 
 async function generateVideoOpenRouter(model, prompt, opts) {
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const settings = await storage.getSettings().catch(() => ({}));
+    const apiKey = settings?.apiKeys?.openrouterApiKey || process.env.OPENROUTER_API_KEY;
     if (!apiKey) throw new Error('Video models are not configured on this server (OPENROUTER_API_KEY is missing).');
     const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 
@@ -897,19 +910,27 @@ app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
 });
 
 // ── LLM CHAT (OpenRouter chat completions, text out) ────────────────────────
-const CHAT_MODELS = new Set(['anthropic/claude-sonnet-5', 'anthropic/claude-opus-5', 'google/gemini-3.7-flash']);
+const CHAT_MODELS = new Set([
+    'anthropic/claude-sonnet-5',
+    'anthropic/claude-opus-5',
+    'google/gemini-3.7-flash',
+    'openai/gpt-4o',
+    'openai/gpt-4o-mini',
+    'deepseek/deepseek-chat',
+    'deepseek/deepseek-r1'
+]);
 
 app.post('/api/chat', isAuthenticated, async (req, res) => {
     try {
-        const apiKey = process.env.OPENROUTER_API_KEY;
+        const settings = await storage.getSettings().catch(() => ({}));
+        const apiKey = settings?.apiKeys?.openrouterApiKey || process.env.OPENROUTER_API_KEY;
         if (!apiKey) return res.status(500).json({ error: 'The assistant is not configured on this server (OPENROUTER_API_KEY is missing).' });
 
         const { model, messages, system } = req.body;
         if (!CHAT_MODELS.has(model)) return res.status(400).json({ error: `Unknown chat model: ${model}` });
         if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'No messages' });
 
-        const settings = await storage.getSettings();
-        const cost = settings.modelCosts[model] || 1;
+        const cost = settings?.modelCosts?.[model] || 1;
         if (!req.user.credits || req.user.credits < cost) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
@@ -1320,6 +1341,7 @@ app.post('/api/feedback', isAuthenticated, feedbackLimiter, async (req, res) => 
 
         let agentTask = null;
         if (runAgent) {
+            const settings = await storage.getSettings().catch(() => ({}));
             agentTask = await runAgentTask({
                 type,
                 title: safeTitle,
@@ -1327,7 +1349,10 @@ app.post('/api/feedback', isAuthenticated, feedbackLimiter, async (req, res) => 
                 diagnostics,
                 userEmail,
                 repoDir: __dirname,
-                baseBranch: process.env.GIT_BASE_BRANCH || 'coolify'
+                baseBranch: process.env.GIT_BASE_BRANCH || 'coolify',
+                anthropicApiKey: settings?.apiKeys?.anthropicApiKey,
+                githubToken: settings?.apiKeys?.githubToken,
+                agentModel: settings?.agentSettings?.model
             });
         }
 

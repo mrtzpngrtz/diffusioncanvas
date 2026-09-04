@@ -33,7 +33,10 @@ export async function runAgentTask({
     diagnostics = null,
     userEmail = 'user',
     repoDir,
-    baseBranch = 'coolify'
+    baseBranch = 'coolify',
+    anthropicApiKey = null,
+    githubToken = null,
+    agentModel = 'sonnet'
 }) {
     const taskId = randomUUID().slice(0, 8);
     const slug = title
@@ -75,15 +78,16 @@ export async function runAgentTask({
 
             // Authenticated GitHub Remote URL
             let pushRemoteUrl = null;
-            const gitHubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+            const effectiveGithubToken = githubToken || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+            const effectiveAnthropicApiKey = anthropicApiKey || process.env.ANTHROPIC_API_KEY;
 
             try {
                 const { stdout: remoteOut } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: repoDir });
                 const baseRemote = remoteOut.trim();
-                if (gitHubToken && baseRemote.startsWith('https://github.com/')) {
+                if (effectiveGithubToken && baseRemote.startsWith('https://github.com/')) {
                     const u = new URL(baseRemote);
                     u.username = 'x-access-token';
-                    u.password = gitHubToken;
+                    u.password = effectiveGithubToken;
                     pushRemoteUrl = u.toString();
                 } else {
                     pushRemoteUrl = baseRemote;
@@ -140,12 +144,22 @@ Implement the requested changes now.`;
 
             // 3. Run Claude Code CLI
             taskRecord.status = 'running_agent';
-            log('Spawning Claude Code CLI agent in workspace...');
+            log(`Spawning Claude Code CLI agent in workspace (model: ${agentModel || 'sonnet'})...`);
+
+            const claudeArgs = ['-p', prompt, '--dangerously-skip-permissions'];
+            if (agentModel) {
+                claudeArgs.push('--model', agentModel);
+            }
+
+            const procEnv = { ...process.env, CI: '1' };
+            if (effectiveAnthropicApiKey) {
+                procEnv.ANTHROPIC_API_KEY = effectiveAnthropicApiKey;
+            }
 
             await new Promise((resolve, reject) => {
-                const proc = execFile('claude', ['-p', prompt, '--dangerously-skip-permissions'], {
+                const proc = execFile('claude', claudeArgs, {
                     cwd: workspaceDir,
-                    env: { ...process.env, CI: '1' },
+                    env: procEnv,
                     timeout: 10 * 60 * 1000
                 }, (err, stdout, stderr) => {
                     if (stdout) log(`Agent output: ${stdout.slice(-350).trim()}`);

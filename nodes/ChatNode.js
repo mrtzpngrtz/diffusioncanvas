@@ -8,6 +8,10 @@ export const CHAT_MODELS = {
     'anthropic/claude-sonnet-5': { label: 'Claude Sonnet 5' },
     'anthropic/claude-opus-5':   { label: 'Claude Opus 5' },
     'google/gemini-3.7-flash':   { label: 'Gemini 3.7 Flash' },
+    'openai/gpt-4o':             { label: 'GPT-4o' },
+    'openai/gpt-4o-mini':        { label: 'GPT-4o-mini' },
+    'deepseek/deepseek-chat':    { label: 'DeepSeek V3' },
+    'deepseek/deepseek-r1':      { label: 'DeepSeek R1' }
 };
 
 export const CHAT_SYSTEM_BASE =

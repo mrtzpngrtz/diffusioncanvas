@@ -457,6 +457,40 @@
         .model-cost-item input {
             width: 80px;
             text-align: center;
+
+        .settings-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            margin-bottom: 24px;
+            border-radius: 1px;
+        }
+
+        .settings-card-title {
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: var(--text-color);
+        }
+
+        .settings-card-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .settings-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .settings-grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
         }
 
         /* Toasts */
@@ -670,6 +704,77 @@
         </div>
 
         <!-- ── SETTINGS ──────────────────────────────────────────────────── -->
+        <!-- ── SETTINGS ──────────────────────────────────────────────────── -->
+        <div class="tab-panel" id="panel-settings">
+            <div class="section">
+                <div class="section-header">
+                    <h2>API Keys & System Configuration</h2>
+                    <span class="section-hint">Configure API keys and model selections directly without editing environment files</span>
+                    <button type="submit" form="settingsForm" class="btn btn-primary btn-sm">Save All Settings</button>
+                </div>
+
+                <form id="settingsForm">
+                    <!-- API Keys Card -->
+                    <div class="settings-card">
+                        <div class="settings-card-title">API Keys</div>
+                        <div class="settings-card-desc">Enter your API keys here. Stored values will override server environment variables when provided.</div>
+                        <div class="settings-grid-2">
+                            <div class="form-group">
+                                <label for="openrouterApiKey">OpenRouter API Key (Chat Assistant & Video)</label>
+                                <input type="password" id="openrouterApiKey" class="input-field" placeholder="sk-or-v1-..." autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label for="anthropicApiKey">Anthropic API Key (Claude Code CLI Feedback Agent)</label>
+                                <input type="password" id="anthropicApiKey" class="input-field" placeholder="sk-ant-api03-..." autocomplete="off">
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label for="githubToken">GitHub Token (Feedback Agent Git Push Scopes: repo)</label>
+                                <input type="password" id="githubToken" class="input-field" placeholder="ghp_..." autocomplete="off">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Models Configuration Card -->
+                    <div class="settings-card">
+                        <div class="settings-card-title">Models & Agent Configuration</div>
+                        <div class="settings-card-desc">Choose models for the autonomous CLI coding agent and the in-canvas chat assistant.</div>
+                        <div class="settings-grid-2">
+                            <div class="form-group">
+                                <label for="agentModelSelect">Claude Code Agent Model</label>
+                                <select id="agentModelSelect" class="input-field" style="background:#111; color:#fff;">
+                                    <option value="sonnet">Claude Sonnet (Default / Fast & Smart)</option>
+                                    <option value="opus">Claude Opus (Maximum Capability)</option>
+                                    <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                                    <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="chatDefaultModelSelect">Canvas Chat Assistant Default Model (OpenRouter)</label>
+                                <select id="chatDefaultModelSelect" class="input-field" style="background:#111; color:#fff;">
+                                    <option value="anthropic/claude-sonnet-5">Claude Sonnet 5 (via OpenRouter)</option>
+                                    <option value="anthropic/claude-opus-5">Claude Opus 5 (via OpenRouter)</option>
+                                    <option value="google/gemini-3.7-flash">Gemini 3.7 Flash (via OpenRouter)</option>
+                                    <option value="openai/gpt-4o">OpenAI GPT-4o (via OpenRouter)</option>
+                                    <option value="openai/gpt-4o-mini">OpenAI GPT-4o-mini (via OpenRouter)</option>
+                                    <option value="deepseek/deepseek-chat">DeepSeek V3 (via OpenRouter)</option>
+                                    <option value="deepseek/deepseek-r1">DeepSeek R1 (via OpenRouter)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Model Credit Costs Card -->
+                    <div class="settings-card">
+                        <div class="settings-card-title">Model Credit Costs</div>
+                        <div class="settings-card-desc">Credits charged per generation, by model</div>
+                        <div id="modelCostsContainer" class="model-costs-grid">
+                            <div class="loading-overlay" style="display: flex;">Loading settings...</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="tab-panel" id="panel-settings">
             <div class="section">
                 <div class="section-header">
@@ -1063,6 +1168,42 @@ board: ${img.board}` : ''}`;
 
         // Display Settings
         function displaySettings(settings) {
+            // Populate API Keys
+            if (settings.apiKeys) {
+                document.getElementById('openrouterApiKey').value = settings.apiKeys.openrouterApiKey || '';
+                document.getElementById('anthropicApiKey').value = settings.apiKeys.anthropicApiKey || '';
+                document.getElementById('githubToken').value = settings.apiKeys.githubToken || '';
+            }
+
+            // Populate Models
+            if (settings.agentSettings && settings.agentSettings.model) {
+                document.getElementById('agentModelSelect').value = settings.agentSettings.model;
+            }
+            if (settings.chatSettings && settings.chatSettings.defaultModel) {
+                document.getElementById('chatDefaultModelSelect').value = settings.chatSettings.defaultModel;
+            }
+
+            const container = document.getElementById('modelCostsContainer');
+            container.innerHTML = '';
+
+            if (settings.modelCosts) {
+                Object.entries(settings.modelCosts).forEach(([model, cost]) => {
+                    const div = document.createElement('div');
+                    div.className = 'model-cost-item';
+                    div.innerHTML = `
+                        <label>${model}</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12px; color: var(--text-secondary);">Credits:</span>
+                            <input type="number" name="cost_${model}" value="${cost}" min="0" step="1" class="input-field">
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        // Display Settings
+        function displaySettings(settings) {
             const container = document.getElementById('modelCostsContainer');
             container.innerHTML = '';
 
@@ -1126,6 +1267,47 @@ board: ${img.board}` : ''}`;
 
         // Form Handlers
         document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Collect model costs
+            const inputs = document.querySelectorAll('#modelCostsContainer input');
+            const modelCosts = {};
+            inputs.forEach(input => {
+                const model = input.name.replace('cost_', '');
+                modelCosts[model] = parseInt(input.value) || 0;
+            });
+
+            // Collect API keys
+            const apiKeys = {
+                openrouterApiKey: document.getElementById('openrouterApiKey').value.trim(),
+                anthropicApiKey: document.getElementById('anthropicApiKey').value.trim(),
+                githubToken: document.getElementById('githubToken').value.trim()
+            };
+
+            // Collect Agent & Chat model selections
+            const agentSettings = {
+                model: document.getElementById('agentModelSelect').value
+            };
+            const chatSettings = {
+                defaultModel: document.getElementById('chatDefaultModelSelect').value
+            };
+
+            try {
+                const response = await fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ modelCosts, apiKeys, agentSettings, chatSettings })
+                });
+
+                if (!response.ok) throw new Error('Failed');
+                showToast('Settings saved successfully');
+            } catch (error) {
+                showToast('Failed to save settings', 'error');
+            }
+        });
+
             e.preventDefault();
             const inputs = document.querySelectorAll('#modelCostsContainer input');
             const modelCosts = {};
