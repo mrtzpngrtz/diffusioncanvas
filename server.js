@@ -267,7 +267,11 @@ app.get('/api/admin/settings', isAdmin, async (req, res) => {
 // Update settings (admin only)
 app.post('/api/admin/settings', isAdmin, async (req, res) => {
     try {
-        await storage.setSettings(req.body);
+        // Merge, never replace: a form that posts only part of the settings
+        // (or an older client that knows nothing of the API keys) must not
+        // erase the rest of them.
+        const current = await storage.getSettings();
+        await storage.setSettings({ ...current, ...req.body });
         res.json({ message: 'Settings updated successfully' });
     } catch (error) {
         console.error('Error updating settings:', error);

@@ -250,6 +250,11 @@
             accent-color: var(--accent-color);
         }
 
+        .checkbox-group label {
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+
         /* Image blob gallery */
         .image-grid {
             display: grid;
@@ -336,10 +341,17 @@
         .image-gallery-bar {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
             font-size: 13px;
             color: var(--text-secondary);
+        }
+
+        /* the note gives way first when the bar runs out of room */
+        .bar-note {
+            flex: 1 1 200px;
+            text-align: right;
         }
 
         /* Table */
@@ -429,20 +441,75 @@
             cursor: not-allowed;
         }
 
-        /* Model Settings */
+        /* Layout: one grid system for every panel */
+        .panel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            align-items: start;
+        }
+
+        .span-all {
+            grid-column: 1 / -1;
+        }
+
+        .settings-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 20px;
+        }
+
+        .settings-card-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .settings-card-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 18px;
+        }
+
+        /* Stacked fields — one per row keeps long labels readable */
+        .field-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .label-note {
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-left: 6px;
+        }
+
+        select.input-field {
+            background: #111;
+            color: var(--text-color);
+            appearance: none;
+            cursor: pointer;
+        }
+
+        /* Model costs: as many columns as fit, each row a label and a number */
         .model-costs-grid {
             display: grid;
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 10px;
         }
 
         .model-cost-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px;
+            gap: 12px;
+            padding: 10px 12px;
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid transparent;
-            border-radius: 1px;
+            border-radius: 2px;
         }
 
         .model-cost-item:hover {
@@ -451,46 +518,14 @@
 
         .model-cost-item label {
             font-family: var(--font-mono);
-            font-size: 13px;
+            font-size: 12px;
+            overflow-wrap: anywhere;
         }
 
         .model-cost-item input {
-            width: 80px;
+            width: 72px;
             text-align: center;
-
-        .settings-card {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border-color);
-            padding: 20px;
-            margin-bottom: 24px;
-            border-radius: 1px;
-        }
-
-        .settings-card-title {
-            font-size: 15px;
-            font-weight: 500;
-            margin-bottom: 4px;
-            color: var(--text-color);
-        }
-
-        .settings-card-desc {
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-bottom: 16px;
-        }
-
-        .settings-grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        @media (max-width: 768px) {
-            .settings-grid-2 {
-                grid-template-columns: 1fr;
-            }
-        }
-
+            flex-shrink: 0;
         }
 
         /* Toasts */
@@ -682,12 +717,12 @@
 
             <div class="section">
                 <div class="section-header">
-                    <h2>Add New User</h2>
+                    <h2>Add User</h2>
                     <span class="section-hint">Local accounts only &mdash; Google users appear on first sign-in</span>
                 </div>
                 <form id="addUserForm" class="form-grid">
                     <div class="form-group">
-                        <label for="email">Email Address</label>
+                        <label for="email">Email address</label>
                         <input type="email" id="email" class="input-field" placeholder="user@example.com" required>
                     </div>
                     <div class="form-group">
@@ -696,7 +731,7 @@
                     </div>
                     <div class="checkbox-group">
                         <input type="checkbox" id="isAdmin">
-                        <label for="isAdmin" style="margin-bottom: 0; cursor: pointer;">Grant Admin Privileges</label>
+                        <label for="isAdmin">Grant admin privileges</label>
                     </div>
                     <button type="submit" class="btn btn-primary">Create User</button>
                 </form>
@@ -704,87 +739,68 @@
         </div>
 
         <!-- ── SETTINGS ──────────────────────────────────────────────────── -->
-        <!-- ── SETTINGS ──────────────────────────────────────────────────── -->
         <div class="tab-panel" id="panel-settings">
             <div class="section">
                 <div class="section-header">
-                    <h2>API Keys & System Configuration</h2>
-                    <span class="section-hint">Configure API keys and model selections directly without editing environment files</span>
-                    <button type="submit" form="settingsForm" class="btn btn-primary btn-sm">Save All Settings</button>
+                    <h2>Configuration</h2>
+                    <span class="section-hint">Stored values override the server environment</span>
+                    <button type="submit" form="settingsForm" class="btn btn-primary btn-sm">Save Settings</button>
                 </div>
 
-                <form id="settingsForm">
-                    <!-- API Keys Card -->
+                <form id="settingsForm" class="panel-grid">
                     <div class="settings-card">
                         <div class="settings-card-title">API Keys</div>
-                        <div class="settings-card-desc">Enter your API keys here. Stored values will override server environment variables when provided.</div>
-                        <div class="settings-grid-2">
+                        <div class="settings-card-desc">Left blank, the server falls back to its environment variables.</div>
+                        <div class="field-grid">
                             <div class="form-group">
-                                <label for="openrouterApiKey">OpenRouter API Key (Chat Assistant & Video)</label>
-                                <input type="password" id="openrouterApiKey" class="input-field" placeholder="sk-or-v1-..." autocomplete="off">
+                                <label for="openrouterApiKey">OpenRouter <span class="label-note">chat assistant &amp; video</span></label>
+                                <input type="password" id="openrouterApiKey" class="input-field" placeholder="sk-or-v1-…" autocomplete="off">
                             </div>
                             <div class="form-group">
-                                <label for="anthropicApiKey">Anthropic API Key (Claude Code CLI Feedback Agent)</label>
-                                <input type="password" id="anthropicApiKey" class="input-field" placeholder="sk-ant-api03-..." autocomplete="off">
+                                <label for="anthropicApiKey">Anthropic <span class="label-note">Claude Code feedback agent</span></label>
+                                <input type="password" id="anthropicApiKey" class="input-field" placeholder="sk-ant-api03-…" autocomplete="off">
                             </div>
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label for="githubToken">GitHub Token (Feedback Agent Git Push Scopes: repo)</label>
-                                <input type="password" id="githubToken" class="input-field" placeholder="ghp_..." autocomplete="off">
+                            <div class="form-group">
+                                <label for="githubToken">GitHub Token <span class="label-note">repo scope, for the agent's pushes</span></label>
+                                <input type="password" id="githubToken" class="input-field" placeholder="ghp_…" autocomplete="off">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Models Configuration Card -->
                     <div class="settings-card">
-                        <div class="settings-card-title">Models & Agent Configuration</div>
-                        <div class="settings-card-desc">Choose models for the autonomous CLI coding agent and the in-canvas chat assistant.</div>
-                        <div class="settings-grid-2">
+                        <div class="settings-card-title">Models</div>
+                        <div class="settings-card-desc">Which model answers where.</div>
+                        <div class="field-grid">
                             <div class="form-group">
-                                <label for="agentModelSelect">Claude Code Agent Model</label>
-                                <select id="agentModelSelect" class="input-field" style="background:#111; color:#fff;">
-                                    <option value="sonnet">Claude Sonnet (Default / Fast & Smart)</option>
-                                    <option value="opus">Claude Opus (Maximum Capability)</option>
+                                <label for="agentModelSelect">Claude Code agent</label>
+                                <select id="agentModelSelect" class="input-field">
+                                    <option value="sonnet">Claude Sonnet (default)</option>
+                                    <option value="opus">Claude Opus (maximum capability)</option>
                                     <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
                                     <option value="claude-opus-4-6">Claude Opus 4.6</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="chatDefaultModelSelect">Canvas Chat Assistant Default Model (OpenRouter)</label>
-                                <select id="chatDefaultModelSelect" class="input-field" style="background:#111; color:#fff;">
-                                    <option value="anthropic/claude-sonnet-5">Claude Sonnet 5 (via OpenRouter)</option>
-                                    <option value="anthropic/claude-opus-5">Claude Opus 5 (via OpenRouter)</option>
-                                    <option value="google/gemini-3.7-flash">Gemini 3.7 Flash (via OpenRouter)</option>
-                                    <option value="openai/gpt-4o">OpenAI GPT-4o (via OpenRouter)</option>
-                                    <option value="openai/gpt-4o-mini">OpenAI GPT-4o-mini (via OpenRouter)</option>
-                                    <option value="deepseek/deepseek-chat">DeepSeek V3 (via OpenRouter)</option>
-                                    <option value="deepseek/deepseek-r1">DeepSeek R1 (via OpenRouter)</option>
+                                <label for="chatDefaultModelSelect">Canvas chat assistant <span class="label-note">via OpenRouter</span></label>
+                                <select id="chatDefaultModelSelect" class="input-field">
+                                    <option value="anthropic/claude-sonnet-5">Claude Sonnet 5</option>
+                                    <option value="anthropic/claude-opus-5">Claude Opus 5</option>
+                                    <option value="google/gemini-3.7-flash">Gemini 3.7 Flash</option>
+                                    <option value="openai/gpt-4o">GPT-4o</option>
+                                    <option value="openai/gpt-4o-mini">GPT-4o-mini</option>
+                                    <option value="deepseek/deepseek-chat">DeepSeek V3</option>
+                                    <option value="deepseek/deepseek-r1">DeepSeek R1</option>
                                 </select>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Model Credit Costs Card -->
-                    <div class="settings-card">
+                    <div class="settings-card span-all">
                         <div class="settings-card-title">Model Credit Costs</div>
-                        <div class="settings-card-desc">Credits charged per generation, by model</div>
+                        <div class="settings-card-desc">Credits charged per generation, by model.</div>
                         <div id="modelCostsContainer" class="model-costs-grid">
-                            <div class="loading-overlay" style="display: flex;">Loading settings...</div>
+                            <div class="loading-overlay" style="display: flex;">Loading settings…</div>
                         </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <div class="tab-panel" id="panel-settings">
-            <div class="section">
-                <div class="section-header">
-                    <h2>Model Credit Costs</h2>
-                    <span class="section-hint">Credits charged per generation, by model</span>
-                    <button type="submit" form="settingsForm" class="btn btn-primary btn-sm">Save Changes</button>
-                </div>
-                <form id="settingsForm">
-                    <div id="modelCostsContainer" class="model-costs-grid">
-                        <div class="loading-overlay" style="display: flex;">Loading settings...</div>
                     </div>
                 </form>
             </div>
@@ -813,10 +829,10 @@
                 </div>
                 <div class="image-gallery-bar">
                     <span id="imagesSummary">&mdash;</span>
-                <span class="section-hint">Dates are when a blob was first stored or first seen in a board</span>
                     <button id="imagesMoreBtn" class="btn btn-sm" style="display:none;" onclick="loadImages(true)">Load more</button>
-                <button class="btn btn-sm" onclick="downloadArchive()">&#8595; Download all (ZIP)</button>
-                <span id="archiveParts"></span>
+                    <button class="btn btn-sm" onclick="downloadArchive()">&#8595; Download all (ZIP)</button>
+                    <span id="archiveParts"></span>
+                    <span class="section-hint bar-note">Dates are when a blob was first stored, or first seen in a board</span>
                 </div>
                 <div id="imagesLoading" class="loading-overlay" style="display:flex;">Loading...</div>
                 <div id="imageGrid" class="image-grid"></div>
@@ -1202,27 +1218,6 @@ board: ${img.board}` : ''}`;
             }
         }
 
-        // Display Settings
-        function displaySettings(settings) {
-            const container = document.getElementById('modelCostsContainer');
-            container.innerHTML = '';
-
-            if (settings.modelCosts) {
-                Object.entries(settings.modelCosts).forEach(([model, cost]) => {
-                    const div = document.createElement('div');
-                    div.className = 'model-cost-item';
-                    div.innerHTML = `
-                        <label>${model}</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 12px; color: var(--text-secondary);">Credits:</span>
-                            <input type="number" name="cost_${model}" value="${cost}" min="0" step="1" class="input-field">
-                        </div>
-                    `;
-                    container.appendChild(div);
-                });
-            }
-        }
-
         // Update Stats
         function updateStats(users) {
             document.getElementById('totalUsers').textContent = users.length;
@@ -1267,7 +1262,6 @@ board: ${img.board}` : ''}`;
 
         // Form Handlers
         document.getElementById('settingsForm').addEventListener('submit', async (e) => {
-        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
             // Collect model costs
@@ -1299,30 +1293,6 @@ board: ${img.board}` : ''}`;
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ modelCosts, apiKeys, agentSettings, chatSettings })
-                });
-
-                if (!response.ok) throw new Error('Failed');
-                showToast('Settings saved successfully');
-            } catch (error) {
-                showToast('Failed to save settings', 'error');
-            }
-        });
-
-            e.preventDefault();
-            const inputs = document.querySelectorAll('#modelCostsContainer input');
-            const modelCosts = {};
-            
-            inputs.forEach(input => {
-                const model = input.name.replace('cost_', '');
-                modelCosts[model] = parseInt(input.value);
-            });
-
-            try {
-                const response = await fetch('/api/admin/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ modelCosts })
                 });
 
                 if (!response.ok) throw new Error('Failed');
