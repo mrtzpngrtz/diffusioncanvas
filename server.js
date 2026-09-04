@@ -657,6 +657,33 @@ async function generateVideoOmni(model, prompt, opts) {
 }
 
 // Submit a video job — responds 202 with a job id, generation continues in the background
+// ── Cost tracking ───────────────────────────────────────────────────────────
+// One log entry per successful generation, with the provider cost estimated at
+// the price that was configured when it ran. Video prices are per second, so
+// the duration is part of the estimate; everything else is per run.
+
+async function recordUsage({ user, type, model, credits, seconds = null, settings = null }) {
+    try {
+        const cfg = settings || await storage.getSettings();
+        const unitPrice = cfg.modelPrices?.[model] ?? 0;
+        const usd = type === 'video' ? unitPrice * (Number(seconds) || 5) : unitPrice;
+
+        await storage.appendUsage({
+            ts: Date.now(),
+            userId: user?.id || null,
+            userName: user?.displayName || user?.email || 'unknown',
+            type,
+            model,
+            credits: credits || 0,
+            usd: Math.round(usd * 100000) / 100000,
+            seconds: seconds || null
+        });
+    } catch (e) {
+        // Accounting must never take a generation down with it
+        console.warn('usage log failed:', e.message);
+    }
+}
+
 app.post('/api/generate-video', isAuthenticated, async (req, res) => {
     try {
         const { prompt, model, resolution, aspectRatio, duration, audio, firstFrame, lastFrame } = req.body;
@@ -695,6 +722,7 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
                     users[idx].usedCredits = (users[idx].usedCredits || 0) + cost;
                     await storage.setUsers(users);
                     job.creditsRemaining = users[idx].credits;
+                    recordUsage({ user: users[idx], type: 'video', model, credits: cost, seconds: duration });
                 }
                 job.result = { video };
                 job.status = 'completed';
@@ -897,6 +925,7 @@ app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
                     users[idx].usedCredits = (users[idx].usedCredits || 0) + cost;
                     await storage.setUsers(users);
                     job.creditsRemaining = users[idx].credits;
+                    recordUsage({ user: users[idx], type: '3d', model, credits: cost });
                 }
                 job.result = result;
                 job.status = 'completed';
@@ -982,6 +1011,7 @@ app.post('/api/chat', isAuthenticated, async (req, res) => {
             users[idx].usedCredits = (users[idx].usedCredits || 0) + cost;
             await storage.setUsers(users);
             creditsRemaining = users[idx].credits;
+            recordUsage({ user: users[idx], type: 'chat', model, credits: cost });
         }
         res.json({ text: text.trim(), creditsRemaining });
     } catch (error) {
@@ -1246,6 +1276,11 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             // Add credits info to response
             result.creditsRemaining = users[userIndex].credits;
             result.usedCredits = users[userIndex].usedCredits;
+
+            recordUsage({
+                user: users[userIndex], type: 'image',
+                model: selectedModel, credits: cost, settings
+            });
         }
 
         res.json(result);
@@ -1996,6 +2031,69 @@ app.get('/api/admin/images/archive', isAdmin, async (req, res) => {
         console.error('Error building image archive:', error);
         if (!res.headersSent) res.status(500).json({ error: 'Failed to build archive' });
         else res.end();
+    }
+});
+
+// GET /api/admin/usage?days=30 — spend, aggregated the way the panel plots it
+app.get('/api/admin/usage', isAdmin, async (req, res) => {
+    try {
+        const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 365);
+        const since = Date.now() - days * 86400000;
+        const entries = await storage.getUsage(since);
+
+        const dayKey = (ts) => new Date(ts).toISOString().slice(0, 10);
+        const daily = new Map();
+        const byModel = new Map();
+        const byUser = new Map();
+        const byType = new Map();
+
+        // seed every day in the window so the chart has no gaps
+        for (let i = days - 1; i >= 0; i--) {
+            daily.set(dayKey(Date.now() - i * 86400000), { date: dayKey(Date.now() - i * 86400000), usd: 0, credits: 0, count: 0, types: {} });
+        }
+
+        const bump = (map, key, entry, extra = {}) => {
+            const row = map.get(key) || { key, usd: 0, credits: 0, count: 0, ...extra };
+            row.usd += entry.usd || 0;
+            row.credits += entry.credits || 0;
+            row.count += 1;
+            map.set(key, row);
+        };
+
+        for (const entry of entries) {
+            const day = daily.get(dayKey(entry.ts));
+            if (day) {
+                day.usd += entry.usd || 0;
+                day.credits += entry.credits || 0;
+                day.count += 1;
+                day.types[entry.type] = (day.types[entry.type] || 0) + (entry.usd || 0);
+            }
+            bump(byModel, entry.model || 'unknown', entry);
+            bump(byUser, entry.userName || 'unknown', entry);
+            bump(byType, entry.type || 'other', entry);
+        }
+
+        const round = (rows) => rows.map(r => ({ ...r, usd: Math.round(r.usd * 10000) / 10000 }));
+        const bySpend = (a, b) => b.usd - a.usd;
+
+        res.json({
+            days,
+            totals: {
+                usd: Math.round(entries.reduce((sum, e) => sum + (e.usd || 0), 0) * 10000) / 10000,
+                credits: entries.reduce((sum, e) => sum + (e.credits || 0), 0),
+                count: entries.length
+            },
+            daily: round([...daily.values()]),
+            byModel: round([...byModel.values()].sort(bySpend)),
+            byUser: round([...byUser.values()].sort(bySpend)),
+            byType: round([...byType.values()].sort(bySpend)),
+            // sorted rather than assumed: the log is appended in order, but a
+            // restored or merged file need not be
+            recent: [...entries].sort((a, b) => b.ts - a.ts).slice(0, 60)
+        });
+    } catch (error) {
+        console.error('Error loading usage:', error);
+        res.status(500).json({ error: 'Failed to load usage' });
     }
 });
 

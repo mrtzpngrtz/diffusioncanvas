@@ -528,6 +528,137 @@
             flex-shrink: 0;
         }
 
+        /* ── Charts ─────────────────────────────────────────────────────────
+           Categorical hues validated against this surface (#1a1a1a) with the
+           data-viz palette validator: lightness band, chroma, CVD separation
+           and contrast all pass. */
+        .viz {
+            --series-image: #3987e5;
+            --series-video: #d95926;
+            --series-3d:    #199e70;
+            --series-chat:  #c98500;
+            --series-solo:  #3987e5;
+            --grid-line:    rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-block {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 18px;
+            margin-bottom: 20px;
+        }
+
+        .chart-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .chart-head h3 {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .chart svg {
+            display: block;
+            width: 100%;
+            height: auto;
+            overflow: visible;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-swatch {
+            width: 9px;
+            height: 9px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .axis-label {
+            fill: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 10px;
+        }
+
+        .bar-value {
+            fill: var(--text-color);
+            font-family: var(--font-mono);
+            font-size: 11px;
+        }
+
+        .bar-name {
+            fill: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 11px;
+        }
+
+        .mono-cell {
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .price-note {
+            color: var(--text-secondary);
+            font-size: 10px;
+            font-family: var(--font-mono);
+            margin-left: 6px;
+        }
+
+        .chart-empty {
+            color: var(--text-secondary);
+            font-size: 13px;
+            padding: 24px 0;
+        }
+
+        .range-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .range-row .btn.active {
+            border-color: var(--accent-color);
+            color: #8899ff;
+        }
+
+        .stats-inline {
+            margin-bottom: 24px;
+        }
+
+        /* One tooltip, moved to whatever mark the pointer is over */
+        .viz-tooltip {
+            position: fixed;
+            z-index: 9999;
+            pointer-events: none;
+            padding: 7px 10px;
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            font-size: 11px;
+            line-height: 1.5;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        }
+
+        .viz-tooltip.visible { opacity: 1; }
+        .viz-tooltip b { font-family: var(--font-mono); }
+
         /* Toasts */
         .toast-container {
             position: fixed;
@@ -679,6 +810,7 @@
         <nav class="tabs" id="tabNav">
             <button class="tab" data-tab="users">Users</button>
             <button class="tab" data-tab="settings">Settings</button>
+            <button class="tab" data-tab="costs">Costs</button>
             <button class="tab" data-tab="storage">Storage</button>
             <button class="tab" data-tab="images">Images</button>
         </nav>
@@ -796,6 +928,18 @@
                     </div>
 
                     <div class="settings-card span-all">
+                        <div class="settings-card-title">Provider Prices (USD)</div>
+                        <div class="settings-card-desc">
+                            What one generation costs you at the provider &mdash; the basis for the Costs tab.
+                            Video models are priced per second of output, everything else per run.
+                            Researched September 2026; the ones marked <em>est.</em> are interpolated, correct them here.
+                        </div>
+                        <div id="modelPricesContainer" class="model-costs-grid">
+                            <div class="loading-overlay" style="display: flex;">Loading prices…</div>
+                        </div>
+                    </div>
+
+                    <div class="settings-card span-all">
                         <div class="settings-card-title">Model Credit Costs</div>
                         <div class="settings-card-desc">Credits charged per generation, by model.</div>
                         <div id="modelCostsContainer" class="model-costs-grid">
@@ -803,6 +947,75 @@
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- ── COSTS ─────────────────────────────────────────────────────── -->
+        <div class="tab-panel" id="panel-costs">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Spend</h2>
+                    <span class="section-hint">Provider cost, estimated per generation at the prices set under Settings</span>
+                    <div class="range-row" id="costRange">
+                        <button class="btn btn-sm" data-days="7">7 days</button>
+                        <button class="btn btn-sm active" data-days="30">30 days</button>
+                        <button class="btn btn-sm" data-days="90">90 days</button>
+                    </div>
+                </div>
+
+                <div class="stats stats-inline">
+                    <div class="stat-card">
+                        <h3>Estimated Spend</h3>
+                        <div class="value" id="costTotal">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Generations</h3>
+                        <div class="value" id="costCount">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Avg per Generation</h3>
+                        <div class="value" id="costAvg">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Credits Charged</h3>
+                        <div class="value" id="costCredits">-</div>
+                    </div>
+                </div>
+
+                <div class="chart-block span-all">
+                    <div class="chart-head">
+                        <h3>Spend per day</h3>
+                        <div class="legend" id="costLegend"></div>
+                    </div>
+                    <div id="chartDaily" class="chart"></div>
+                </div>
+
+                <div class="panel-grid">
+                    <div class="chart-block">
+                        <div class="chart-head"><h3>By model</h3></div>
+                        <div id="chartModels" class="chart"></div>
+                    </div>
+                    <div class="chart-block">
+                        <div class="chart-head"><h3>By user</h3></div>
+                        <div id="chartUsers" class="chart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2>Recent Generations</h2>
+                    <span class="section-hint">Newest 60 in the selected range</span>
+                </div>
+                <div class="table-container">
+                    <table class="users-table" id="usageTable">
+                        <thead>
+                            <tr><th>When</th><th>User</th><th>Type</th><th>Model</th><th>Credits</th><th>Est. cost</th></tr>
+                        </thead>
+                        <tbody id="usageTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="usageEmpty" class="loading-overlay" style="display:none;">Nothing recorded yet</div>
             </div>
         </div>
 
@@ -900,6 +1113,7 @@
         const TABS = {
             users:    { load: loadUsers,    loaded: false },
             settings: { load: loadSettings, loaded: false },
+            costs:    { load: loadCosts,    loaded: false },
             storage:  { load: loadStorage,  loaded: false },
             images:   { load: loadImages,   loaded: false }
         };
@@ -1038,6 +1252,224 @@
                 partsEl.appendChild(btn);
             }
         }
+
+        // ── Cost tracking ───────────────────────────────────────────────────
+        // Charts are hand-drawn SVG: no dependency, and the page already knows
+        // its own colours. Series colours come from the .viz custom properties.
+
+        const COST_TYPES = [
+            { key: 'image', label: 'Images', color: 'var(--series-image)' },
+            { key: 'video', label: 'Video',  color: 'var(--series-video)' },
+            { key: '3d',    label: '3D',     color: 'var(--series-3d)' },
+            { key: 'chat',  label: 'Chat',   color: 'var(--series-chat)' }
+        ];
+
+        let costDays = 30;
+        let vizTooltip = null;
+
+        const usd = (n) => '$' + (n >= 100 ? n.toFixed(0) : n >= 1 ? n.toFixed(2) : n.toFixed(4));
+
+        const svgEl = (name, attrs = {}) => {
+            const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+            for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+            return el;
+        };
+
+        function tooltip() {
+            if (!vizTooltip) {
+                vizTooltip = document.createElement('div');
+                vizTooltip.className = 'viz-tooltip';
+                document.body.appendChild(vizTooltip);
+            }
+            return vizTooltip;
+        }
+
+        function bindTip(el, html) {
+            el.addEventListener('pointerenter', () => {
+                const t = tooltip();
+                t.innerHTML = html;
+                t.classList.add('visible');
+            });
+            el.addEventListener('pointermove', (e) => {
+                const t = tooltip();
+                t.style.left = (e.clientX + 14) + 'px';
+                t.style.top = (e.clientY - 10) + 'px';
+            });
+            el.addEventListener('pointerleave', () => tooltip().classList.remove('visible'));
+        }
+
+        function emptyChart(host, message) {
+            host.innerHTML = '<div class="chart-empty">' + message + '</div>';
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text == null ? '' : text;
+            return d.innerHTML;
+        }
+
+        // Daily spend, stacked by what the money was spent on
+        function renderDailyChart(daily) {
+            const host = document.getElementById('chartDaily');
+            const max = Math.max(...daily.map(d => d.usd), 0);
+            if (!max) return emptyChart(host, 'No spend recorded in this range.');
+
+            const W = 960, H = 240, padL = 56, padR = 8, padT = 8, padB = 26;
+            const plotW = W - padL - padR, plotH = H - padT - padB;
+            const step = plotW / daily.length;
+            const barW = Math.max(2, Math.min(26, step - 3)); // gap between bars
+
+            const svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img' });
+
+            // Four recessive gridlines with the value axis on the left
+            for (let i = 0; i <= 4; i++) {
+                const y = padT + plotH - (plotH * i / 4);
+                svg.appendChild(svgEl('line', {
+                    x1: padL, x2: W - padR, y1: y, y2: y,
+                    stroke: 'var(--grid-line)', 'stroke-width': 1
+                }));
+                const label = svgEl('text', { x: padL - 8, y: y + 3, 'text-anchor': 'end', class: 'axis-label' });
+                label.textContent = usd(max * i / 4);
+                svg.appendChild(label);
+            }
+
+            daily.forEach((day, i) => {
+                const x = padL + i * step + (step - barW) / 2;
+                let y = padT + plotH;
+
+                for (const type of COST_TYPES) {
+                    const value = (day.types && day.types[type.key]) || 0;
+                    if (value <= 0) continue;
+                    const h = (value / max) * plotH;
+                    y -= h;
+                    svg.appendChild(svgEl('rect', {
+                        x: x, y: y, width: barW,
+                        height: Math.max(1, h - 1), // surface gap between segments
+                        fill: type.color, rx: 1
+                    }));
+                }
+
+                // one hit area per day, wider than the bar itself
+                const hit = svgEl('rect', {
+                    x: padL + i * step, y: padT, width: step, height: plotH, fill: 'transparent'
+                });
+                const lines = COST_TYPES
+                    .filter(t => ((day.types && day.types[t.key]) || 0) > 0)
+                    .map(t => t.label + ': <b>' + usd(day.types[t.key]) + '</b>')
+                    .join('<br>');
+                bindTip(hit, '<b>' + day.date + '</b><br>' + (lines || 'nothing') +
+                    '<br>Total: <b>' + usd(day.usd) + '</b> · ' + day.count + ' runs');
+                svg.appendChild(hit);
+            });
+
+            // First, middle and last date only — one label per day is unreadable
+            [0, Math.floor(daily.length / 2), daily.length - 1].forEach((i, n) => {
+                if (!daily[i]) return;
+                const label = svgEl('text', {
+                    x: padL + i * step + step / 2,
+                    y: H - 8,
+                    'text-anchor': n === 0 ? 'start' : n === 2 ? 'end' : 'middle',
+                    class: 'axis-label'
+                });
+                label.textContent = daily[i].date.slice(5);
+                svg.appendChild(label);
+            });
+
+            host.innerHTML = '';
+            host.appendChild(svg);
+
+            document.getElementById('costLegend').innerHTML = COST_TYPES.map(t =>
+                '<span class="legend-item"><span class="legend-swatch" style="background:' +
+                t.color + '"></span>' + t.label + '</span>').join('');
+        }
+
+        // Ranked magnitude — horizontal bars, one hue, value labelled directly
+        function renderRankedChart(hostId, rows, emptyMessage) {
+            const host = document.getElementById(hostId);
+            const top = rows.slice(0, 8);
+            const max = Math.max(...top.map(r => r.usd), 0);
+            if (!max) return emptyChart(host, emptyMessage);
+
+            const rowH = 30, W = 460, labelW = 168, valueW = 74;
+            const H = top.length * rowH + 6;
+            const barMax = W - labelW - valueW;
+            const svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img' });
+
+            top.forEach((row, i) => {
+                const y = i * rowH + 4;
+                const w = Math.max(2, (row.usd / max) * barMax);
+
+                const name = svgEl('text', { x: 0, y: y + 15, class: 'bar-name' });
+                name.textContent = row.key.length > 24 ? row.key.slice(0, 23) + '…' : row.key;
+                svg.appendChild(name);
+
+                svg.appendChild(svgEl('rect', {
+                    x: labelW, y: y + 4, width: w, height: 14, rx: 4, fill: 'var(--series-solo)'
+                }));
+
+                const value = svgEl('text', { x: labelW + w + 8, y: y + 15, class: 'bar-value' });
+                value.textContent = usd(row.usd);
+                svg.appendChild(value);
+
+                const hit = svgEl('rect', { x: 0, y: y, width: W, height: rowH, fill: 'transparent' });
+                bindTip(hit, '<b>' + escapeHtml(row.key) + '</b><br>' + usd(row.usd) +
+                    ' · ' + row.count + ' runs · ' + row.credits + ' credits');
+                svg.appendChild(hit);
+            });
+
+            host.innerHTML = '';
+            host.appendChild(svg);
+        }
+
+        function renderUsageTable(rows) {
+            const body = document.getElementById('usageTableBody');
+            const empty = document.getElementById('usageEmpty');
+            body.innerHTML = '';
+            empty.style.display = rows.length ? 'none' : 'flex';
+
+            for (const row of rows) {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td>' + new Date(row.ts).toLocaleString() + '</td>' +
+                    '<td>' + escapeHtml(row.userName) + '</td>' +
+                    '<td>' + escapeHtml(row.type) + '</td>' +
+                    '<td class="mono-cell">' + escapeHtml(row.model) + '</td>' +
+                    '<td>' + (row.credits || 0) + '</td>' +
+                    '<td>' + usd(row.usd || 0) + '</td>';
+                body.appendChild(tr);
+            }
+        }
+
+        async function loadCosts() {
+            try {
+                const res = await fetch('/api/admin/usage?days=' + costDays, { credentials: 'include' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+
+                document.getElementById('costTotal').textContent = usd(data.totals.usd);
+                document.getElementById('costCount').textContent = data.totals.count;
+                document.getElementById('costAvg').textContent = data.totals.count
+                    ? usd(data.totals.usd / data.totals.count)
+                    : '$0';
+                document.getElementById('costCredits').textContent = data.totals.credits;
+
+                renderDailyChart(data.daily);
+                renderRankedChart('chartModels', data.byModel, 'No generations yet.');
+                renderRankedChart('chartUsers', data.byUser, 'No generations yet.');
+                renderUsageTable(data.recent);
+            } catch (e) {
+                showToast('Failed to load usage', 'error');
+            }
+        }
+
+        document.getElementById('costRange').addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-days]');
+            if (!btn) return;
+            costDays = parseInt(btn.dataset.days, 10);
+            document.querySelectorAll('#costRange button').forEach(b =>
+                b.classList.toggle('active', b === btn));
+            loadCosts();
+        });
 
         function dayLabel(ts) {
             if (!ts) return 'Unknown date';
@@ -1199,6 +1631,8 @@ board: ${img.board}` : ''}`;
                 document.getElementById('chatDefaultModelSelect').value = settings.chatSettings.defaultModel;
             }
 
+            renderPrices(settings.modelPrices || {});
+
             const container = document.getElementById('modelCostsContainer');
             container.innerHTML = '';
 
@@ -1216,6 +1650,44 @@ board: ${img.board}` : ''}`;
                     container.appendChild(div);
                 });
             }
+        }
+
+        // Where each default price comes from. Anything not listed here was
+        // read straight off the provider's price list in September 2026.
+        const PRICE_NOTES = {
+            'gpt-image-2-2026-04-21': 'est. medium 1024²',
+            'bytedance/seedance-2.0': 'est. /sec 720p',
+            'bytedance/seedance-2.0-fast': 'est. /sec 720p',
+            'bytedance/seedance-2.5': 'est. /sec 720p',
+            'gemini-omni-1.1-flash': '/sec 720p',
+            'tencent/hunyuan-3d-3.1': 'est. per run',
+            'prunaai/hunyuan3d-2': 'est. per run',
+            'firtoz/trellis': 'est. per run',
+            'hyper3d/rodin': 'est. per run',
+            'fishwowater/trellis2': 'per run',
+            'anthropic/claude-sonnet-5': 'est. per message',
+            'anthropic/claude-opus-5': 'est. per message',
+            'google/gemini-3.7-flash': 'est. per message'
+        };
+
+        function renderPrices(prices) {
+            const container = document.getElementById('modelPricesContainer');
+            container.innerHTML = '';
+
+            Object.entries(prices).forEach(([model, price]) => {
+                const note = PRICE_NOTES[model];
+                const div = document.createElement('div');
+                div.className = 'model-cost-item';
+                div.innerHTML =
+                    '<label>' + escapeHtml(model) +
+                    (note ? '<span class="price-note">' + note + '</span>' : '') + '</label>' +
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                    '<span style="font-size:12px;color:var(--text-secondary);">$</span>' +
+                    '<input type="number" name="price_' + escapeHtml(model) + '" value="' + price +
+                    '" min="0" step="0.001" class="input-field">' +
+                    '</div>';
+                container.appendChild(div);
+            });
         }
 
         // Update Stats
@@ -1272,6 +1744,12 @@ board: ${img.board}` : ''}`;
                 modelCosts[model] = parseInt(input.value) || 0;
             });
 
+            // Collect provider prices
+            const modelPrices = {};
+            document.querySelectorAll('#modelPricesContainer input').forEach(input => {
+                modelPrices[input.name.replace('price_', '')] = parseFloat(input.value) || 0;
+            });
+
             // Collect API keys
             const apiKeys = {
                 openrouterApiKey: document.getElementById('openrouterApiKey').value.trim(),
@@ -1292,7 +1770,7 @@ board: ${img.board}` : ''}`;
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ modelCosts, apiKeys, agentSettings, chatSettings })
+                    body: JSON.stringify({ modelCosts, modelPrices, apiKeys, agentSettings, chatSettings })
                 });
 
                 if (!response.ok) throw new Error('Failed');

@@ -10,6 +10,9 @@ const DATA_DIR      = path.join(__dirname, 'data');
 const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const BOARDS_FILE   = path.join(DATA_DIR, 'boards.json');  // metadata only — no state
+const USAGE_FILE    = path.join(DATA_DIR, 'usage.json');   // one entry per generation
+
+const MAX_USAGE_ENTRIES = 50000;
 
 const MAX_VERSIONS = 40;
 
@@ -127,6 +130,39 @@ export const storage = {
                 'anthropic/claude-opus-5': 2,
                 'google/gemini-3.7-flash': 1
             },
+            // Estimated provider cost in USD per generation, used for cost
+            // tracking. Video entries are per second of output; everything else
+            // is per run. Editable in the admin panel — see PRICE_NOTES in
+            // admin.html for where each number comes from.
+            modelPrices: {
+                'gemini-3.1-flash-image': 0.101,
+                'gemini-3-pro-image': 0.134,
+                'gemini-2.5-flash-image': 0.039,
+                'imagen-4.0-ultra-generate-001': 0.06,
+                'imagen-4.0-fast-generate-001': 0.02,
+                'gpt-image-2-2026-04-21': 0.053,
+                'flux-2-max': 0.07,
+                'flux-2-pro-preview': 0.03,
+                'flux-2-pro': 0.03,
+                'flux-2-flex': 0.05,
+                'flux-2-klein-9b-preview': 0.015,
+                'flux-2-klein-9b': 0.015,
+                // per second of video
+                'bytedance/seedance-2.0': 0.10,
+                'bytedance/seedance-2.0-fast': 0.05,
+                'bytedance/seedance-2.5': 0.10,
+                'gemini-omni-1.1-flash': 0.10,
+                // per run on Replicate
+                'fishwowater/trellis2': 1.09,
+                'tencent/hunyuan-3d-3.1': 0.40,
+                'prunaai/hunyuan3d-2': 0.20,
+                'firtoz/trellis': 0.10,
+                'hyper3d/rodin': 0.50,
+                // per chat message
+                'anthropic/claude-sonnet-5': 0.011,
+                'anthropic/claude-opus-5': 0.028,
+                'google/gemini-3.7-flash': 0.004
+            },
             apiKeys: {
                 openrouterApiKey: '',
                 anthropicApiKey: '',
@@ -151,6 +187,7 @@ export const storage = {
             ...defaults,
             ...saved,
             modelCosts: { ...defaults.modelCosts, ...(saved.modelCosts || {}) },
+            modelPrices: { ...defaults.modelPrices, ...(saved.modelPrices || {}) },
             apiKeys: { ...defaults.apiKeys, ...(saved.apiKeys || {}) },
             agentSettings: { ...defaults.agentSettings, ...(saved.agentSettings || {}) },
             chatSettings: { ...defaults.chatSettings, ...(saved.chatSettings || {}) }
@@ -325,6 +362,39 @@ export const storage = {
             const buffer = await fs.readFile(path.join(dir, imgFile));
             return { buffer, mimeType: mime };
         } catch { return null; }
+    },
+
+    // ── Usage log ─────────────────────────────────────────────────────────────
+    // One entry per successful generation. Append-only, capped, and written
+    // under a lock because it is a read-modify-write of a single blob.
+
+    async appendUsage(entry) {
+        await withUserLock('__usage__', async () => {
+            const list = await this.getUsage();
+            list.push(entry);
+            const trimmed = list.length > MAX_USAGE_ENTRIES
+                ? list.slice(list.length - MAX_USAGE_ENTRIES)
+                : list;
+            if (useRedis()) {
+                const r = await getRedis();
+                await r.set('usage', JSON.stringify(trimmed));
+                return;
+            }
+            await writeJSON(USAGE_FILE, trimmed);
+        });
+    },
+
+    // All entries, oldest first; `since` is an epoch ms cutoff.
+    async getUsage(since = 0) {
+        let list;
+        if (useRedis()) {
+            const r = await getRedis();
+            const val = await r.get('usage');
+            list = val ? JSON.parse(val) : [];
+        } else {
+            list = await readJSON(USAGE_FILE, []);
+        }
+        return since ? list.filter(e => e.ts >= since) : list;
     },
 
     // Every stored image blob, newest first. Blobs are content-addressed and not
