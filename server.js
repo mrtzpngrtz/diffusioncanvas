@@ -13,6 +13,7 @@ import { promises as fsp } from 'fs';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
+import { randomBytes } from 'crypto';
 import passport from './auth.js';
 import bcrypt from 'bcryptjs';
 import { setAuthCookie, getAuthUser, clearAuthCookie, generateShareToken, verifyShareToken } from './jwt-auth.js';
@@ -20,12 +21,27 @@ import { storage } from './storage.js';
 import { runAgentTask, getTask, listTasks } from './modules/AgentWorker.js';
 
 
+// Desktop builds run the same server on the user's own machine, bound to
+// loopback, for one local owner. There is nobody to log in as and no second
+// user to isolate from, so the auth stack stands down — see DESKTOP_OWNER.
+export const DESKTOP_MODE = process.env.DC_DESKTOP === '1';
+
+const DESKTOP_OWNER = {
+    id: 'local-owner',
+    email: 'owner@localhost',
+    name: 'Local User',
+    isAdmin: true,
+    // A pool large enough never to run dry. The gate is bypassed below anyway;
+    // the balance exists only so per-generation usage records still get written.
+    credits: 1e9
+};
+
 // Fail fast if required secrets are missing
-if (!process.env.SESSION_SECRET) {
+if (!process.env.SESSION_SECRET && !DESKTOP_MODE) {
     console.error('FATAL: SESSION_SECRET environment variable is not set');
     process.exit(1);
 }
-if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+if (!DESKTOP_MODE && process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
     console.error('FATAL: FRONTEND_URL environment variable is not set');
     process.exit(1);
 }
@@ -38,7 +54,7 @@ const app = express();
 
 // Session configuration (still needed for OAuth flow)
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || randomBytes(32).toString('hex'),
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -51,7 +67,9 @@ app.use(session({
 
 app.use(cookieParser());
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:3000',
+    origin: DESKTOP_MODE
+        ? true
+        : (process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:3000'),
     credentials: true
 }));
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -65,6 +83,11 @@ app.use(passport.session());
 
 // Middleware to check if user is authenticated (JWT-based)
 async function isAuthenticated(req, res, next) {
+    if (DESKTOP_MODE) {
+        const users = await storage.getUsers();
+        req.user = users.find(u => u.id === DESKTOP_OWNER.id) || DESKTOP_OWNER;
+        return next();
+    }
     const user = getAuthUser(req);
     if (!user) {
         return res.status(401).json({ error: 'Not authenticated' });
@@ -78,6 +101,10 @@ async function isAuthenticated(req, res, next) {
 
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
+    if (DESKTOP_MODE) {
+        req.user = DESKTOP_OWNER;
+        return next();
+    }
     const user = getAuthUser(req);
     if (!user || !user.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
@@ -193,6 +220,10 @@ app.get('/auth/logout', (req, res) => {
 // Get current user (always fetch fresh data from database)
 app.get('/api/user', async (req, res) => {
     try {
+        if (DESKTOP_MODE) {
+            const users = await storage.getUsers();
+            return res.json({ user: users.find(u => u.id === DESKTOP_OWNER.id) || DESKTOP_OWNER });
+        }
         // Check JWT first, then session
         const jwtUser = getAuthUser(req);
         const sessionUser = req.isAuthenticated() ? req.user : null;
@@ -233,10 +264,11 @@ app.get('/api/config', async (req, res) => {
     try {
         const settings = await storage.getSettings().catch(() => ({}));
         res.json({
+            desktop: DESKTOP_MODE,
             chatDefaultModel: settings?.chatSettings?.defaultModel || 'anthropic/claude-sonnet-5'
         });
     } catch {
-        res.json({ chatDefaultModel: 'anthropic/claude-sonnet-5' });
+        res.json({ desktop: DESKTOP_MODE, chatDefaultModel: 'anthropic/claude-sonnet-5' });
     }
 });
 
@@ -365,12 +397,34 @@ app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Initialize Google GenAI client with explicit API key
-const ai = new GoogleGenAI({
-    apiKey: process.env.GOOGLE_API_KEY
-});
+// Provider clients are built on demand, not at boot. A fresh desktop install
+// has no keys at all — they get entered in the admin panel — and constructing
+// an OpenAI client without one throws, which would kill the process before the
+// window ever opened. Building lazily also means a key saved in the admin panel
+// takes effect on the next request instead of after a restart.
+const clientCache = new Map();
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function resolveKey(settingsKey, envKey, settings) {
+    return settings?.apiKeys?.[settingsKey] || process.env[envKey] || null;
+}
+
+function cached(kind, key, build) {
+    const id = `${kind}:${key}`;
+    if (!clientCache.has(id)) clientCache.set(id, build(key));
+    return clientCache.get(id);
+}
+
+function getGenAI(settings) {
+    const key = resolveKey('googleApiKey', 'GOOGLE_API_KEY', settings);
+    if (!key) throw new Error('No Google API key configured. Add one in the admin panel.');
+    return cached('google', key, k => new GoogleGenAI({ apiKey: k }));
+}
+
+function getOpenAI(settings) {
+    const key = resolveKey('openaiApiKey', 'OPENAI_API_KEY', settings);
+    if (!key) throw new Error('No OpenAI API key configured. Add one in the admin panel.');
+    return cached('openai', key, k => new OpenAI({ apiKey: k }));
+}
 
 // ── Aspect ratio helpers ────────────────────────────────────────────────────
 
@@ -641,14 +695,14 @@ async function generateVideoOmni(model, prompt, opts) {
         const name = m ? `files/${m[1]}` : out.uri;
         const deadline = Date.now() + 10 * 60 * 1000;
         while (Date.now() < deadline) {
-            const f = await ai.files.get({ name });
+            const f = await getGenAI().files.get({ name });
             const state = f.state?.name || f.state;
             if (state === 'ACTIVE') break;
             if (state === 'FAILED') throw new Error('Gemini Omni video generation failed.');
             await new Promise(r => setTimeout(r, 5000));
         }
         const tmp = path.join(os.tmpdir(), `omni-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`);
-        await ai.files.download({ file: out, downloadPath: tmp });
+        await getGenAI().files.download({ file: out, downloadPath: tmp });
         const buf = await fsp.readFile(tmp);
         await fsp.unlink(tmp).catch(() => {});
         return `data:video/mp4;base64,${buf.toString('base64')}`;
@@ -694,7 +748,7 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
 
         const settings = await storage.getSettings();
         const cost = settings.modelCosts[model] || 8;
-        if (!req.user.credits || req.user.credits < cost) {
+        if (!DESKTOP_MODE && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
 
@@ -902,7 +956,7 @@ app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
 
         const settings = await storage.getSettings();
         const cost = settings.modelCosts[model] || 6;
-        if (!req.user.credits || req.user.credits < cost) {
+        if (!DESKTOP_MODE && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
 
@@ -964,7 +1018,7 @@ app.post('/api/chat', isAuthenticated, async (req, res) => {
         if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'No messages' });
 
         const cost = settings?.modelCosts?.[model] || 1;
-        if (!req.user.credits || req.user.credits < cost) {
+        if (!DESKTOP_MODE && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
 
@@ -1041,7 +1095,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         const cost = settings.modelCosts[selectedModel] || 1;
 
         // Check if user has enough credits
-        if (!req.user.credits || req.user.credits < cost) {
+        if (!DESKTOP_MODE && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
         
@@ -1096,7 +1150,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                 const ext = mimeType.split('/')[1] || 'jpg';
                 const rawB64 = src.includes('base64,') ? src.split('base64,')[1] : src;
                 const imageFile = await toFile(Buffer.from(rawB64, 'base64'), `image.${ext}`, { type: mimeType });
-                const response = await openai.images.edit({
+                const response = await getOpenAI(settings).images.edit({
                     model: selectedModel,
                     image: imageFile,
                     prompt,
@@ -1105,7 +1159,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                 });
                 responseData = response.data[0];
             } else {
-                const response = await openai.images.generate({
+                const response = await getOpenAI(settings).images.generate({
                     model: selectedModel,
                     prompt,
                     n: 1,
@@ -1146,7 +1200,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             }
 
             // Generate using Imagen
-            const response = await ai.models.generateImages({
+            const response = await getGenAI(settings).models.generateImages({
                 model: selectedModel,
                 prompt,
                 config: imagenConfig
@@ -1208,7 +1262,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             // Generate using Gemini model
             console.log(`Calling Gemini ${selectedModel} with ${contents.length - 1} image(s), aspectRatio=${geminiAspectRatio}, imageSize=${imageSizeParam}`);
             const t0 = Date.now();
-            const response = await ai.models.generateContent({
+            const response = await getGenAI(settings).models.generateContent({
                 model: selectedModel,
                 contents,
                 config: {
@@ -2126,17 +2180,33 @@ app.patch('/api/admin/users/:id/credits', isAdmin, async (req, res) => {
 });
 
 
-const PORT = process.env.PORT || 3000;
+// Port 0 lets the OS pick a free port, so a desktop install never collides with
+// a dev server or a second window. The chosen port is announced on stdout.
+const PORT = process.env.PORT || (DESKTOP_MODE ? 0 : 3000);
+// Desktop stays on loopback: the canvas is for this machine, not the network.
+const HOST = DESKTOP_MODE ? '127.0.0.1' : '0.0.0.0';
 
-app.listen(PORT, async () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    console.log('Make sure GOOGLE_API_KEY environment variable is set');
-    
+const server = app.listen(PORT, HOST, async () => {
+    const port = server.address().port;
+
     if (!process.env.GOOGLE_API_KEY) {
-        console.warn('WARNING: GOOGLE_API_KEY not set!');
-        console.warn('Set it with: export GOOGLE_API_KEY="your-api-key"');
+        console.warn('WARNING: GOOGLE_API_KEY not set — add keys in the admin panel.');
     }
-    
+
     // Initialize storage
     await storage.init();
+
+    if (DESKTOP_MODE) {
+        // Seed the single local owner so boards, usage records and the admin
+        // panel all key off a stable id.
+        const users = await storage.getUsers();
+        if (!users.some(u => u.id === DESKTOP_OWNER.id)) {
+            users.push({ ...DESKTOP_OWNER, createdAt: new Date().toISOString() });
+            await storage.setUsers(users);
+        }
+        // The Electron shell waits for this line before opening the window.
+        console.log(`DC_PORT ${port}`);
+    } else {
+        console.log(`Server running on http://localhost:${port}`);
+    }
 });

@@ -1,12 +1,15 @@
 {
   "name": "diffusion-canvas",
   "version": "1.0.0",
-  "description": "Node-based image prompting with Google GenAI",
+  "description": "Node-based visual AI canvas \u2014 self-hosted or desktop",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "desktop": "electron desktop/main.js",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
   },
   "keywords": [
     "genai",
@@ -36,6 +39,44 @@
     "redis": "^5.12.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "de.pngrtz.diffusioncanvas",
+    "productName": "Diffusion Canvas",
+    "directories": {
+      "output": "dist",
+      "buildResources": "desktop"
+    },
+    "asar": false,
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!data/**",
+      "!.git/**",
+      "!.env*",
+      "!users.json",
+      "!*.log",
+      "!**/*.md",
+      "!extract_images.js"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.graphics-design"
+    }
   }
 }

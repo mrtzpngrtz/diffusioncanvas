@@ -14,6 +14,7 @@ export class AuthManager {
     }
 
     init() {
+        this.applyDesktopMode();
         this.setupLocalLogin();
         this.setupUserMenu();
         this.setupDeleteAccount();
@@ -130,6 +131,18 @@ export class AuthManager {
             }
         } catch (error) {
             console.error('Failed to check available providers:', error);
+        }
+    }
+
+    // On desktop there is one local owner, no session to end and no billing, so
+    // the account and credit chrome is meaningless. CSS does the hiding.
+    async applyDesktopMode() {
+        try {
+            const res = await fetch('/api/config', { credentials: 'include' });
+            const cfg = await res.json();
+            if (cfg.desktop) document.body.classList.add('desktop-mode');
+        } catch {
+            // Offline or backend still coming up: stay in the hosted layout.
         }
     }
 

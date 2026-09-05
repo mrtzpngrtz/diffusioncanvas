@@ -6,7 +6,9 @@ import { createClient } from 'redis';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_DIR      = path.join(__dirname, 'data');
+// Desktop builds point this at the OS per-user app-data directory, because the
+// app directory itself is read-only once packaged.
+const DATA_DIR      = process.env.DC_DATA_DIR || path.join(__dirname, 'data');
 const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const BOARDS_FILE   = path.join(DATA_DIR, 'boards.json');  // metadata only — no state

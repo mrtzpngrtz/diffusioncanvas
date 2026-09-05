@@ -5424,3 +5424,13 @@ body.dark-mode .comp-stage {
 
 .context-menu-group + .context-menu-group { margin-top: 0; }
 .context-menu-item + .context-menu-group { margin-top: 4px; border-top: 1px solid var(--border-light); padding-top: 8px; }
+
+/* ── Desktop build ─────────────────────────────────────────────────────────
+   The packaged app runs for a single local owner against their own API keys.
+   There is no session to end, no second account to delete and nothing to bill,
+   so that chrome is hidden rather than shown in a broken state. */
+body.desktop-mode #userCredits,
+body.desktop-mode #logoutBtn,
+body.desktop-mode #deleteAccountBtn {
+    display: none;
+}
