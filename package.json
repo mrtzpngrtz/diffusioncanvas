@@ -14,7 +14,7 @@
     "image-generation",
     "node-editor"
   ],
-  "author": "",
+  "author": "mrtzpngrtz",
   "license": "MIT",
   "dependencies": {
     "@google/genai": "^2.19.0",

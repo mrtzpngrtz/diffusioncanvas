@@ -109,4 +109,4 @@ node extract_images.js path/to/board.json   # pull every image out of a saved bo
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
