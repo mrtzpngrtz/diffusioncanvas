@@ -57,7 +57,31 @@ app.use(cors({
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
-app.use(express.static(__dirname)); 
+// Serving the whole app directory also served the backend to anyone who asked:
+// server.js, storage.js, jwt-auth.js, the legacy root users.json and the unused
+// Vercel-era api/ handlers were all downloadable unauthenticated. Only the files
+// the browser actually loads are public now.
+//
+// A blanket .js block is not an option — the frontend loads modules/ and nodes/
+// as ES modules — so the browser-facing directories are mounted explicitly.
+const PUBLIC_FILES = ['style.css', 'script.js', 'logo.svg', 'user_placeholder.png'];
+
+// AgentWorker runs the coding agent: it belongs to the backend and only lives
+// under modules/ for historical reasons.
+const SERVER_ONLY_MODULES = new Set(['AgentWorker.js']);
+
+const staticOptions = { dotfiles: 'ignore', index: false, redirect: false };
+
+app.use('/modules', (req, res, next) => {
+    if (SERVER_ONLY_MODULES.has(path.basename(req.path))) return res.sendStatus(404);
+    next();
+}, express.static(path.join(__dirname, 'modules'), staticOptions));
+
+app.use('/nodes', express.static(path.join(__dirname, 'nodes'), staticOptions));
+
+for (const file of PUBLIC_FILES) {
+    app.get(`/${file}`, (req, res) => res.sendFile(path.join(__dirname, file)));
+}
 
 // Initialize Passport
 app.use(passport.initialize());
