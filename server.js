@@ -389,12 +389,36 @@ app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Initialize Google GenAI client with explicit API key
-const ai = new GoogleGenAI({
-    apiKey: process.env.GOOGLE_API_KEY
-});
+// Provider clients are built on demand rather than at import time. The OpenAI
+// constructor throws when no key is present, which killed the process at boot:
+// an unset or emptied OPENAI_API_KEY took the whole server down, including the
+// endpoints that have nothing to do with OpenAI. Building lazily also means a
+// key saved in the admin panel applies on the next request instead of after a
+// restart, and lets Google and OpenAI read from settings the way OpenRouter
+// already did.
+const clientCache = new Map();
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function resolveKey(settingsKey, envKey, settings) {
+    return settings?.apiKeys?.[settingsKey] || process.env[envKey] || null;
+}
+
+function cached(kind, key, build) {
+    const id = `${kind}:${key}`;
+    if (!clientCache.has(id)) clientCache.set(id, build(key));
+    return clientCache.get(id);
+}
+
+function getGenAI(settings) {
+    const key = resolveKey('googleApiKey', 'GOOGLE_API_KEY', settings);
+    if (!key) throw new Error('No Google API key configured. Add one in the admin panel.');
+    return cached('google', key, k => new GoogleGenAI({ apiKey: k }));
+}
+
+function getOpenAI(settings) {
+    const key = resolveKey('openaiApiKey', 'OPENAI_API_KEY', settings);
+    if (!key) throw new Error('No OpenAI API key configured. Add one in the admin panel.');
+    return cached('openai', key, k => new OpenAI({ apiKey: k }));
+}
 
 // ── Aspect ratio helpers ────────────────────────────────────────────────────
 
@@ -665,14 +689,14 @@ async function generateVideoOmni(model, prompt, opts) {
         const name = m ? `files/${m[1]}` : out.uri;
         const deadline = Date.now() + 10 * 60 * 1000;
         while (Date.now() < deadline) {
-            const f = await ai.files.get({ name });
+            const f = await getGenAI().files.get({ name });
             const state = f.state?.name || f.state;
             if (state === 'ACTIVE') break;
             if (state === 'FAILED') throw new Error('Gemini Omni video generation failed.');
             await new Promise(r => setTimeout(r, 5000));
         }
         const tmp = path.join(os.tmpdir(), `omni-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`);
-        await ai.files.download({ file: out, downloadPath: tmp });
+        await getGenAI().files.download({ file: out, downloadPath: tmp });
         const buf = await fsp.readFile(tmp);
         await fsp.unlink(tmp).catch(() => {});
         return `data:video/mp4;base64,${buf.toString('base64')}`;
@@ -1120,7 +1144,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                 const ext = mimeType.split('/')[1] || 'jpg';
                 const rawB64 = src.includes('base64,') ? src.split('base64,')[1] : src;
                 const imageFile = await toFile(Buffer.from(rawB64, 'base64'), `image.${ext}`, { type: mimeType });
-                const response = await openai.images.edit({
+                const response = await getOpenAI(settings).images.edit({
                     model: selectedModel,
                     image: imageFile,
                     prompt,
@@ -1129,7 +1153,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                 });
                 responseData = response.data[0];
             } else {
-                const response = await openai.images.generate({
+                const response = await getOpenAI(settings).images.generate({
                     model: selectedModel,
                     prompt,
                     n: 1,
@@ -1170,7 +1194,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             }
 
             // Generate using Imagen
-            const response = await ai.models.generateImages({
+            const response = await getGenAI(settings).models.generateImages({
                 model: selectedModel,
                 prompt,
                 config: imagenConfig
@@ -1232,7 +1256,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             // Generate using Gemini model
             console.log(`Calling Gemini ${selectedModel} with ${contents.length - 1} image(s), aspectRatio=${geminiAspectRatio}, imageSize=${imageSizeParam}`);
             const t0 = Date.now();
-            const response = await ai.models.generateContent({
+            const response = await getGenAI(settings).models.generateContent({
                 model: selectedModel,
                 contents,
                 config: {
