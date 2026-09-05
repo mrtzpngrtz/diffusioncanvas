@@ -1,230 +1,112 @@
-# Diffusion Canvas - Node-Based Image Prompting
+# Diffusion Canvas
 
-A web-based node editor for interactive image prompting using Google's Gemini API.
+A node-based visual canvas for AI image, video and 3D generation. Self-hosted:
+runs on your own server or as a desktop app, stores every board and image on
+your own disk, and talks to whichever model providers you give it keys for.
 
-## Features
+Vanilla ES6 modules and an Express backend. No build step, no framework.
 
-- **OAuth Authentication**: Secure login with Google, Facebook, or LinkedIn
-- **Node-Based Interface**: Drag-and-drop nodes to create visual workflows
-- **Image Upload**: Drop or select images to use as input
-- **Prompt Nodes**: Type prompts to guide image generation
-- **Visual Connections**: Connect nodes with visual bezier curves
-- **Result Nodes**: View generated images in separate nodes
-- **Responsive Design**: Beautiful gradient UI with smooth interactions
-- **User Sessions**: Persistent login sessions for 24 hours
+## Branches
 
-## Authentication
+| Branch | What it is |
+|---|---|
+| `main` / `coolify` | The hosted deployment. Multi-user, OAuth, deploys to Coolify. `main` and `coolify` are kept identical. |
+| `desktop` | The packaged Windows / macOS app. Same code, single local owner, no login. See [desktop/README.md](https://github.com/mrtzpngrtz/diffusioncanvas/blob/desktop/desktop/README.md). |
 
-The application now requires user authentication to access the image generation features. Users can sign in using:
+One codebase: desktop is `DC_DESKTOP=1`, not a fork.
 
-- **Google** - OAuth 2.0
-- **Facebook (Meta)** - OAuth
-- **LinkedIn** - OAuth 2.0
+## Nodes
 
-For detailed setup instructions, see [OAUTH_SETUP.md](OAUTH_SETUP.md).
+Place twelve node types on the canvas and wire them together:
 
-## How to Use
+- **Sources** — Image (upload / drag-drop), Draw (brush, shapes, text, eraser), 3D (GLTF, FBX, OBJ, STL)
+- **Instruction** — Prompt, Action (preset transforms), Chat (a conversational model in the graph)
+- **Transforms** — Format (reframe to a new aspect), Outpaint (extend past the edges), Comp (merge layers)
+- **Generators** — Video, Image → 3D
+- **Review** — Compare (A/B slider)
 
-1. **Sign In**
-   - Visit the application at `http://localhost:3000`
-   - Choose your preferred OAuth provider (Google, Facebook, or LinkedIn)
-   - Authenticate and grant permissions
-   - You'll be redirected to the main application
+Results arrive as their own nodes and can be fed straight back in.
 
-2. **Start Creating**
-   - Once authenticated, you can access all features
+## Models
 
-3. **Add an Image Node**
-   - Click "Add Image Node" button
-   - Click the drop zone or drag an image file into it
-   - The image will appear in the node
+Keys are optional and per provider — leave one out and its models simply don't
+appear.
 
-4. **Add a Prompt Node**
-   - Click "Add Prompt Node" button
-   - Type your prompt in the textarea
+| Kind | Providers |
+|---|---|
+| Image | Google (Gemini Image, Imagen), OpenAI (GPT Image), Black Forest Labs (FLUX.2) |
+| Video | Seedance via OpenRouter, Gemini Omni Flash |
+| 3D | Trellis, Hunyuan3D via Replicate |
+| Chat | via OpenRouter |
 
-5. **Connect Nodes**
-   - Click and drag from the output point (right side) of the Image Node
-   - Drop on the input point (left side) of the Prompt Node
-   - A curved line will connect them
+## Canvas
 
-6. **Generate Image**
-   - Once connected and prompt is entered, click "Generate Image"
-   - A result node will appear with the generated image
+Pan, zoom, marquee and multi-select, clone, copy/paste, undo. **Work areas** are
+labelled regions that move a whole branch of the graph at once. Boards save with
+version history, export to JSON, and can be shared on a link — optionally
+password-protected, with guests getting a strictly read-only view.
 
-7. **Move Nodes**
-   - Click and drag any node header to reposition
-   - Connections update automatically
+## Self-hosting
 
-8. **Delete Nodes**
-   - Click the × button on any node to remove it
-
-## Node Types
-
-- **Image Node** (Blue): Upload and display source images
-- **Prompt Node** (Blue): Enter text prompts for generation
-- **Result Node** (Green): Display generated results
-
-## Google GenAI API Integration
-
-This application uses Google's Gemini API for image generation through a Node.js backend.
-
-### Prerequisites
-
-1. **Node.js** (version 18 or higher)
-2. **Google API Key** - Get one from [Google AI Studio](https://makersuite.google.com/app/apikey)
-3. **OAuth Credentials** - See [OAUTH_SETUP.md](OAUTH_SETUP.md) for detailed setup instructions:
-   - Google OAuth Client ID & Secret
-   - Facebook App ID & Secret (optional)
-   - LinkedIn Client ID & Secret (optional)
-
-### Setup
-
-1. Install dependencies:
 ```bash
 npm install
+cp .env.example .env     # add at least SESSION_SECRET and one provider key
+npm start                # http://localhost:3000
 ```
 
-2. Configure environment variables:
+Or with Docker — see the [Dockerfile](Dockerfile). Data lives in `./data`
+(boards, versions, images, users, usage). Redis is optional: set `REDIS_URL` to
+use it instead of files.
+
+Remaining configuration — API keys, model selection, per-model costs, users and
+credits — happens in the admin panel at `/admin`, not in env vars.
+
+### Environment
+
+| Variable | Notes |
+|---|---|
+| `SESSION_SECRET` | Required for the hosted build. |
+| `FRONTEND_URL` | Required when `NODE_ENV=production`. |
+| `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `BFL_API_KEY`, `OPENROUTER_API_KEY`, `REPLICATE_API_TOKEN` | Per provider, all optional. Also settable in the admin panel. |
+| `GOOGLE_CLIENT_ID` / `_SECRET` | OAuth. Facebook and LinkedIn equivalents optional. Local accounts work without any of them. |
+| `REDIS_URL` | Optional; falls back to file storage. |
+| `DC_DESKTOP`, `DC_DATA_DIR` | Desktop build only. |
+
+## Desktop app
+
+On the `desktop` branch:
+
 ```bash
-cp .env.example .env
+npm run desktop      # run it
+npm run dist:win     # build an installer
+npm run dist:mac
 ```
 
-Then edit `.env` and add your credentials:
-- Google GenAI API Key
-- OpenAI API Key (optional — enables the GPT Image 2 model)
-- Black Forest Labs API Key `BFL_API_KEY` (optional — enables the FLUX.2 models)
-- OpenRouter API Key `OPENROUTER_API_KEY` (optional — enables the Seedance video models)
-- Gemini Omni Flash video uses the same `GOOGLE_API_KEY`
-- Replicate API Token `REPLICATE_API_TOKEN` (optional — enables the Image → 3D models)
-- Session Secret (generate a random string)
-- OAuth credentials for Google (required)
-- OAuth credentials for Facebook and LinkedIn (optional)
+An Electron shell around the same server, bound to loopback on a free port, with
+a single local owner and no login. Data goes to the OS app-data directory.
+Details and caveats in [desktop/README.md](https://github.com/mrtzpngrtz/diffusioncanvas/blob/desktop/desktop/README.md).
 
-**See [OAUTH_SETUP.md](OAUTH_SETUP.md) for detailed instructions on obtaining OAuth credentials.**
+## Self-updating
 
-### How It Works
+Report a bug or request a node from inside the canvas. The request goes to a
+coding agent running against this repository, which implements the change,
+commits it to its own branch and pushes. With `AGENT_AUTO_MERGE=true` it merges
+and deploys itself. Requires `ANTHROPIC_API_KEY` and `GITHUB_TOKEN`.
 
-The application consists of:
-- **Frontend**: HTML/CSS/JavaScript node editor (runs in browser)
-- **Backend**: Node.js Express server with Google GenAI integration
+New node types are one self-contained file each — see [nodes/README.md](nodes/README.md).
 
-When you generate an image:
-1. Frontend sends the prompt and input image to the backend
-2. Backend calls Google's Gemini API with the data
-3. Generated image is returned and displayed in a result node
+## Offline
 
-### API Model
-
-The application uses the `gemini-2.0-flash-exp` model which supports:
-- Text-to-image generation
-- Image-based prompting
-- Fast generation times
-
-## Technical Details
-
-### Frontend
-- **Pure JavaScript**: No frameworks required
-- **HTML5 Canvas**: For drawing node connections
-- **CSS3**: Modern styling with gradients and animations
-- **Drag and Drop API**: Native HTML5 file handling
-- **FileReader API**: For image data handling
-
-### Backend
-- **Node.js & Express**: RESTful API server
-- **Google GenAI SDK**: Official Google AI SDK
-- **CORS**: Cross-origin resource sharing enabled
-
-## Browser Compatibility
-
-- Chrome (recommended)
-- Edge
-- Firefox
-- Safari
-
-All modern browsers are supported since the AI processing happens on the backend.
-
-## Project Structure
-
-```
-diffusioncanvas/
-├── index.html      # Main HTML structure
-├── style.css       # Styling and animations
-├── script.js       # Frontend node editor logic
-├── server.js       # Backend API server
-├── package.json    # Node.js dependencies
-├── backend.py      # (Optional) Python backend alternative
-└── README.md       # This file
-```
-
-## Deployment to Vercel
-
-The application is designed to be deployed to Vercel with persistent storage support.
-
-### Vercel Production
-When deploying to Vercel, you need to set up Vercel KV for persistent user storage:
-
-1. **Add Vercel KV to your project**:
-   - Go to your Vercel dashboard
-   - Select Storage → Create Database → KV
-   - This will automatically add `KV_REST_API_URL` and `KV_REST_API_TOKEN` to your environment variables
-
-2. **Add OAuth callback URLs**:
-   - Update your OAuth provider callback URLs to use your Vercel domain
-   - Example: `https://your-app.vercel.app/auth/google/callback`
-
-The application automatically detects the environment:
-- **Local**: Uses file-based storage (`users.json`)
-- **Vercel with KV**: Uses Vercel KV for persistent storage
-- **Vercel without KV**: Falls back to file-based storage (data will reset on each deployment)
+Boards, save/load, version history, draw, comp, outpaint, reframe, compare, the
+3D viewer and export all work with no network. Generation and the chat node need
+a provider key and a connection; local inference is not wired up yet.
 
 ## Utilities
 
-### Offline Image Extraction
-
-You can extract all images (uploaded or generated) from a saved canvas `.json` file using the included utility script.
-
-Usage:
 ```bash
-node extract_images.js "path/to/your/canvas-file.json"
+node extract_images.js path/to/board.json   # pull every image out of a saved board
 ```
-
-This will create an `extracted_images` folder in the same directory as your JSON file containing all images found in the canvas.
-
-## Troubleshooting
-
-### "Failed to fetch" error
-- Make sure the backend server is running (`npm start`)
-- Check that you're accessing `http://localhost:3000`
-
-### "API Key not set" warning
-- Set the `GOOGLE_API_KEY` environment variable before running the server
-- The key should be from [Google AI Studio](https://makersuite.google.com/app/apikey)
-
-### No image generated
-- Some prompts may return text instead of images
-- Try being more specific in your prompt about wanting an image
-- Check the console for detailed error messages
-
-## Future Enhancements
-
-- [ ] Save/Load workflows
-- [ ] Export generated images
-- [ ] Multiple image formats support
-- [ ] Undo/Redo functionality
-- [ ] Keyboard shortcuts
-- [ ] Touch device support
-- [ ] Multiple result nodes from one generation
-- [ ] Chain multiple prompts together
 
 ## License
 
-Open source - feel free to modify and use as needed.
-
-## Notes
-
-- Requires a valid Google API key to function
-- Image generation may take a few seconds depending on complexity
-- Nodes can be freely moved and reconnected
-- The interface is fully interactive and responsive
-- Generated images are displayed in result nodes
+MIT
