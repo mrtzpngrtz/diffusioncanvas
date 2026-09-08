@@ -47,18 +47,25 @@ instead of taking the window down, and `server.js` needs no knowledge of Electro
 `asar` is deliberately off: the server reads and serves plain files from the app
 directory, and an archive turns those into a class of path bugs.
 
+## Local ComfyUI
+
+Run ComfyUI on the same machine and the bundled workflows appear in the model
+dropdowns with no configuration: the default URL is `http://127.0.0.1:8188`.
+Your own workflows go in the app-data folder under `workflows/`
+(**File → Open Workflows Folder**), two files each — see the repo's
+[workflows/README.md](../workflows/README.md). Restart the app after adding one.
+
 ## Offline behaviour
 
 Works with no network: boards, save/load, version history, draw, comp, outpaint,
 reframe, compare, the 3D viewer, and export.
 
-Needs a network and a provider key: image, video and 3D generation, and the chat
-node. Local inference (ComfyUI / Ollama) is not wired up yet — that is what would
-make generation genuinely offline.
+Needs a network and a provider key: cloud image, video and 3D generation, and
+the chat node. With ComfyUI on the same machine, generation through a local
+workflow runs with no network at all.
 
 ## Not done yet
 
 - App icons (`desktop/icon.ico`, `icon.icns`) — currently ships the Electron default.
 - Code signing / notarization.
 - Auto-update (`electron-updater`).
-- Local inference provider.

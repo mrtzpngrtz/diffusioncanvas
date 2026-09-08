@@ -28,6 +28,22 @@ export const VIDEO_MODELS = {
     }
 };
 
+// Local ComfyUI workflows arrive from GET /api/workflows before any node is
+// created and join the table, so the dropdown and capability sync treat them
+// like any other model.
+export function registerVideoModels(list) {
+    for (const t of list || []) {
+        if (t.kind !== 'video') continue;
+        VIDEO_MODELS[t.id] = {
+            label: t.label, provider: 'comfyui', local: true,
+            resolutions: t.caps?.resolutions || ['auto'],
+            ratios: t.caps?.ratios || ['16:9'],
+            durations: t.caps?.durations || null,
+            audio: t.caps?.audio ?? 'native'
+        };
+    }
+}
+
 export class VideoNode extends NodeBase {
     create(nodeId, x, y, callbacks) {
         const nodeEl = document.createElement('div');

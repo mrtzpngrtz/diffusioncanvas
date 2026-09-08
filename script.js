@@ -6,6 +6,21 @@ import { ConnectionManager } from './modules/ConnectionManager.js';
 import { APIManager } from './modules/APIManager.js';
 import { AreaManager } from './modules/AreaManager.js';
 import { FeedbackManager } from './modules/FeedbackManager.js';
+import { registerVideoModels } from './nodes/VideoNode.js';
+import { registerImageModels } from './nodes/PromptNode.js';
+
+// Local ComfyUI workflows join the model dropdowns before any node exists, so
+// a restored board never meets a model it cannot name. Offline, or with no
+// workflows configured, the built-in lists are simply all there is.
+async function loadWorkflowModels() {
+    try {
+        const res = await fetch('/api/workflows', { credentials: 'include' });
+        if (!res.ok) return;
+        const list = await res.json();
+        registerVideoModels(list);
+        registerImageModels(list);
+    } catch { /* not reachable — carry on with the built-ins */ }
+}
 
 class App {
     constructor() {
@@ -942,7 +957,7 @@ class App {
 
 // Initialize App
 window.addEventListener('load', () => {
-    new App();
+    loadWorkflowModels().then(() => new App());
 });
 
 // ── BOARDS ───────────────────────────────────────────────────────────────────

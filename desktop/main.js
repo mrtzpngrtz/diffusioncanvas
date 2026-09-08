@@ -8,6 +8,7 @@
 const { app, BrowserWindow, shell, dialog, Menu } = require('electron');
 const { fork } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 // Only one instance: two servers would fight over the same data directory.
 if (!app.requestSingleInstanceLock()) {
@@ -17,6 +18,8 @@ if (!app.requestSingleInstanceLock()) {
 
 const APP_ROOT = app.getAppPath();
 const DATA_DIR = path.join(app.getPath('userData'), 'data');
+// User-added ComfyUI workflows live here, outside the read-only app bundle.
+const WORKFLOWS_DIR = path.join(app.getPath('userData'), 'workflows');
 
 let serverProcess = null;
 let mainWindow = null;
@@ -25,6 +28,7 @@ let serverPort = null;
 
 // Resolves once the server prints the port it settled on.
 function startServer() {
+    fs.mkdirSync(WORKFLOWS_DIR, { recursive: true });
     return new Promise((resolve, reject) => {
         serverProcess = fork(path.join(APP_ROOT, 'server.js'), [], {
             cwd: APP_ROOT,
@@ -33,6 +37,7 @@ function startServer() {
                 ...process.env,
                 DC_DESKTOP: '1',
                 DC_DATA_DIR: DATA_DIR,
+                DC_WORKFLOWS_DIR: WORKFLOWS_DIR,
                 NODE_ENV: 'production',
                 // fork() re-runs the Electron binary; this makes it behave as node.
                 ELECTRON_RUN_AS_NODE: '1'
@@ -118,6 +123,10 @@ function buildMenu(port) {
                 {
                     label: 'Open Data Folder',
                     click: () => shell.openPath(DATA_DIR)
+                },
+                {
+                    label: 'Open Workflows Folder',
+                    click: () => shell.openPath(WORKFLOWS_DIR)
                 },
                 { type: 'separator' },
                 isMac ? { role: 'close' } : { role: 'quit' }

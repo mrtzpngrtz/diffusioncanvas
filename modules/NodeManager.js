@@ -1,5 +1,5 @@
 import { ImageNode } from '../nodes/ImageNode.js';
-import { PromptNode } from '../nodes/PromptNode.js';
+import { PromptNode, imageModelLabel } from '../nodes/PromptNode.js';
 import { ActionNode } from '../nodes/ActionNode.js';
 import { DrawNode } from '../nodes/DrawNode.js';
 import { ResultNode } from '../nodes/ResultNode.js';
@@ -572,7 +572,7 @@ export class NodeManager {
             else if (node.data.model === 'flux-2-klein-9b-preview') modelIndicator.textContent = 'FLUX.2 Klein';
             else if (node.data.model === 'flux-2-klein-9b') modelIndicator.textContent = 'FLUX.2 Klein (fixed)';
             else if (node.data.model === 'flux-2-max') modelIndicator.textContent = 'FLUX.2 Max';
-            else modelIndicator.textContent = node.data.model;
+            else modelIndicator.textContent = imageModelLabel(node.data.model) || node.data.model;
         }
     }
 

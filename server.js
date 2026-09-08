@@ -19,6 +19,7 @@ import bcrypt from 'bcryptjs';
 import { setAuthCookie, getAuthUser, clearAuthCookie, generateShareToken, verifyShareToken } from './jwt-auth.js';
 import { storage } from './storage.js';
 import { runAgentTask, getTask, listTasks } from './modules/AgentWorker.js';
+import { loadComfyTemplates, describeTemplate, runComfyWorkflow, checkComfy } from './providers/comfyui.js';
 
 
 // Desktop builds run the same server on the user's own machine, bound to
@@ -49,6 +50,20 @@ if (!DESKTOP_MODE && process.env.NODE_ENV === 'production' && !process.env.FRONT
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const execFileAsync = promisify(execFile);
+
+// Local ComfyUI workflows: the bundled ones plus an optional user directory.
+// Each becomes a model id of the form comfy/<id>.
+const COMFY_TEMPLATES = loadComfyTemplates([
+    path.join(__dirname, 'workflows'),
+    process.env.DC_WORKFLOWS_DIR
+]);
+if (COMFY_TEMPLATES.size) {
+    console.log(`✓ ${COMFY_TEMPLATES.size} ComfyUI workflow(s): ${[...COMFY_TEMPLATES.keys()].join(', ')}`);
+}
+
+function comfyUrl(settings) {
+    return settings?.comfy?.url || process.env.COMFYUI_URL || 'http://127.0.0.1:8188';
+}
 
 const app = express();
 
@@ -293,6 +308,22 @@ app.get('/api/config', async (req, res) => {
         });
     } catch {
         res.json({ desktop: DESKTOP_MODE, chatDefaultModel: 'anthropic/claude-sonnet-5' });
+    }
+});
+
+// Local ComfyUI workflows the client can offer as models. Public on purpose:
+// labels and capability tables only, nothing about the graphs themselves.
+app.get('/api/workflows', (req, res) => {
+    res.json([...COMFY_TEMPLATES].map(([id, t]) => describeTemplate(id, t)));
+});
+
+app.get('/api/admin/comfy/status', isAdmin, async (req, res) => {
+    const settings = await storage.getSettings().catch(() => ({}));
+    const url = comfyUrl(settings);
+    try {
+        res.json({ ok: true, url, ...(await checkComfy(url)), workflows: COMFY_TEMPLATES.size });
+    } catch (err) {
+        res.json({ ok: false, url, error: err.message, workflows: COMFY_TEMPLATES.size });
     }
 });
 
@@ -640,6 +671,20 @@ function pruneVideoJobs() {
     for (const [id, job] of videoJobs) if (job.createdAt < cutoff) videoJobs.delete(id);
 }
 
+// Local ComfyUI: the manifest decides what the graph accepts; whatever the
+// node offers but the manifest does not map is simply not sent.
+async function generateVideoComfy(model, prompt, opts, settings) {
+    const template = COMFY_TEMPLATES.get(model);
+    const { dataUrl, bytes } = await runComfyWorkflow({
+        baseUrl: comfyUrl(settings),
+        template,
+        inputs: { image: opts.firstFrame, lastImage: opts.lastFrame, prompt, duration: opts.duration, aspect: opts.aspectRatio },
+        log: (m) => console.log(`[comfyui ${template.id}] ${m}`)
+    });
+    console.log(`[comfyui ${template.id}] done, ${Math.round(bytes / 1024)} KB`);
+    return dataUrl;
+}
+
 async function generateVideoOpenRouter(model, prompt, opts) {
     const settings = await storage.getSettings().catch(() => ({}));
     const apiKey = settings?.apiKeys?.openrouterApiKey || process.env.OPENROUTER_API_KEY;
@@ -769,13 +814,15 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
     try {
         const { prompt, model, resolution, aspectRatio, duration, audio, firstFrame, lastFrame } = req.body;
         if (!prompt || !prompt.trim()) return res.status(400).json({ error: 'No prompt provided' });
-        if (!OPENROUTER_VIDEO_MODELS.has(model) && !OMNI_VIDEO_MODELS.has(model)) {
+        if (!OPENROUTER_VIDEO_MODELS.has(model) && !OMNI_VIDEO_MODELS.has(model) && !COMFY_TEMPLATES.has(model)) {
             return res.status(400).json({ error: `Unknown video model: ${model}` });
         }
 
         const settings = await storage.getSettings();
-        const cost = settings.modelCosts[model] || 8;
-        if (!DESKTOP_MODE && (!req.user.credits || req.user.credits < cost)) {
+        const cost = COMFY_TEMPLATES.has(model)
+            ? (settings.modelCosts[model] ?? COMFY_TEMPLATES.get(model).cost)
+            : (settings.modelCosts[model] || 8);
+        if (!DESKTOP_MODE && cost > 0 && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
 
@@ -791,9 +838,11 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
             try {
                 job.status = 'in_progress';
                 const opts = { resolution, aspectRatio, duration, audio, firstFrame, lastFrame };
-                const video = OPENROUTER_VIDEO_MODELS.has(model)
-                    ? await generateVideoOpenRouter(model, prompt, opts)
-                    : await generateVideoOmni(model, prompt, opts);
+                const video = COMFY_TEMPLATES.has(model)
+                    ? await generateVideoComfy(model, prompt, opts, settings)
+                    : OPENROUTER_VIDEO_MODELS.has(model)
+                        ? await generateVideoOpenRouter(model, prompt, opts)
+                        : await generateVideoOmni(model, prompt, opts);
 
                 // Charge only on success
                 const users = await storage.getUsers();
@@ -983,7 +1032,7 @@ app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
 
         const settings = await storage.getSettings();
         const cost = settings.modelCosts[model] || 6;
-        if (!DESKTOP_MODE && (!req.user.credits || req.user.credits < cost)) {
+        if (!DESKTOP_MODE && cost > 0 && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
 
@@ -1045,7 +1094,7 @@ app.post('/api/chat', isAuthenticated, async (req, res) => {
         if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'No messages' });
 
         const cost = settings?.modelCosts?.[model] || 1;
-        if (!DESKTOP_MODE && (!req.user.credits || req.user.credits < cost)) {
+        if (!DESKTOP_MODE && cost > 0 && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
 
@@ -1119,10 +1168,12 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         // Determine cost based on model
         const settings = await storage.getSettings();
         const selectedModel = model || (images && images.length > 0 ? 'gemini-3.1-flash-image' : 'imagen-4.0-fast-generate-001');
-        const cost = settings.modelCosts[selectedModel] || 1;
+        const cost = COMFY_TEMPLATES.has(selectedModel)
+            ? (settings.modelCosts[selectedModel] ?? COMFY_TEMPLATES.get(selectedModel).cost)
+            : (settings.modelCosts[selectedModel] || 1);
 
         // Check if user has enough credits
-        if (!DESKTOP_MODE && (!req.user.credits || req.user.credits < cost)) {
+        if (!DESKTOP_MODE && cost > 0 && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
         
@@ -1146,7 +1197,20 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         const fmtToMime = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
         const outputMime = fmtToMime[outputFormat] || 'image/jpeg';
 
-        if (BFL_MODELS.has(selectedModel)) {
+        if (COMFY_TEMPLATES.has(selectedModel)) {
+            const template = COMFY_TEMPLATES.get(selectedModel);
+            console.log(`Using ${selectedModel} (local ComfyUI) for generation`);
+            const { dataUrl } = await runComfyWorkflow({
+                baseUrl: comfyUrl(settings),
+                template,
+                inputs: {
+                    image: images?.[0], lastImage: images?.[1], prompt,
+                    aspect: userAspectRatio && userAspectRatio !== 'original' ? userAspectRatio : undefined
+                },
+                log: (m) => console.log(`[comfyui ${template.id}] ${m}`)
+            });
+            result.image = dataUrl;
+        } else if (BFL_MODELS.has(selectedModel)) {
             // FLUX.2 (Black Forest Labs): async submit → poll → download
             console.log(`Using ${selectedModel} (FLUX.2 / BFL) for generation`);
             result.image = await generateWithBFL(
