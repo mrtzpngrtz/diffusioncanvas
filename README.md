@@ -70,6 +70,8 @@ credits — happens in the admin panel at `/admin`, not in env vars.
 | `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `BFL_API_KEY`, `OPENROUTER_API_KEY`, `REPLICATE_API_TOKEN` | Per provider, all optional. Also settable in the admin panel. |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | OAuth. Facebook and LinkedIn equivalents optional. Local accounts work without any of them. |
 | `REDIS_URL` | Optional; falls back to file storage. |
+| `COMFYUI_URL` | Local ComfyUI; also settable in the admin panel. Default `http://127.0.0.1:8188`. |
+| `DC_WORKFLOWS_DIR` | Extra directory of ComfyUI workflow manifests, read after `workflows/`. |
 | `DC_DESKTOP`, `DC_DATA_DIR` | Desktop build only. |
 
 ## Desktop app
@@ -95,11 +97,23 @@ and deploys itself. Requires `ANTHROPIC_API_KEY` and `GITHUB_TOKEN`.
 
 New node types are one self-contained file each — see [nodes/README.md](nodes/README.md).
 
+## Local inference (ComfyUI)
+
+Any ComfyUI workflow can be a model in the canvas. Export it in API format,
+drop it into [workflows/](workflows/) with a small manifest that says which
+node holds the prompt, the image, the duration and the output, and it appears
+in the Video or Prompt node's dropdown next to the cloud models. The bundled
+example is a MiniMax H3 image-to-video graph. See [workflows/README.md](workflows/README.md).
+
+Point the server at ComfyUI under **Local inference** in the admin panel
+(default `http://127.0.0.1:8188`). On the desktop app that is the same
+machine; a hosted deployment needs a tunnel to your GPU box.
+
 ## Offline
 
 Boards, save/load, version history, draw, comp, outpaint, reframe, compare, the
-3D viewer and export all work with no network. Generation and the chat node need
-a provider key and a connection; local inference is not wired up yet.
+3D viewer and export all work with no network. Cloud models need a key and a
+connection. With ComfyUI on the same machine, generation runs air-gapped too.
 
 ## Utilities
 

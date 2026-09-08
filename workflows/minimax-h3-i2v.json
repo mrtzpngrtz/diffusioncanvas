@@ -1,0 +1,22 @@
+{
+  "id": "minimax-h3-i2v",
+  "label": "MiniMax H3 · local",
+  "kind": "video",
+  "description": "Image to video with native audio, running on your own ComfyUI. Uses the connected image as the first frame.",
+  "workflow": "minimax-h3-i2v.workflow.json",
+  "cost": 0,
+  "timeoutMs": 1800000,
+  "inputs": {
+    "image":    { "node": "114",     "field": "image", "required": true },
+    "prompt":   { "node": "105:104", "field": "prompt" },
+    "duration": { "node": "105:111", "field": "value" },
+    "aspect":   { "node": "115",     "field": "aspect_ratio",
+                  "map": { "16:9": "16:9 (Widescreen)" } },
+    "seed":     { "node": "105:15",  "field": "noise_seed" }
+  },
+  "output": { "node": "92" },
+  "caps": {
+    "durations": [3, 4, 5, 6, 7, 8, 9, 10],
+    "audio": "native"
+  }
+}

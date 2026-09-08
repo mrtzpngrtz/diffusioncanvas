@@ -1,5 +1,14 @@
 import { NodeBase } from './NodeBase.js';
 
+// Local ComfyUI image workflows, registered from GET /api/workflows at boot.
+const EXTRA_IMAGE_MODELS = [];
+export function registerImageModels(list) {
+    for (const t of list || []) if (t.kind === 'image') EXTRA_IMAGE_MODELS.push({ id: t.id, label: t.label });
+}
+export function imageModelLabel(id) {
+    return EXTRA_IMAGE_MODELS.find(m => m.id === id)?.label || null;
+}
+
 const LIBRARY_KEY = 'promptLibrary';
 
 function loadLibrary() {
@@ -139,6 +148,12 @@ export class PromptNode extends NodeBase {
 
         // Model select handling
         const modelSelect = nodeEl.querySelector('.model-select');
+        for (const m of EXTRA_IMAGE_MODELS) {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = `${m.label} (local)`;
+            modelSelect.appendChild(opt);
+        }
         modelSelect.addEventListener('change', (e) => {
             node.data.model = e.target.value;
             syncFluxParams();
