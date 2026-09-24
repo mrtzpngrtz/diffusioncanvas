@@ -1186,19 +1186,48 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             );
             console.log('FLUX.2 image received');
 
-        } else if (selectedModel === 'gpt-image-2-2026-04-21') {
-            // GPT Image 2: text-to-image or image editing
-            // Resolution maps to size: standard→1024, hd→1536, 4k→1792 (max supported)
+        } else if (selectedModel === 'gpt-image-2-2026-04-21' || selectedModel === 'gpt-image-2.5-sunburst') {
+            // GPT Image models: text-to-image or image editing.
+            // Sunburst supports custom dimensions, more quality tiers and selectable
+            // output formats; the existing GPT Image 2 request remains unchanged.
+            const isSunburst = selectedModel === 'gpt-image-2.5-sunburst';
             const resolutionSizeMap = {
                 standard: { '1:1': '1024x1024', '16:9': '1536x1024', '9:16': '1024x1536' },
                 hd:       { '1:1': '1024x1024', '16:9': '1536x1024', '9:16': '1024x1536' },
                 '4k':     { '1:1': '1024x1024', '16:9': '1536x1024', '9:16': '1024x1536' }
             };
             const sizeMap = resolutionSizeMap[resolution] || resolutionSizeMap.hd;
-            // GPT Image 2 only offers square / landscape / portrait
             const gptRatio = resolveAspectRatio(userAspectRatio, sourceWidth, sourceHeight, ['1:1', '16:9', '9:16']);
-            const size = sizeMap[gptRatio] || '1024x1024';
-            console.log('Requested aspect ratio:', userAspectRatio, '→ using:', gptRatio, `(${size})`);
+            let size = sizeMap[gptRatio] || '1024x1024';
+
+            let sunburstOptions = {};
+            if (isSunburst) {
+                // Sunburst accepts a WIDTHxHEIGHT size string. Honour every
+                // Canvas ratio instead of reducing it to the legacy
+                // square/landscape/portrait options.
+                let requestedAspect = 1;
+                if (userAspectRatio === 'original' && sourceWidth > 0 && sourceHeight > 0) {
+                    requestedAspect = sourceWidth / sourceHeight;
+                } else {
+                    const [ratioWidth, ratioHeight] = String(userAspectRatio || '1:1').split(':').map(Number);
+                    if (ratioWidth > 0 && ratioHeight > 0) requestedAspect = ratioWidth / ratioHeight;
+                }
+                // Standard / HD / 4K select progressively higher pixel budgets
+                // while preserving the requested Canvas ratio.
+                const targetPixels = { standard: 1024 * 1024, hd: 2048 * 2048, '4k': 3840 * 2160 }[resolution] || 2048 * 2048;
+                const snap16 = (value) => Math.max(16, Math.round(value / 16) * 16);
+                let height = Math.sqrt(targetPixels / requestedAspect);
+                let width = height * requestedAspect;
+                width = snap16(width);
+                height = snap16(height);
+                size = `${width}x${height}`;
+
+                const quality = { standard: 'medium', hd: 'high', '4k': 'max' }[resolution] || 'high';
+                const openAiOutputFormat = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', webp: 'webp' }[outputFormat] || 'png';
+                sunburstOptions = { quality, output_format: openAiOutputFormat };
+            }
+
+            console.log('Requested aspect ratio:', userAspectRatio, '→ using:', isSunburst ? 'custom Sunburst ratio' : gptRatio, `(${size})`);
 
             let responseData;
             if (images && images.length > 0) {
@@ -1213,7 +1242,8 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                     image: imageFile,
                     prompt,
                     n: 1,
-                    size
+                    size,
+                    ...sunburstOptions
                 });
                 responseData = response.data[0];
             } else {
@@ -1221,20 +1251,21 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
                     model: selectedModel,
                     prompt,
                     n: 1,
-                    size
+                    size,
+                    ...sunburstOptions
                 });
                 responseData = response.data[0];
             }
 
             if (responseData.b64_json) {
-                result.image = `data:image/png;base64,${responseData.b64_json}`;
+                result.image = `data:${isSunburst ? outputMime : 'image/png'};base64,${responseData.b64_json}`;
             } else {
                 const imgRes = await fetch(responseData.url);
                 const mimeType = imgRes.headers.get('content-type') || 'image/png';
                 const buf = Buffer.from(await imgRes.arrayBuffer());
                 result.image = `data:${mimeType};base64,${buf.toString('base64')}`;
             }
-            console.log('GPT Image 2 response received');
+            console.log(`${isSunburst ? 'GPT Image 2.5 Sunburst' : 'GPT Image 2'} response received`);
 
         } else if (selectedModel === 'imagen-4.0-ultra-generate-001' || selectedModel === 'imagen-4.0-fast-generate-001') {
             // TEXT-TO-IMAGE: Use Imagen with aspect ratio support

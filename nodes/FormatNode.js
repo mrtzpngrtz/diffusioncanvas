@@ -81,6 +81,7 @@ export class FormatNode extends NodeBase {
                     <option value="gemini-3-pro-image">Nano Banana Pro</option>
                     <option value="gemini-2.5-flash-image">Nano Banana</option>
                     <option value="gpt-image-2-2026-04-21">GPT Image 2</option>
+                    <option value="gpt-image-2.5-sunburst">GPT Image 2.5 Sunburst</option>
                     <option value="flux-2-pro-preview">FLUX.2 Pro</option>
                     <option value="flux-2-flex">FLUX.2 Flex</option>
                     <option value="flux-2-klein-9b-preview">FLUX.2 Klein</option>

@@ -53,6 +53,7 @@ export class PromptNode extends NodeBase {
                     <option value="imagen-4.0-ultra-generate-001">Imagen Ultra (text to image)</option>
                     <option value="imagen-4.0-fast-generate-001">Imagen Fast (text to image)</option>
                     <option value="gpt-image-2-2026-04-21">GPT Image 2 (text &amp; edit)</option>
+                    <option value="gpt-image-2.5-sunburst">GPT Image 2.5 Sunburst (premium text &amp; edit)</option>
                     <option value="flux-2-pro-preview">FLUX.2 Pro (text &amp; edit)</option>
                     <option value="flux-2-pro">FLUX.2 Pro · fixed (text &amp; edit)</option>
                     <option value="flux-2-flex">FLUX.2 Flex (text &amp; edit)</option>

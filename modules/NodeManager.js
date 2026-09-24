@@ -566,6 +566,7 @@ export class NodeManager {
             else if (node.data.model === 'imagen-4.0-ultra-generate-001') modelIndicator.textContent = 'Imagen Ultra';
             else if (node.data.model === 'imagen-4.0-fast-generate-001') modelIndicator.textContent = 'Imagen Fast';
             else if (node.data.model === 'gpt-image-2-2026-04-21') modelIndicator.textContent = 'GPT Image 2';
+            else if (node.data.model === 'gpt-image-2.5-sunburst') modelIndicator.textContent = 'GPT Image 2.5 Sunburst';
             else if (node.data.model === 'flux-2-pro-preview') modelIndicator.textContent = 'FLUX.2 Pro';
             else if (node.data.model === 'flux-2-pro') modelIndicator.textContent = 'FLUX.2 Pro (fixed)';
             else if (node.data.model === 'flux-2-flex') modelIndicator.textContent = 'FLUX.2 Flex';
