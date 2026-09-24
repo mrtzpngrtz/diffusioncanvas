@@ -5,8 +5,11 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends git ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code CLI globally so the autonomous agent can run in isolated workspaces
-RUN npm install -g @anthropic-ai/claude-code
+# Pin Claude Code so Docker rebuilds this layer whenever we deliberately upgrade it.
+# Version 2.1.282 supports the currently selectable Claude agent models (2.1.280+ required).
+ARG CLAUDE_CODE_VERSION=2.1.282
+RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} && \
+    claude --version
 
 WORKDIR /app
 
