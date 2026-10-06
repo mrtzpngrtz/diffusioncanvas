@@ -1,4 +1,5 @@
 import { createDrawSurface, drawToolbarHTML } from './DrawTools.js';
+import { getPreference, setPreference } from './ApiSession.js';
 export class UIManager {
     constructor() {
         this.themeToggle = document.getElementById('themeToggle');
@@ -22,7 +23,7 @@ export class UIManager {
     setupTheme() {
         // Default is light. dark-mode class enables dark theme; the sun/moon
         // icons swap purely via CSS on body.dark-mode.
-        const savedTheme = localStorage.getItem('theme');
+        const savedTheme = getPreference('theme');
         if (savedTheme === 'dark') {
             document.body.classList.add('dark-mode');
         }
@@ -35,7 +36,7 @@ export class UIManager {
     toggleTheme() {
         document.body.classList.toggle('dark-mode');
         const isDarkMode = document.body.classList.contains('dark-mode');
-        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+        setPreference('theme', isDarkMode ? 'dark' : 'light');
         if (this.onThemeChange) this.onThemeChange();
     }
 

@@ -1,4 +1,5 @@
 import { NodeBase } from './NodeBase.js';
+import { getPreference, setPreference } from '../modules/ApiSession.js';
 
 // Local ComfyUI image workflows, registered from GET /api/workflows at boot.
 const EXTRA_IMAGE_MODELS = [];
@@ -12,12 +13,12 @@ export function imageModelLabel(id) {
 const LIBRARY_KEY = 'promptLibrary';
 
 function loadLibrary() {
-    try { return JSON.parse(localStorage.getItem(LIBRARY_KEY)) || []; }
+    try { return JSON.parse(getPreference(LIBRARY_KEY)) || []; }
     catch { return []; }
 }
 
 function saveLibrary(entries) {
-    localStorage.setItem(LIBRARY_KEY, JSON.stringify(entries));
+    setPreference(LIBRARY_KEY, JSON.stringify(entries));
 }
 
 export class PromptNode extends NodeBase {

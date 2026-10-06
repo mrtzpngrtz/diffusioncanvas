@@ -74,6 +74,36 @@ credits — happens in the admin panel at `/admin`, not in env vars.
 | `DC_WORKFLOWS_DIR` | Extra directory of ComfyUI workflow manifests, read after `workflows/`. |
 | `DC_DESKTOP`, `DC_DATA_DIR` | Desktop build only. |
 
+## Temporary API mode
+
+Before logging in, open **API mode — use your own keys, no login** and enter
+at least one key for Google, OpenAI, Black Forest Labs, OpenRouter or Replicate.
+The existing image, video, 3D and assistant nodes use those keys. Missing keys
+never fall back to the host's credentials. Provider charges apply to your own
+account; app credits are not used. Local ComfyUI workflows are not available.
+
+Keys and the session token live only in browser/server memory, not cookies,
+local/session storage, files, Redis, accounts or the shared provider-client cache.
+Boards, media, prompt-library entries, preferences and usage records are not
+persisted in this mode. Saving, sharing and the feedback agent are disabled.
+**Download Board** explicitly exports the current canvas to your machine without
+including credentials. Requests still pass through this server and the selected
+provider, whose own retention policies apply. Use HTTPS for hosted deployments.
+
+Reloading, navigating away or closing the tab ends the browser session. Use
+**End API session** for immediate server-side cleanup. If the browser cannot
+deliver its close request, the server expires the session after two hours of
+inactivity, with a hard limit of 24 hours. A server restart also clears sessions.
+Already submitted provider jobs may finish and incur charges after you leave.
+
+### Tests
+
+Run `npm test` on Node.js 24 or newer. Session and integration tests use the
+built-in Node test runner, isolated temporary app directories and mocked provider
+responses, so they never spend API credits. A real headless Chromium smoke test
+runs when Chrome/Edge is installed; set `DC_TEST_BROWSER` to its executable on
+other systems. Otherwise that browser test is skipped.
+
 ## Desktop app
 
 On the `desktop` branch:

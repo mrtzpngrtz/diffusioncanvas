@@ -1,3 +1,5 @@
+import { apiFetch, startApiMode, endApiMode, isApiMode } from './ApiSession.js';
+
 export class AuthManager {
     constructor() {
         this.loginModal = document.getElementById('loginModal');
@@ -17,7 +19,53 @@ export class AuthManager {
         this.setupLocalLogin();
         this.setupUserMenu();
         this.setupDeleteAccount();
-        this.checkAuth();
+        this.setupApiMode();
+        this.ready = this.checkAuth();
+    }
+
+    setupApiMode() {
+        const form = document.getElementById('apiModeForm');
+        const errorEl = document.getElementById('apiModeError');
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            errorEl.textContent = '';
+            const button = form.querySelector('button[type="submit"]');
+            button.disabled = true;
+            try {
+                const apiKeys = Object.fromEntries(new FormData(form));
+                if (!Object.values(apiKeys).some(value => value.trim())) throw new Error('Enter at least one API key.');
+                await this.ready;
+                const user = await startApiMode(apiKeys);
+                form.reset();
+                this.showApiMode(user);
+            } catch (error) {
+                errorEl.textContent = error.message;
+            } finally {
+                button.disabled = false;
+            }
+        });
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            if (isApiMode()) {
+                await endApiMode();
+                window.location.reload();
+            } else {
+                window.location.href = '/auth/logout';
+            }
+        });
+        window.addEventListener('api-mode-expired', () => window.location.reload());
+    }
+
+    showApiMode(user) {
+        document.body.classList.add('api-mode');
+        this.loginModal.classList.add('hidden');
+        this.userInfo.style.display = 'flex';
+        this.userPhoto.style.display = 'none';
+        this.userName.textContent = user.displayName;
+        document.getElementById('userCredits').textContent = 'Own keys · temporary';
+        document.getElementById('adminLink').style.display = 'none';
+        this.deleteAccountBtn.style.display = 'none';
+        document.getElementById('logoutBtn').lastChild.textContent = 'End API session';
+        document.getElementById('cookieNotice').classList.remove('active');
     }
 
     setupLocalLogin() {
@@ -134,12 +182,13 @@ export class AuthManager {
     }
 
     async checkAuth() {
+        if (isApiMode()) return;
         // If a share link is opened by a visitor, suppress forcing the regular login modal
         const urlParams = new URLSearchParams(window.location.search);
         const isShareLink = !!urlParams.get('share');
 
         try {
-            const response = await fetch('/api/user', {
+            const response = await apiFetch('/api/user', {
                 credentials: 'include'
             });
             const data = await response.json();

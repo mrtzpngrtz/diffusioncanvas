@@ -2497,7 +2497,37 @@ body.dark-mode .theme-icon-moon { display: block; }
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
     animation: rise-in 0.35s var(--ease);
+}
+
+.api-mode-entry {
+    border-bottom: 1px solid var(--border);
+}
+
+.api-mode-entry summary {
+    padding: 20px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.api-mode-notice {
+    padding: 0 20px 16px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+body.api-mode #saveBoardBtn,
+body.api-mode #newBoardBtn,
+body.api-mode #openBoardsBtn,
+body.api-mode #feedbackBtn,
+body.api-mode #userMenuFeedbackBtn,
+body.api-mode #cookieNotice {
+    display: none !important;
 }
 
 .login-hero {

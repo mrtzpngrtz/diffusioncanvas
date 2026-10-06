@@ -8,6 +8,7 @@ import { AreaManager } from './modules/AreaManager.js';
 import { FeedbackManager } from './modules/FeedbackManager.js';
 import { registerVideoModels } from './nodes/VideoNode.js';
 import { registerImageModels } from './nodes/PromptNode.js';
+import { apiFetch as fetch, isApiMode } from './modules/ApiSession.js';
 
 // Local ComfyUI workflows join the model dropdowns before any node exists, so
 // a restored board never meets a model it cannot name. Offline, or with no
@@ -94,6 +95,22 @@ class App {
         this.setupContextMenu();
         this.setupCanvasDrop();
         this.feedbackManager.init();
+
+        window.addEventListener('api-mode-started', () => {
+            this._clearCanvasImmediate();
+            this.historyStack = [];
+            this.currentBoardId = null;
+            this.currentBoardName = null;
+            this.currentBoardUpdatedAt = null;
+            this.saveConflict = false;
+            this.closeBoardsModal();
+            document.getElementById('shareBoardModal')?.classList.remove('active');
+            this._updateBoardUI();
+            const badge = document.getElementById('autosaveBadge');
+            badge.className = 'autosave-badge visible';
+            badge.textContent = 'API mode · not saved';
+            this.uiManager.updateStatus('Temporary API session — own keys, no autosave');
+        });
 
         // Start auto-save
         this.startAutoSave();
@@ -182,7 +199,8 @@ class App {
         document.getElementById('openBoardsBtn').addEventListener('click', () => { if (canEdit()) this.toggleBoardsPanel(); });
         document.getElementById('newBoardBtn').addEventListener('click', () => { if (canEdit()) this.saveBoardAsNew(); });
         document.getElementById('downloadBoardBtn').addEventListener('click', () => {
-            if (this.currentBoardId) this._downloadBoard(this.currentBoardId);
+            if (isApiMode()) this._downloadTemporaryCanvas();
+            else if (this.currentBoardId) this._downloadBoard(this.currentBoardId);
         });
         document.getElementById('boardsModalClose').addEventListener('click', () => this.closeBoardsModal());
         document.getElementById('boardsModalNew').addEventListener('click', () => this.newEmptyBoard());
@@ -419,6 +437,7 @@ class App {
     }
 
     async _uploadPendingImages(show) {
+        if (isApiMode()) return;
         // Images and videos share the blob store (/api/images is mime-agnostic)
         const pending = [];
         for (const n of this.nodeManager.nodes) {
@@ -458,6 +477,7 @@ class App {
     }
 
     async _autoSaveToServer() {
+        if (isApiMode()) return;
         const badge = document.getElementById('autosaveBadge');
         const show = (cls, text) => {
             if (!badge) return;
@@ -628,20 +648,26 @@ class App {
 
 
     async restoreAutoSavedCanvas() {
+        await this.authManager.ready;
+        if (isApiMode()) return;
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('share')) return; // handled by checkSharedBoardLink
 
 
         // If refreshed within the same tab session, restore the last board silently
         const sessionBoardId = sessionStorage.getItem('diffusionCanvas_sessionBoardId');
-        if (sessionBoardId) {
+        if (sessionBoardId && this.authManager.userInfo.style.display !== 'none') {
             try {
                 const res = await fetch(`/api/boards/${sessionBoardId}`, { credentials: 'include' });
+                if (isApiMode()) return;
                 if (res.ok) {
                     const state = await res.json();
+                    if (isApiMode()) return;
                     const listRes = await fetch('/api/boards', { credentials: 'include' });
+                    if (isApiMode()) return;
                     if (listRes.ok) {
                         const boards = await listRes.json();
+                        if (isApiMode()) return;
                         const meta = boards.find(b => b.id === sessionBoardId);
                         if (meta) {
                             this.currentBoardId = sessionBoardId;
@@ -662,7 +688,7 @@ class App {
 
         // New session — show the board manager
         this.uiManager.updateStatus('Ready');
-        this.toggleBoardsPanel();
+        if (!isApiMode() && this.authManager.userInfo.style.display !== 'none') this.toggleBoardsPanel();
     }
 
     serializeCanvas() {
@@ -965,6 +991,7 @@ window.addEventListener('load', () => {
 Object.assign(App.prototype, {
 
     toggleBoardsPanel() {
+        if (isApiMode()) return;
         const modal = document.getElementById('boardsModal');
         if (!modal) return;
         if (modal.classList.contains('active')) {
@@ -1157,6 +1184,10 @@ Object.assign(App.prototype, {
     },
 
     async _saveBoardToServer(name, id, force = false) {
+        if (isApiMode()) {
+            this.uiManager.updateStatus('API mode does not save boards. Use Download Board for an explicit export.');
+            return;
+        }
         this.uiManager.updateStatus('Saving board...');
         try {
             const state = this.serializeCanvas();
@@ -1335,6 +1366,7 @@ Object.assign(App.prototype, {
     },
     // ── SHARE BOARD MODAL ───────────────────────────────────────────────────
     _openShareModal(boardId, boardName) {
+        if (isApiMode()) return;
         const modal = document.getElementById('shareBoardModal');
         if (!modal) return;
         const titleEl = document.getElementById('shareModalBoardTitle');
@@ -1465,12 +1497,30 @@ Object.assign(App.prototype, {
         const topBarEl = document.getElementById('topBarBoardName');
         if (topBarEl) topBarEl.textContent = name;
         const dlBtn = document.getElementById('downloadBoardBtn');
-        if (dlBtn) dlBtn.style.display = this.currentBoardId ? '' : 'none';
+        if (dlBtn) dlBtn.style.display = this.currentBoardId || isApiMode() ? '' : 'none';
+        if (isApiMode()) return;
         if (this.currentBoardId) {
             sessionStorage.setItem('diffusionCanvas_sessionBoardId', this.currentBoardId);
         } else {
             sessionStorage.removeItem('diffusionCanvas_sessionBoardId');
         }
+    },
+
+    _downloadTemporaryCanvas() {
+        const state = this.serializeCanvas();
+        state.nodes.forEach((saved, index) => {
+            const data = this.nodeManager.nodes[index].data;
+            saved.data.imageData = data.imageData || null;
+            saved.data.videoData = data.videoData || null;
+            saved.data.modelData = data.modelData || null;
+        });
+        const payload = { name: 'Temporary API canvas', state };
+        const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'temporary-api-canvas.dc.json';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
     },
 
     _confirm(message) {

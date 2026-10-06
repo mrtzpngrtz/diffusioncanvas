@@ -83,6 +83,20 @@
                 </h1>
             </div>
 
+            <details class="api-mode-entry">
+                <summary>API mode — use your own keys, no login</summary>
+                <p class="api-mode-notice" id="apiModeNotice">Temporary only: keys, canvas and prompts are not saved by this app. Reloading or closing this tab ends your session. Requests pass through this server to your chosen provider; provider fees and data policies apply.</p>
+                <form id="apiModeForm" class="local-login-form" autocomplete="off" aria-describedby="apiModeNotice">
+                    <div class="form-group"><label for="apiGoogleKey">Google — Gemini, Imagen &amp; Omni</label><input type="password" id="apiGoogleKey" name="googleApiKey" autocomplete="off" maxlength="512" spellcheck="false"></div>
+                    <div class="form-group"><label for="apiOpenAIKey">OpenAI — GPT Image</label><input type="password" id="apiOpenAIKey" name="openaiApiKey" autocomplete="off" maxlength="512" spellcheck="false"></div>
+                    <div class="form-group"><label for="apiBFLKey">Black Forest Labs — FLUX</label><input type="password" id="apiBFLKey" name="bflApiKey" autocomplete="off" maxlength="512" spellcheck="false"></div>
+                    <div class="form-group"><label for="apiOpenRouterKey">OpenRouter — assistant &amp; video</label><input type="password" id="apiOpenRouterKey" name="openrouterApiKey" autocomplete="off" maxlength="512" spellcheck="false"></div>
+                    <div class="form-group"><label for="apiReplicateKey">Replicate — image to 3D</label><input type="password" id="apiReplicateKey" name="replicateApiToken" autocomplete="off" maxlength="512" spellcheck="false"></div>
+                    <button type="submit" class="btn login-btn">Start temporary API session</button>
+                    <p id="apiModeError" class="login-error" role="alert"></p>
+                </form>
+            </details>
+
             <form id="localLoginForm" class="local-login-form">
                 <div class="form-group">
                     <label for="email">Email</label>
@@ -113,7 +127,7 @@
             </div>
             
             <div class="login-disclaimer">
-                <p><strong>Beta Notice:</strong> This is experimental software. Your images are processed through the Vercel server and sent to Google's Gemini API for generation. Images are not stored permanently.</p>
+                <p><strong>Beta Notice:</strong> This is experimental software. Generation requests are processed by this server and your selected AI provider. Account mode saves boards and media; API mode does not save your keys or work.</p>
             </div>
        
         </div>
@@ -141,7 +155,7 @@
                 <div class="user-info-wrapper">
                     <button class="user-menu-btn" id="userMenuBtn"><svg class="icon"><use href="#i-dots"/></svg></button>
                     <div class="user-dropdown" id="userDropdown">
-                        <div class="user-dropdown-item" onclick="window.location.href='/auth/logout'">
+                        <div class="user-dropdown-item" id="logoutBtn">
                             <svg class="icon"><use href="#i-logout"/></svg>Logout
                         </div>
                         <div class="user-dropdown-item" id="userMenuFeedbackBtn">
@@ -473,12 +487,13 @@
             if (!cookieConsent) {
                 // Show cookie notice after a brief delay
                 setTimeout(() => {
-                    cookieNotice.classList.add('active');
+                    if (!document.body.classList.contains('api-mode')) cookieNotice.classList.add('active');
                 }, 500);
             }
             
             // Accept cookies
             acceptBtn.addEventListener('click', () => {
+                if (document.body.classList.contains('api-mode')) return;
                 localStorage.setItem('cookieConsent', 'accepted');
                 localStorage.setItem('cookieConsentDate', new Date().toISOString());
                 cookieNotice.classList.remove('active');
@@ -486,6 +501,7 @@
             
             // Decline cookies
             declineBtn.addEventListener('click', () => {
+                if (document.body.classList.contains('api-mode')) return;
                 localStorage.setItem('cookieConsent', 'declined');
                 localStorage.setItem('cookieConsentDate', new Date().toISOString());
                 cookieNotice.classList.remove('active');
