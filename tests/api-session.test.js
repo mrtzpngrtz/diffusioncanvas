@@ -24,7 +24,7 @@ test('browser API session remains in memory, strips cookies, and never leaks to 
         return Response.json({ ok: true });
     };
     try {
-        const { startApiMode, endApiMode, isApiMode, apiFetch, getPreference, setPreference } = await import('../modules/ApiSession.js');
+        const { startApiMode, endApiMode, isApiMode, apiFetch, getPreference, setPreference, getApiKeys, updateApiKeys } = await import('../modules/ApiSession.js');
         assert.equal(getPreference('theme'), 'dark');
         await startApiMode({ googleApiKey: 'secret' });
         assert.equal(isApiMode(), true);
@@ -39,6 +39,11 @@ test('browser API session remains in memory, strips cookies, and never leaks to 
         assert.equal(generation.headers.get('X-Api-Session'), 'memory-token');
         assert.equal(generation.credentials, 'omit');
         assert.equal(generation.cache, 'no-store');
+        await updateApiKeys({ googleApiKey: 'updated-secret' });
+        assert.deepEqual(getApiKeys(), { googleApiKey: 'updated-secret' });
+        assert.equal(requests.at(-1).options.method, 'PUT');
+        await updateApiKeys({});
+        assert.deepEqual(getApiKeys(), {});
         await apiFetch('https://third-party.example/api/generate', { method: 'GET' });
         assert.equal(requests.at(-1).options.headers, undefined);
         await endApiMode();

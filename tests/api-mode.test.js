@@ -18,13 +18,29 @@ test('sessions accept only supported keys and never create account/admin privile
     assert.equal(second.session.settings.apiKeys.googleApiKey, undefined);
 });
 
-test('invalid, empty, unsupported and control-character credentials are rejected', () => {
+test('empty sessions open the canvas; malformed credentials are rejected', () => {
     const sessions = new ApiModeSessions();
-    for (const input of [null, [], {}, { googleApiKey: ' ' }, { githubToken: 'no' }, { googleApiKey: 123 }, { googleApiKey: 'key\nvalue' }, { googleApiKey: 'a'.repeat(513) }]) {
+    for (const input of [null, [], { googleApiKey: 123 }, { googleApiKey: 'key\nvalue' }, { googleApiKey: 'a'.repeat(513) }]) {
         assert.throws(() => sessions.create(input));
     }
     assert.equal(sessions.sessions.size, 0);
+    assert.deepEqual(sessions.create().session.settings.apiKeys, {});
+    assert.deepEqual(sessions.create({ githubToken: 'ignored' }).session.settings.apiKeys, {});
     for (const field of API_KEY_FIELDS) assert.ok(sessions.create({ [field]: 'test-key' }).token);
+});
+
+test('keys can be updated and removed without replacing the session or its jobs', () => {
+    const sessions = new ApiModeSessions();
+    const { token, session } = sessions.create();
+    const id = session.user.id;
+    assert.equal(sessions.update(token, { googleApiKey: 'new-key' }), session);
+    assert.equal(session.user.id, id);
+    assert.deepEqual(session.settings.apiKeys, { googleApiKey: 'new-key' });
+    assert.throws(() => sessions.update(token, { googleApiKey: 12 }));
+    assert.deepEqual(session.settings.apiKeys, { googleApiKey: 'new-key' });
+    sessions.update(token, {});
+    assert.deepEqual(session.settings.apiKeys, {});
+    assert.equal(sessions.update('invalid', {}), null);
 });
 
 test('ending and expiring a session wipes keys and invokes job cleanup', () => {
@@ -64,6 +80,7 @@ test('only stateless generation, config and owned job routes are allowed', () =>
     for (const path of ['/api/generate', '/api/generate-video', '/api/generate-3d', '/api/chat']) assert.equal(apiModeRouteAllowed('POST', path), true);
     assert.equal(apiModeRouteAllowed('GET', '/api/video-jobs/job-123'), true);
     assert.equal(apiModeRouteAllowed('DELETE', '/api/api-mode'), true);
+    assert.equal(apiModeRouteAllowed('PUT', '/api/api-mode'), true);
     for (const path of ['/api/boards', '/api/images', '/api/admin/settings', '/api/feedback', '/api/user/delete', '/api/share/access/123', '/api/agent/tasks']) {
         for (const method of ['GET', 'POST', 'DELETE', 'PATCH']) assert.equal(apiModeRouteAllowed(method, path), false);
     }

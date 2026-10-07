@@ -1,11 +1,13 @@
 let token = null;
+let desktopSession = false;
+let sessionKeys = {};
 const transientPreferences = new Map();
 
 export function isApiMode() {
-    return token !== null;
+    return token !== null && !desktopSession;
 }
 
-export async function startApiMode(apiKeys) {
+export async function startApiMode(apiKeys = {}) {
     const response = await fetch('/api/api-mode', {
         method: 'POST', credentials: 'omit', cache: 'no-store',
         headers: { 'Content-Type': 'application/json' },
@@ -14,14 +16,33 @@ export async function startApiMode(apiKeys) {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not start API mode.');
     token = data.token;
+    desktopSession = !!data.desktop;
+    sessionKeys = { ...apiKeys };
     transientPreferences.clear();
-    window.dispatchEvent(new Event('api-mode-started'));
+    window.dispatchEvent(new Event(desktopSession ? 'api-settings-updated' : 'api-mode-started'));
     return data.user;
+}
+
+export function getApiKeys() {
+    return { ...sessionKeys };
+}
+
+export async function updateApiKeys(apiKeys) {
+    if (!token) throw new Error('Start an API session first.');
+    const response = await apiFetch('/api/api-mode', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKeys })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not update API keys.');
+    sessionKeys = Object.fromEntries(Object.entries(apiKeys).filter(([, value]) => value.trim()).map(([name, value]) => [name, value.trim()]));
+    window.dispatchEvent(new Event('api-settings-updated'));
 }
 
 export async function endApiMode() {
     const currentToken = token;
     token = null;
+    sessionKeys = {};
     transientPreferences.clear();
     if (currentToken) {
         try {
@@ -42,6 +63,7 @@ export async function apiFetch(input, options = {}) {
     const response = await fetch(input, { ...options, headers, credentials: 'omit', cache: 'no-store' });
     if (response.status === 401) {
         token = null;
+        sessionKeys = {};
         transientPreferences.clear();
         window.dispatchEvent(new Event('api-mode-expired'));
     }

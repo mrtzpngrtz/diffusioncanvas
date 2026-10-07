@@ -76,8 +76,10 @@ credits — happens in the admin panel at `/admin`, not in env vars.
 
 ## Temporary API mode
 
-Before logging in, open **API mode — use your own keys, no login** and enter
-at least one key for Google, OpenAI, Black Forest Labs, OpenRouter or Replicate.
+Before logging in, click **Open canvas in API mode — no login**. No keys are
+required to enter. Inside the board, use **API settings** in the top bar to enter,
+change or remove keys for Google, OpenAI, Black Forest Labs, OpenRouter or Replicate.
+Applying keys never clears the canvas or replaces the session; blank fields remove keys.
 The existing image, video, 3D and assistant nodes use those keys. Missing keys
 never fall back to the host's credentials. Provider charges apply to your own
 account; app credits are not used. Local ComfyUI workflows are not available.

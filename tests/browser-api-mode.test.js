@@ -79,7 +79,7 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
         const debugPort = await freePort();
         server = spawn(process.execPath, ['--import', pathToFileURL(path.join(root, 'tests', 'fixtures', 'providers.js')).href, path.join(appDir, 'server.js')], {
             cwd: appDir,
-            env: { ...process.env, PORT: String(port), NODE_ENV: 'test', SESSION_SECRET: 'browser-test-secret', REDIS_URL: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '', DC_PROVIDER_LOG: path.join(temp, 'provider.log') },
+            env: { ...process.env, DC_DESKTOP: '', DC_DATA_DIR: '', PORT: String(port), NODE_ENV: 'test', SESSION_SECRET: 'browser-test-secret', REDIS_URL: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '', DC_PROVIDER_LOG: path.join(temp, 'provider.log') },
             stdio: ['ignore', 'pipe', 'pipe']
         });
         server.stdout.on('data', chunk => { output += chunk; });
@@ -111,7 +111,7 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
         assert.ok(ready, `App did not initialize: ${JSON.stringify(cdp.exceptions)} ${output}`);
         const preferences = await cdp.evaluate('JSON.stringify(Object.entries(localStorage))');
         const start = async () => {
-            await cdp.evaluate('document.querySelector(".api-mode-entry").open = true; document.getElementById("apiGoogleKey").value = "browser-google-key"; document.getElementById("apiModeForm").requestSubmit();');
+            await cdp.evaluate('document.getElementById("startApiModeBtn").click();');
             for (let i = 0; i < 100; i++) {
                 if (await cdp.evaluate('document.body.classList.contains("api-mode")')) return;
                 await sleep(50);
@@ -119,12 +119,20 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
             throw new Error(`API form did not start: ${await cdp.evaluate('document.getElementById("apiModeError").textContent')} ${JSON.stringify(cdp.exceptions)}`);
         };
         await start();
+        assert.equal(await cdp.evaluate('document.getElementById("loginModal").querySelectorAll("input[name$=ApiKey]").length'), 0);
         assert.equal(await cdp.evaluate('document.getElementById("loginModal").classList.contains("hidden")'), true);
         assert.equal(await cdp.evaluate('document.getElementById("apiGoogleKey").value'), '');
         assert.equal(await cdp.evaluate('getComputedStyle(document.getElementById("saveBoardBtn")).display'), 'none');
         assert.notEqual(await cdp.evaluate('getComputedStyle(document.getElementById("downloadBoardBtn")).display'), 'none');
         await cdp.evaluate('document.getElementById("addPromptNode").click(); document.getElementById("themeToggle").click();');
         assert.equal(await cdp.evaluate('document.querySelectorAll(".prompt-node").length'), 1);
+        await cdp.evaluate('document.getElementById("apiSettingsBtn").click(); document.getElementById("apiGoogleKey").value = "browser-google-key"; document.getElementById("apiModeForm").requestSubmit();');
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate('!document.getElementById("apiSettingsModal").classList.contains("active")')) break;
+            await sleep(50);
+        }
+        assert.equal(await cdp.evaluate('document.querySelectorAll(".prompt-node").length'), 1, 'Setting keys must not clear the board');
+        assert.equal(await cdp.evaluate('document.getElementById("apiGoogleKey").value'), '');
         await cdp.evaluate('const node = document.querySelector(".prompt-node"); node.querySelector("textarea").value = "Browser private prompt"; node.querySelector("textarea").dispatchEvent(new Event("input", { bubbles: true })); node.querySelector(".prompt-library-btn").click(); node.querySelector(".prompt-library-name").value = "Private library entry"; node.querySelector(".prompt-library-save-btn").click();');
         await cdp.evaluate('document.querySelector(".prompt-node .generate-btn").click()');
         for (let i = 0; i < 100; i++) {

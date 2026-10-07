@@ -128,8 +128,18 @@ const apiModeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: {
 app.post('/api/api-mode', apiModeLimiter, (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
-        const { token, session } = apiSessions.create(req.body.apiKeys);
+        const { token, session } = apiSessions.create(req.body.apiKeys ?? {});
         res.json({ token, user: session.user });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+app.put('/api/api-mode', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (!req.apiMode) return res.status(401).json({ error: 'Start an API session first.' });
+    try {
+        const session = apiSessions.update(req.get('X-Api-Session'), req.body.apiKeys);
+        res.json({ providers: Object.keys(session.settings.apiKeys) });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -494,14 +504,14 @@ function cached(kind, key, build) {
 
 function getGenAI(settings) {
     const key = resolveKey('googleApiKey', 'GOOGLE_API_KEY', settings);
-    if (!key) throw new Error(settings?.apiMode ? 'No Google key provided for this API session.' : 'No Google API key configured. Add one in the admin panel.');
+    if (!key) throw new Error(settings?.apiMode ? 'Add your Google key in API settings on the canvas.' : 'No Google API key configured. Add one in the admin panel.');
     if (settings?.apiMode) return new GoogleGenAI({ apiKey: key });
     return cached('google', key, k => new GoogleGenAI({ apiKey: k }));
 }
 
 function getOpenAI(settings) {
     const key = resolveKey('openaiApiKey', 'OPENAI_API_KEY', settings);
-    if (!key) throw new Error(settings?.apiMode ? 'No OpenAI key provided for this API session.' : 'No OpenAI API key configured. Add one in the admin panel.');
+    if (!key) throw new Error(settings?.apiMode ? 'Add your OpenAI key in API settings on the canvas.' : 'No OpenAI API key configured. Add one in the admin panel.');
     if (settings?.apiMode) return new OpenAI({ apiKey: key });
     return cached('openai', key, k => new OpenAI({ apiKey: k }));
 }
@@ -601,7 +611,7 @@ function bflDimensions(aspectRatio, resolution, sourceWidth, sourceHeight) {
 // image as a base64 data URL (the API's `sample` URL is signed and expires ~10 min).
 async function generateWithBFL(model, prompt, images, aspectRatio, resolution, outputFormat, opts = {}, settings) {
     const apiKey = resolveKey('bflApiKey', 'BFL_API_KEY', settings);
-    if (!apiKey) throw new Error('FLUX models are not configured on this server (BFL_API_KEY is missing).');
+    if (!apiKey) throw new Error(settings?.apiMode ? 'Add your Black Forest Labs key in API settings on the canvas.' : 'FLUX models are not configured on this server (BFL_API_KEY is missing).');
 
     const fmtMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', webp: 'webp' };
     const { width, height } = bflDimensions(aspectRatio, resolution, opts.sourceWidth, opts.sourceHeight);
@@ -709,7 +719,7 @@ async function generateVideoComfy(model, prompt, opts, settings) {
 
 async function generateVideoOpenRouter(model, prompt, opts, settings) {
     const apiKey = resolveKey('openrouterApiKey', 'OPENROUTER_API_KEY', settings);
-    if (!apiKey) throw new Error('Video models are not configured on this server (OPENROUTER_API_KEY is missing).');
+    if (!apiKey) throw new Error(settings?.apiMode ? 'Add your OpenRouter key in API settings on the canvas.' : 'Video models are not configured on this server (OPENROUTER_API_KEY is missing).');
     const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 
     const body = { model, prompt };
@@ -1017,7 +1027,7 @@ function pickModelUrl(output) {
 
 async function generate3DReplicate(model, opts, settings) {
     const token = resolveKey('replicateApiToken', 'REPLICATE_API_TOKEN', settings);
-    if (!token) throw new Error('Image → 3D is not configured on this server (REPLICATE_API_TOKEN is missing).');
+    if (!token) throw new Error(settings?.apiMode ? 'Add your Replicate token in API settings on the canvas.' : 'Image → 3D is not configured on this server (REPLICATE_API_TOKEN is missing).');
     const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
     const meta = await replicateModelMeta(model, token);
@@ -1125,7 +1135,7 @@ app.post('/api/chat', isAuthenticated, async (req, res) => {
     try {
         const settings = await requestSettings(req);
         const apiKey = resolveKey('openrouterApiKey', 'OPENROUTER_API_KEY', settings);
-        if (!apiKey) return res.status(500).json({ error: 'The assistant is not configured on this server (OPENROUTER_API_KEY is missing).' });
+        if (!apiKey) return res.status(500).json({ error: settings?.apiMode ? 'Add your OpenRouter key in API settings on the canvas.' : 'The assistant is not configured on this server (OPENROUTER_API_KEY is missing).' });
 
         const { model, messages, system } = req.body;
         if (!CHAT_MODELS.has(model)) return res.status(400).json({ error: `Unknown chat model: ${model}` });

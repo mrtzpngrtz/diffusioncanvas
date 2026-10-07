@@ -1,4 +1,4 @@
-import { apiFetch, startApiMode, endApiMode, isApiMode } from './ApiSession.js';
+import { apiFetch, startApiMode, endApiMode, isApiMode, getApiKeys, updateApiKeys } from './ApiSession.js';
 
 export class AuthManager {
     constructor() {
@@ -20,12 +20,57 @@ export class AuthManager {
         this.setupUserMenu();
         this.setupDeleteAccount();
         this.setupApiMode();
-        this.ready = this.checkAuth();
+        this.ready = this.initializeAuth();
+    }
+
+    async initializeAuth() {
+        try {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+            if (config.desktop) {
+                document.body.classList.add('desktop-mode');
+                await startApiMode();
+                document.getElementById('apiSettingsBtn').hidden = false;
+            }
+        } catch (error) {
+            console.error('App configuration failed:', error);
+        }
+        await this.checkAuth();
     }
 
     setupApiMode() {
+        const startButton = document.getElementById('startApiModeBtn');
+        startButton.addEventListener('click', async () => {
+            startButton.disabled = true;
+            document.getElementById('apiModeStartError').textContent = '';
+            try {
+                await this.ready;
+                const user = await startApiMode();
+                this.showApiMode(user);
+            } catch (error) {
+                document.getElementById('apiModeStartError').textContent = error.message;
+            } finally {
+                startButton.disabled = false;
+            }
+        });
         const form = document.getElementById('apiModeForm');
         const errorEl = document.getElementById('apiModeError');
+        const modal = document.getElementById('apiSettingsModal');
+        const close = () => { modal.classList.remove('active'); form.reset(); errorEl.textContent = ''; };
+        document.getElementById('apiSettingsBtn').addEventListener('click', () => {
+            form.reset();
+            errorEl.textContent = '';
+            const keys = getApiKeys();
+            for (const input of form.querySelectorAll('input[name]')) input.value = keys[input.name] || '';
+            modal.classList.add('active');
+            document.getElementById('apiGoogleKey').focus();
+        });
+        document.getElementById('apiSettingsClose').addEventListener('click', close);
+        modal.addEventListener('click', event => { if (event.target === modal) close(); });
+        document.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
+        document.getElementById('clearApiKeysBtn').addEventListener('click', async () => {
+            try { await updateApiKeys({}); close(); } catch (error) { errorEl.textContent = error.message; }
+        });
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             errorEl.textContent = '';
@@ -33,11 +78,8 @@ export class AuthManager {
             button.disabled = true;
             try {
                 const apiKeys = Object.fromEntries(new FormData(form));
-                if (!Object.values(apiKeys).some(value => value.trim())) throw new Error('Enter at least one API key.');
-                await this.ready;
-                const user = await startApiMode(apiKeys);
-                form.reset();
-                this.showApiMode(user);
+                await updateApiKeys(apiKeys);
+                close();
             } catch (error) {
                 errorEl.textContent = error.message;
             } finally {
@@ -62,6 +104,7 @@ export class AuthManager {
         this.userPhoto.style.display = 'none';
         this.userName.textContent = user.displayName;
         document.getElementById('userCredits').textContent = 'Own keys · temporary';
+        document.getElementById('apiSettingsBtn').hidden = false;
         document.getElementById('adminLink').style.display = 'none';
         this.deleteAccountBtn.style.display = 'none';
         document.getElementById('logoutBtn').lastChild.textContent = 'End API session';

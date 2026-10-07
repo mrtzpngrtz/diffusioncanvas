@@ -47,7 +47,7 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         const providerLog = path.join(temp, 'provider.log');
         child = spawn(process.execPath, ['--import', pathToFileURL(path.join(root, 'tests', 'fixtures', 'providers.js')).href, path.join(temp, 'server.js')], {
             cwd: temp,
-            env: { ...process.env, NODE_ENV: 'test', PORT: String(port), SESSION_SECRET: 'test-only-secret', REDIS_URL: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '', FACEBOOK_APP_ID: '', LINKEDIN_CLIENT_ID: '', DC_PROVIDER_LOG: providerLog,
+            env: { ...process.env, DC_DESKTOP: '', DC_DATA_DIR: '', NODE_ENV: 'test', PORT: String(port), SESSION_SECRET: 'test-only-secret', REDIS_URL: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '', FACEBOOK_APP_ID: '', LINKEDIN_CLIENT_ID: '', DC_PROVIDER_LOG: providerLog,
                 GOOGLE_API_KEY: 'host-google', OPENAI_API_KEY: 'host-openai', BFL_API_KEY: 'host-bfl', OPENROUTER_API_KEY: 'host-openrouter', REPLICATE_API_TOKEN: 'host-replicate' },
             stdio: ['ignore', 'pipe', 'pipe']
         });
@@ -69,9 +69,9 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         assert.equal(login.status, 200, output);
         const cookie = login.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
         const before = await snapshot(path.join(temp, 'data'));
-        assert.equal((await call('/api/api-mode', { method: 'POST', body: { apiKeys: {} } })).status, 400);
+        assert.equal((await call('/api/api-mode', { method: 'POST', body: { apiKeys: { googleApiKey: 12 } } })).status, 400);
         const ownKeys = { googleApiKey: 'own-google', openaiApiKey: 'own-openai', bflApiKey: 'own-bfl', openrouterApiKey: 'own-openrouter', replicateApiToken: 'own-replicate' };
-        const created = await call('/api/api-mode', { method: 'POST', cookie, body: { apiKeys: ownKeys } });
+        const created = await call('/api/api-mode', { method: 'POST', cookie, body: {} });
         assert.equal(created.status, 200);
         assert.equal(created.headers.get('set-cookie'), null);
         assert.equal(created.headers.get('cache-control'), 'no-store');
@@ -79,6 +79,10 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         assert.equal(user.isAdmin, false);
         assert.equal(user.isApiMode, true);
         assert.equal((await (await call('/api/user', { token, cookie })).json()).user.id, user.id);
+        const noKey = await call('/api/generate', { token, method: 'POST', body: { model: 'gemini-3.1-flash-image', prompt: 'No keys yet' } });
+        assert.equal(noKey.status, 500);
+        assert.equal((await call('/api/api-mode', { token, method: 'PUT', body: { apiKeys: ownKeys } })).status, 200);
+        assert.equal((await (await call('/api/user', { token })).json()).user.id, user.id);
         for (const route of ['/api/boards', '/api/images', '/api/admin/settings', '/api/feedback', '/api/user/delete', '/api/agent/tasks', '/api/share/access/123']) {
             for (const method of ['GET', 'POST', 'DELETE']) assert.equal((await call(route, { token, cookie, method, body: method === 'POST' ? { state: 'private' } : undefined })).status, 403, route);
         }
@@ -124,6 +128,8 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         assert.ok(providerCalls.every(call => !call.key.includes('host-')));
         assert.ok(!output.includes('PRIVATE_TEST_PROMPT'));
         assert.ok(!output.includes('own-google'));
+        assert.equal((await call('/api/api-mode', { token, method: 'PUT', body: { apiKeys: {} } })).status, 200);
+        assert.equal((await call('/api/generate', { token, method: 'POST', body: { model: 'gemini-3.1-flash-image', prompt: 'Removed keys' } })).status, 500);
         assert.equal((await call('/api/api-mode', { token, method: 'DELETE' })).status, 204);
         assert.equal((await call('/api/user', { token, cookie })).status, 401, 'Ended session must not fall back to account cookie');
         const accountUser = await (await call('/api/user', { cookie })).json();
