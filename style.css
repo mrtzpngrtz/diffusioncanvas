@@ -2474,7 +2474,7 @@ body.dark-mode .theme-icon-moon { display: block; }
 .login-modal {
     position: fixed;
     top: 0; left: 0;
-    width: 100vw; height: 100vh;
+    width: 100%; height: 100dvh;
     background: var(--bg);
     display: flex;
     justify-content: center;
@@ -2492,15 +2492,50 @@ body.dark-mode .theme-icon-moon { display: block; }
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: var(--shadow-pop);
-    max-width: 580px;
+    max-width: 480px;
     width: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     max-height: calc(100dvh - 40px);
-    overflow-y: auto;
     animation: rise-in 0.35s var(--ease);
 }
+
+.login-container > * { flex-shrink: 0; }
+.login-container [hidden] { display: none !important; }
+
+.login-mode-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 6px;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+.login-mode-switch button {
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.login-mode-switch button[aria-selected="true"] {
+    background: var(--text);
+    color: var(--surface);
+}
+
+.login-mode-switch button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.login-mode-title { margin: 20px 20px 8px; font-size: 18px; color: var(--text); }
+.login-container .login-error:empty { display: none; }
+.login-oauth-unavailable { padding: 10px 20px; margin: 0; font-size: 11px; color: var(--text-muted); }
 
 .api-mode-entry {
     border-bottom: 1px solid var(--border);
@@ -2511,7 +2546,8 @@ body.dark-mode .theme-icon-moon { display: block; }
 }
 
 .api-mode-entry .api-mode-notice {
-    padding-top: 12px;
+    padding-top: 0;
+    margin: 0;
 }
 
 #apiSettingsBtn[hidden] { display: none; }
@@ -2537,10 +2573,6 @@ body.dark-mode .theme-icon-moon { display: block; }
 
 #apiSettingsModal { z-index: 100001; }
 
-body.desktop-mode #userCredits,
-body.desktop-mode #logoutBtn,
-body.desktop-mode #deleteAccountBtn { display: none; }
-
 .api-mode-notice {
     padding: 0 20px 16px;
     color: var(--text-muted);
@@ -2558,7 +2590,7 @@ body.api-mode #cookieNotice {
 }
 
 .login-hero {
-    padding: 40px 40px 32px;
+    padding: 24px 28px 20px;
     border-bottom: 1px solid var(--border);
     position: relative;
 }
@@ -2568,7 +2600,7 @@ body.api-mode #cookieNotice {
     content: 'v1';
     position: absolute;
     top: -10px; right: 8px;
-    font-size: 140px;
+    font-size: 100px;
     font-weight: 200;
     color: rgba(0,0,0,0.05);
     line-height: 1;
@@ -2593,7 +2625,7 @@ body.api-mode #cookieNotice {
 
 .login-headline {
     font-family: var(--font-sans);
-    font-size: clamp(32px, 5vw, 52px);
+    font-size: clamp(30px, 4vw, 40px);
     font-weight: 200;
     line-height: 1.02;
     color: var(--text);
@@ -2602,18 +2634,16 @@ body.api-mode #cookieNotice {
     text-transform: uppercase;
 }
 
-.login-headline i {
-    font-style: normal;
-    font-size: 13px;
+.login-tagline {
+    font-size: 14px;
     font-weight: var(--fw-light);
-    font-family: var(--font-sans);
     color: var(--text-muted);
-    text-transform: none;
-    letter-spacing: 0;
-    display: block;
-    margin-top: 16px;
-    line-height: 1.5;
+    margin: 12px 0 0;
+    line-height: 1.45;
+    max-width: 340px;
 }
+
+.login-version { margin: 0 0 10px; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); letter-spacing: 0.1em; }
 
 .local-login-form {
     display: flex;
@@ -2758,21 +2788,13 @@ body.api-mode #cookieNotice {
 
 /* Version micro-data */
 .login-disclaimer::after {
-    content: 'v1.0 // 2026-08-29';
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--border);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    content: none;
 }
 
 .login-disclaimer p {
     color: var(--text-muted);
-    font-size: 12px;
-    line-height: 1.6;
+    font-size: 11px;
+    line-height: 1.45;
     margin: 0;
     font-family: var(--font-sans);
     font-weight: var(--fw-light);
@@ -2781,6 +2803,35 @@ body.api-mode #cookieNotice {
 .login-disclaimer strong {
     color: var(--text);
     font-weight: var(--fw-med);
+}
+
+@media (max-height: 600px) {
+    .login-modal { padding: 12px; }
+    .login-container { max-height: calc(100dvh - 24px); }
+    .login-hero { padding: 14px 20px; }
+    .login-headline { font-size: 30px; }
+    .login-tagline { font-size: 12px; margin-top: 8px; }
+    .login-version { margin-bottom: 6px; }
+    .login-container .form-group label { padding-top: 8px; }
+    .login-container .form-group input { padding-bottom: 8px; }
+    .login-container .login-btn, .login-container .oauth-btn { padding: 11px 20px; }
+    .login-container .login-separator span { padding: 6px 16px; }
+    .login-container .login-error { margin: 0; padding: 6px 20px; }
+    .login-disclaimer { padding: 10px 20px; }
+}
+
+@media (max-height: 480px) {
+    .login-hero { padding: 12px 20px; }
+    .login-headline br { display: none; }
+    .login-headline { font-size: 26px; word-spacing: 0.12em; }
+    .login-tagline, .login-version, .login-hero::after { display: none; }
+    .login-mode-switch button { padding: 8px; }
+    .login-mode-title { margin-top: 14px; }
+    .login-container .login-separator { display: none; }
+    .login-container .form-group label { padding-top: 6px; }
+    .login-container .form-group input { padding-bottom: 6px; }
+    .login-container .login-btn, .login-container .oauth-btn { padding: 9px 20px; }
+    .login-container .login-error { font-size: 11px; padding: 4px 20px; }
 }
 
 .login-footer {
@@ -5481,3 +5532,8 @@ body.dark-mode .comp-stage {
 
 .context-menu-group + .context-menu-group { margin-top: 0; }
 .context-menu-item + .context-menu-group { margin-top: 4px; border-top: 1px solid var(--border-light); padding-top: 8px; }
+
+/* Desktop keeps local boards but has no account billing controls. */
+body.desktop-mode #userCredits,
+body.desktop-mode #logoutBtn,
+body.desktop-mode #deleteAccountBtn { display: none; }

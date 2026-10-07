@@ -16,11 +16,34 @@ export class AuthManager {
     }
 
     init() {
+        this.setupEntryChoice();
         this.setupLocalLogin();
         this.setupUserMenu();
         this.setupDeleteAccount();
         this.setupApiMode();
         this.ready = this.initializeAuth();
+    }
+
+    setupEntryChoice() {
+        const tabs = [document.getElementById('apiModeTab'), document.getElementById('loginModeTab')];
+        const select = (selected) => {
+            for (const tab of tabs) {
+                const active = tab === selected;
+                tab.setAttribute('aria-selected', String(active));
+                tab.tabIndex = active ? 0 : -1;
+                document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+            }
+        };
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => select(tab));
+            tab.addEventListener('keydown', event => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs[1] : tabs[1 - index];
+                select(next);
+                next.focus();
+            });
+        });
     }
 
     async initializeAuth() {
@@ -210,13 +233,8 @@ export class AuthManager {
             if (!hasAnyProvider) {
                 const oauthButtons = document.querySelector('.oauth-buttons');
                 if (oauthButtons) {
-                    oauthButtons.innerHTML = `
-                        <div style="padding: 20px; text-align: center; color: #e74c3c;">
-                            <p style="margin-bottom: 10px;">No OAuth providers configured</p>
-                            <p style="font-size: 12px; color: #888;">Please configure at least one OAuth provider in your .env file.</p>
-                            <p style="font-size: 12px; color: #888;">See OAUTH_SETUP.md for instructions.</p>
-                        </div>
-                    `;
+                    oauthButtons.innerHTML = '<p class="login-oauth-unavailable">No OAuth providers configured. Use your email and password.</p>';
+                    document.querySelector('.login-separator').hidden = true;
                 }
             }
         } catch (error) {

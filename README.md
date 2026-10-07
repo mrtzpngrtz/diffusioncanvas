@@ -76,7 +76,7 @@ credits — happens in the admin panel at `/admin`, not in env vars.
 
 ## Temporary API mode
 
-Before logging in, click **Open canvas in API mode — no login**. No keys are
+On the entry screen, choose **API mode** or **Login**. In API mode, click **Open canvas**. No keys are
 required to enter. Inside the board, use **API settings** in the top bar to enter,
 change or remove keys for Google, OpenAI, Black Forest Labs, OpenRouter or Replicate.
 Applying keys never clears the canvas or replaces the session; blank fields remove keys.
