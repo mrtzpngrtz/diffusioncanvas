@@ -109,9 +109,51 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
             await sleep(200);
         }
         assert.ok(ready, `App did not initialize: ${JSON.stringify(cdp.exceptions)} ${output}`);
+        assert.equal(await cdp.evaluate('document.getElementById("apiModeTab").getAttribute("aria-selected")'), 'true');
+        assert.equal(await cdp.evaluate('getComputedStyle(document.getElementById("loginModePanel")).display'), 'none');
+        await cdp.evaluate('document.getElementById("apiModeTab").dispatchEvent(new KeyboardEvent("keydown", {key:"ArrowRight", bubbles:true}))');
+        assert.equal(await cdp.evaluate('document.activeElement.id'), 'loginModeTab');
+        assert.equal(await cdp.evaluate('getComputedStyle(document.getElementById("apiModePanel")).display'), 'none');
+        await cdp.evaluate('document.getElementById("loginModeTab").dispatchEvent(new KeyboardEvent("keydown", {key:"Home", bubbles:true}))');
+        assert.equal(await cdp.evaluate('document.activeElement.id'), 'apiModeTab');
+
+        // Check real layout, not just hidden scrollbars: every visible control
+        // and the footer must actually fit inside the card and the viewport.
+        for (const [width, height] of [[713, 1026], [1366, 768], [900, 600], [375, 667], [320, 568], [844, 390]]) {
+            await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+            for (const dark of [false, true]) {
+                for (const mode of ['api', 'login']) {
+                    await cdp.evaluate(`document.body.classList.toggle('dark-mode', ${dark}); document.getElementById('${mode === 'api' ? 'apiModeTab' : 'loginModeTab'}').click();`);
+                    const layout = await cdp.evaluate(`(() => {
+                        const card = document.querySelector('.login-container');
+                        const bounds = card.getBoundingClientRect();
+                        const visible = [...card.querySelectorAll('button, input, .login-disclaimer')].filter(el => el.getClientRects().length);
+                        return { fits: card.scrollHeight <= card.clientHeight + 1 && card.scrollWidth <= card.clientWidth + 1,
+                            inViewport: bounds.top >= 0 && bounds.bottom <= innerHeight && bounds.left >= 0 && bounds.right <= innerWidth,
+                            controlsFit: visible.every(el => { const r = el.getBoundingClientRect(); return r.top >= bounds.top && r.bottom <= bounds.bottom + 1; }),
+                            overflow: getComputedStyle(card).overflowY, width: bounds.width, height: bounds.height };
+                    })()`);
+                    assert.equal(layout.fits, true, `Clipped card at ${width}x${height} ${mode} dark=${dark}: ${JSON.stringify(layout)}`);
+                    assert.equal(layout.inViewport, true, JSON.stringify(layout));
+                    assert.equal(layout.controlsFit, true, JSON.stringify(layout));
+                    assert.notEqual(layout.overflow, 'auto');
+                    assert.notEqual(layout.overflow, 'scroll');
+                    assert.ok(layout.width <= 480);
+                }
+            }
+        }
+        // Also cover configured OAuth and a login error (the taller state).
+        await cdp.evaluate('document.querySelector(".oauth-buttons").innerHTML = \'<a href="/auth/google" class="oauth-btn google-btn">Continue with Google</a>\'; document.querySelector(".login-separator").hidden = false; document.getElementById("loginError").textContent = "Login failed. Please try again.";');
+        for (const [width, height] of [[375, 667], [320, 568], [844, 390]]) {
+            await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+            const layout = await cdp.evaluate('(() => { const c = document.querySelector(".login-container"); return {scroll:c.scrollHeight, client:c.clientHeight, bottom:c.getBoundingClientRect().bottom, viewport:innerHeight}; })()');
+            assert.ok(layout.scroll <= layout.client + 1 && layout.bottom <= layout.viewport, `OAuth/error layout at ${width}x${height}: ${JSON.stringify(layout)}`);
+        }
+        await cdp.evaluate('document.getElementById("loginError").textContent = ""; document.body.classList.remove("dark-mode"); document.getElementById("apiModeTab").click();');
+        await cdp.send('Emulation.clearDeviceMetricsOverride');
         const preferences = await cdp.evaluate('JSON.stringify(Object.entries(localStorage))');
         const start = async () => {
-            await cdp.evaluate('document.getElementById("startApiModeBtn").click();');
+            await cdp.evaluate('document.getElementById("apiModeTab").click(); document.getElementById("startApiModeBtn").click();');
             for (let i = 0; i < 100; i++) {
                 if (await cdp.evaluate('document.body.classList.contains("api-mode")')) return;
                 await sleep(50);
