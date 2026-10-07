@@ -30,12 +30,20 @@ is configured, so Gatekeeper will warn on first launch.
 | Bind | `0.0.0.0`, port 3000 | `127.0.0.1`, OS-assigned free port |
 | `SESSION_SECRET` | required | ephemeral, generated at boot |
 | Data | `./data` | OS app-data dir (`DC_DATA_DIR`) |
-| Credits | enforced per user | not enforced; usage still recorded |
+| Credits | enforced per user | not enforced; session-key generation is not logged |
 | Account UI | shown | hidden (`body.desktop-mode`) |
 
-Everything else — nodes, boards, versions, sharing, the admin panel — is
-identical. The owner is an admin, so API keys are configured in the same admin
-panel the hosted deployment uses (**File → Settings & API Keys**, or `Ctrl/Cmd+,`).
+The canvas opens without login or an API-key screen. Set keys from **API settings**
+in the board's top bar, or **File → API Settings (this session)** (`Ctrl/Cmd+,`).
+Changes apply without clearing the board. Blank fields remove individual keys;
+**Remove all keys** clears every provider credential for the current session.
+
+Keys live only in browser/backend memory and are never written to boards, exports,
+app settings, cookies or local/session storage. Reloading or restarting clears
+them. Persisted admin/environment provider keys are never a fallback for these
+sessions. Boards, media and versions still save locally as before; the temporary
+keys are separate from the board data. **File → App Settings** retains access to
+workflow and other app configuration, not the session-key dialog.
 
 ## Architecture
 
@@ -66,6 +74,6 @@ workflow runs with no network at all.
 
 ## Not done yet
 
-- App icons (`desktop/icon.ico`, `icon.icns`) — currently ships the Electron default.
+- App icons (`desktop/assets/icon.ico`, `icon.icns`) — currently ships the Electron default.
 - Code signing / notarization.
 - Auto-update (`electron-updater`).

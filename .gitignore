@@ -5,7 +5,6 @@ node_modules/
 !.env.example
 users.json
 settings.json
-
 # Desktop build output
 dist/
 data/

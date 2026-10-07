@@ -1,3 +1,5 @@
+import { apiFetch as fetch } from './ApiSession.js';
+
 // FeedbackManager: handles feedback, bug reporting, and node requests.
 export class FeedbackManager {
     constructor({ uiManager, nodeManager, getBoardInfo = () => ({}) }) {

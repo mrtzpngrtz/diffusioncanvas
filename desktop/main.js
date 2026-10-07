@@ -5,10 +5,14 @@
 // backend crash cannot take the window down with it, and so `server.js` needs
 // no knowledge that Electron exists.
 
-const { app, BrowserWindow, shell, dialog, Menu } = require('electron');
-const { fork } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { app, BrowserWindow, shell, dialog, Menu } from 'electron';
+import { fork } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// Also allows isolated development/test profiles without touching real boards.
+if (process.env.DC_DESKTOP_USER_DATA) app.setPath('userData', process.env.DC_DESKTOP_USER_DATA);
 
 // Only one instance: two servers would fight over the same data directory.
 if (!app.requestSingleInstanceLock()) {
@@ -16,7 +20,7 @@ if (!app.requestSingleInstanceLock()) {
     process.exit(0);
 }
 
-const APP_ROOT = app.getAppPath();
+const APP_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const DATA_DIR = path.join(app.getPath('userData'), 'data');
 // User-added ComfyUI workflows live here, outside the read-only app bundle.
 const WORKFLOWS_DIR = path.join(app.getPath('userData'), 'workflows');
@@ -110,8 +114,12 @@ function buildMenu(port) {
             label: 'File',
             submenu: [
                 {
-                    label: 'Settings & API Keys',
+                    label: 'API Settings (this session)',
                     accelerator: 'CmdOrCtrl+,',
+                    click: () => mainWindow && mainWindow.webContents.executeJavaScript("document.getElementById('apiSettingsBtn')?.click()")
+                },
+                {
+                    label: 'App Settings',
                     click: () => mainWindow && mainWindow.loadURL(`http://127.0.0.1:${port}/admin`)
                 },
                 {

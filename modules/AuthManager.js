@@ -1,3 +1,5 @@
+import { apiFetch, startApiMode, endApiMode, isApiMode, getApiKeys, updateApiKeys } from './ApiSession.js';
+
 export class AuthManager {
     constructor() {
         this.loginModal = document.getElementById('loginModal');
@@ -14,11 +16,99 @@ export class AuthManager {
     }
 
     init() {
-        this.applyDesktopMode();
         this.setupLocalLogin();
         this.setupUserMenu();
         this.setupDeleteAccount();
-        this.checkAuth();
+        this.setupApiMode();
+        this.ready = this.initializeAuth();
+    }
+
+    async initializeAuth() {
+        try {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+            if (config.desktop) {
+                document.body.classList.add('desktop-mode');
+                await startApiMode();
+                document.getElementById('apiSettingsBtn').hidden = false;
+            }
+        } catch (error) {
+            console.error('App configuration failed:', error);
+        }
+        await this.checkAuth();
+    }
+
+    setupApiMode() {
+        const startButton = document.getElementById('startApiModeBtn');
+        startButton.addEventListener('click', async () => {
+            startButton.disabled = true;
+            document.getElementById('apiModeStartError').textContent = '';
+            try {
+                await this.ready;
+                const user = await startApiMode();
+                this.showApiMode(user);
+            } catch (error) {
+                document.getElementById('apiModeStartError').textContent = error.message;
+            } finally {
+                startButton.disabled = false;
+            }
+        });
+        const form = document.getElementById('apiModeForm');
+        const errorEl = document.getElementById('apiModeError');
+        const modal = document.getElementById('apiSettingsModal');
+        const close = () => { modal.classList.remove('active'); form.reset(); errorEl.textContent = ''; };
+        document.getElementById('apiSettingsBtn').addEventListener('click', () => {
+            form.reset();
+            errorEl.textContent = '';
+            const keys = getApiKeys();
+            for (const input of form.querySelectorAll('input[name]')) input.value = keys[input.name] || '';
+            modal.classList.add('active');
+            document.getElementById('apiGoogleKey').focus();
+        });
+        document.getElementById('apiSettingsClose').addEventListener('click', close);
+        modal.addEventListener('click', event => { if (event.target === modal) close(); });
+        document.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
+        document.getElementById('clearApiKeysBtn').addEventListener('click', async () => {
+            try { await updateApiKeys({}); close(); } catch (error) { errorEl.textContent = error.message; }
+        });
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            errorEl.textContent = '';
+            const button = form.querySelector('button[type="submit"]');
+            button.disabled = true;
+            try {
+                const apiKeys = Object.fromEntries(new FormData(form));
+                await updateApiKeys(apiKeys);
+                close();
+            } catch (error) {
+                errorEl.textContent = error.message;
+            } finally {
+                button.disabled = false;
+            }
+        });
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            if (isApiMode()) {
+                await endApiMode();
+                window.location.reload();
+            } else {
+                window.location.href = '/auth/logout';
+            }
+        });
+        window.addEventListener('api-mode-expired', () => window.location.reload());
+    }
+
+    showApiMode(user) {
+        document.body.classList.add('api-mode');
+        this.loginModal.classList.add('hidden');
+        this.userInfo.style.display = 'flex';
+        this.userPhoto.style.display = 'none';
+        this.userName.textContent = user.displayName;
+        document.getElementById('userCredits').textContent = 'Own keys · temporary';
+        document.getElementById('apiSettingsBtn').hidden = false;
+        document.getElementById('adminLink').style.display = 'none';
+        this.deleteAccountBtn.style.display = 'none';
+        document.getElementById('logoutBtn').lastChild.textContent = 'End API session';
+        document.getElementById('cookieNotice').classList.remove('active');
     }
 
     setupLocalLogin() {
@@ -134,25 +224,14 @@ export class AuthManager {
         }
     }
 
-    // On desktop there is one local owner, no session to end and no billing, so
-    // the account and credit chrome is meaningless. CSS does the hiding.
-    async applyDesktopMode() {
-        try {
-            const res = await fetch('/api/config', { credentials: 'include' });
-            const cfg = await res.json();
-            if (cfg.desktop) document.body.classList.add('desktop-mode');
-        } catch {
-            // Offline or backend still coming up: stay in the hosted layout.
-        }
-    }
-
     async checkAuth() {
+        if (isApiMode()) return;
         // If a share link is opened by a visitor, suppress forcing the regular login modal
         const urlParams = new URLSearchParams(window.location.search);
         const isShareLink = !!urlParams.get('share');
 
         try {
-            const response = await fetch('/api/user', {
+            const response = await apiFetch('/api/user', {
                 credentials: 'include'
             });
             const data = await response.json();

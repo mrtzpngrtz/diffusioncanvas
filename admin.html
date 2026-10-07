@@ -881,7 +881,7 @@
 
                 <form id="settingsForm" class="panel-grid">
                     <div class="settings-card">
-                        <div class="settings-card-title">API Keys</div>
+                        <div class="settings-card-title" id="persistentApiKeysTitle">API Keys</div>
                         <div class="settings-card-desc">Left blank, the server falls back to its environment variables.</div>
                         <div class="field-grid">
                             <div class="form-group">
@@ -1631,6 +1631,9 @@ board: ${img.board}` : ''}`;
                 if (!response.ok) throw new Error('Failed to load settings');
 
                 const settings = await response.json();
+                if (settings.desktop) {
+                    document.getElementById('persistentApiKeysTitle').closest('.settings-card').hidden = true;
+                }
                 displaySettings(settings);
             } catch (error) {
                 showToast('Failed to load settings', 'error');

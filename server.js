@@ -18,6 +18,7 @@ import passport from './auth.js';
 import bcrypt from 'bcryptjs';
 import { setAuthCookie, getAuthUser, clearAuthCookie, generateShareToken, verifyShareToken } from './jwt-auth.js';
 import { storage } from './storage.js';
+import { ApiModeSessions, apiModeRouteAllowed, resolveProviderKey } from './api-mode.js';
 import { runAgentTask, getTask, listTasks } from './modules/AgentWorker.js';
 import { loadComfyTemplates, describeTemplate, runComfyWorkflow, checkComfy } from './providers/comfyui.js';
 
@@ -120,9 +121,77 @@ for (const file of PUBLIC_FILES) {
 app.use(passport.initialize());
 app.use(passport.session());
 
+const apiSessions = new ApiModeSessions({
+    onEnd: (userId) => {
+        for (const [id, job] of videoJobs) if (job.userId === userId) videoJobs.delete(id);
+    }
+});
+setInterval(() => { apiSessions.prune(); pruneVideoJobs(); }, 60000).unref();
+
+// A supplied API-session header must never fall back to a logged-in account.
+app.use('/api', (req, res, next) => {
+    const token = req.get('X-Api-Session');
+    if (!token) return next();
+    res.set('Cache-Control', 'no-store');
+    const session = apiSessions.get(token);
+    if (!session) return res.status(401).json({ error: 'API session expired. Please enter your keys again.' });
+    req.apiMode = session;
+    if (!DESKTOP_MODE && !apiModeRouteAllowed(req.method, req.originalUrl.split('?')[0])) {
+        return res.status(403).json({ error: 'This feature stores data and is unavailable in temporary API mode.' });
+    }
+    next();
+});
+
+const apiModeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: { error: 'Too many API sessions. Please try again later.' } });
+app.post('/api/api-mode', apiModeLimiter, (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        const { token, session } = apiSessions.create(req.body.apiKeys ?? {});
+        res.json({ token, user: session.user, desktop: DESKTOP_MODE });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+app.put('/api/api-mode', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (!req.apiMode) return res.status(401).json({ error: 'Start an API session first.' });
+    try {
+        const session = apiSessions.update(req.get('X-Api-Session'), req.body.apiKeys);
+        res.json({ providers: Object.keys(session.settings.apiKeys) });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+app.delete('/api/api-mode', (req, res) => {
+    apiSessions.end(req.get('X-Api-Session'));
+    res.set('Cache-Control', 'no-store').sendStatus(204);
+});
+
+async function requestSettings(req) {
+    if (DESKTOP_MODE && req.apiMode) {
+        const settings = await storage.getSettings();
+        // Keep local workflows/cost configuration, never persisted provider keys.
+        return { ...settings, apiMode: true, apiKeys: req.apiMode.settings.apiKeys };
+    }
+    return req.apiMode ? req.apiMode.settings : storage.getSettings();
+}
+
+function logGenerationError(req, label, error) {
+    // SDK errors can contain request headers. Do not log session secrets/data.
+    if (!req.apiMode) console.error(label, error);
+}
+
 // Middleware to check if user is authenticated (JWT-based)
 async function isAuthenticated(req, res, next) {
+    if (req.apiMode) {
+        const generation = /^\/api\/(generate(?:-video|-3d)?|chat|video-jobs)(\/|$)/.test(req.path);
+        req.user = DESKTOP_MODE && !generation ? DESKTOP_OWNER : req.apiMode.user;
+        return next();
+    }
     if (DESKTOP_MODE) {
+        if (/^\/api\/(generate(?:-video|-3d)?|chat|video-jobs)(\/|$)/.test(req.path)) {
+            return res.status(401).json({ error: 'Open API settings in the canvas to start a provider session.' });
+        }
         const users = await storage.getUsers();
         req.user = users.find(u => u.id === DESKTOP_OWNER.id) || DESKTOP_OWNER;
         return next();
@@ -140,6 +209,7 @@ async function isAuthenticated(req, res, next) {
 
 // Middleware to check if user is admin
 async function isAdmin(req, res, next) {
+    if (req.apiMode && !DESKTOP_MODE) return res.status(403).json({ error: 'Admin access required' });
     if (DESKTOP_MODE) {
         req.user = DESKTOP_OWNER;
         return next();
@@ -258,6 +328,7 @@ app.get('/auth/logout', (req, res) => {
 
 // Get current user (always fetch fresh data from database)
 app.get('/api/user', async (req, res) => {
+    if (req.apiMode && !DESKTOP_MODE) return res.json({ user: req.apiMode.user });
     try {
         if (DESKTOP_MODE) {
             const users = await storage.getUsers();
@@ -314,6 +385,7 @@ app.get('/api/config', async (req, res) => {
 // Local ComfyUI workflows the client can offer as models. Public on purpose:
 // labels and capability tables only, nothing about the graphs themselves.
 app.get('/api/workflows', (req, res) => {
+    if (req.apiMode && !DESKTOP_MODE) return res.json([]);
     res.json([...COMFY_TEMPLATES].map(([id, t]) => describeTemplate(id, t)));
 });
 
@@ -344,6 +416,7 @@ app.get('/admin', (req, res) => {
 app.get('/api/admin/settings', isAdmin, async (req, res) => {
     try {
         const settings = await storage.getSettings();
+        if (DESKTOP_MODE) return res.json({ ...settings, apiKeys: {}, desktop: true });
         res.json(settings);
     } catch (error) {
         console.error('Error loading settings:', error);
@@ -358,7 +431,9 @@ app.post('/api/admin/settings', isAdmin, async (req, res) => {
         // (or an older client that knows nothing of the API keys) must not
         // erase the rest of them.
         const current = await storage.getSettings();
-        await storage.setSettings({ ...current, ...req.body });
+        const changes = { ...req.body };
+        if (DESKTOP_MODE) delete changes.apiKeys;
+        await storage.setSettings({ ...current, ...changes });
         res.json({ message: 'Settings updated successfully' });
     } catch (error) {
         console.error('Error updating settings:', error);
@@ -463,7 +538,7 @@ app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
 const clientCache = new Map();
 
 function resolveKey(settingsKey, envKey, settings) {
-    return settings?.apiKeys?.[settingsKey] || process.env[envKey] || null;
+    return resolveProviderKey(settingsKey, envKey, settings);
 }
 
 function cached(kind, key, build) {
@@ -474,13 +549,15 @@ function cached(kind, key, build) {
 
 function getGenAI(settings) {
     const key = resolveKey('googleApiKey', 'GOOGLE_API_KEY', settings);
-    if (!key) throw new Error('No Google API key configured. Add one in the admin panel.');
+    if (!key) throw new Error(settings?.apiMode ? 'Add your Google key in API settings on the canvas.' : 'No Google API key configured. Add one in the admin panel.');
+    if (settings?.apiMode) return new GoogleGenAI({ apiKey: key });
     return cached('google', key, k => new GoogleGenAI({ apiKey: k }));
 }
 
 function getOpenAI(settings) {
     const key = resolveKey('openaiApiKey', 'OPENAI_API_KEY', settings);
-    if (!key) throw new Error('No OpenAI API key configured. Add one in the admin panel.');
+    if (!key) throw new Error(settings?.apiMode ? 'Add your OpenAI key in API settings on the canvas.' : 'No OpenAI API key configured. Add one in the admin panel.');
+    if (settings?.apiMode) return new OpenAI({ apiKey: key });
     return cached('openai', key, k => new OpenAI({ apiKey: k }));
 }
 
@@ -577,9 +654,9 @@ function bflDimensions(aspectRatio, resolution, sourceWidth, sourceHeight) {
 
 // Submit a generation to BFL, poll until the result is ready, and return the
 // image as a base64 data URL (the API's `sample` URL is signed and expires ~10 min).
-async function generateWithBFL(model, prompt, images, aspectRatio, resolution, outputFormat, opts = {}) {
-    const apiKey = process.env.BFL_API_KEY;
-    if (!apiKey) throw new Error('FLUX models are not configured on this server (BFL_API_KEY is missing).');
+async function generateWithBFL(model, prompt, images, aspectRatio, resolution, outputFormat, opts = {}, settings) {
+    const apiKey = resolveKey('bflApiKey', 'BFL_API_KEY', settings);
+    if (!apiKey) throw new Error(settings?.apiMode ? 'Add your Black Forest Labs key in API settings on the canvas.' : 'FLUX models are not configured on this server (BFL_API_KEY is missing).');
 
     const fmtMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', webp: 'webp' };
     const { width, height } = bflDimensions(aspectRatio, resolution, opts.sourceWidth, opts.sourceHeight);
@@ -685,10 +762,9 @@ async function generateVideoComfy(model, prompt, opts, settings) {
     return dataUrl;
 }
 
-async function generateVideoOpenRouter(model, prompt, opts) {
-    const settings = await storage.getSettings().catch(() => ({}));
-    const apiKey = settings?.apiKeys?.openrouterApiKey || process.env.OPENROUTER_API_KEY;
-    if (!apiKey) throw new Error('Video models are not configured on this server (OPENROUTER_API_KEY is missing).');
+async function generateVideoOpenRouter(model, prompt, opts, settings) {
+    const apiKey = resolveKey('openrouterApiKey', 'OPENROUTER_API_KEY', settings);
+    if (!apiKey) throw new Error(settings?.apiMode ? 'Add your OpenRouter key in API settings on the canvas.' : 'Video models are not configured on this server (OPENROUTER_API_KEY is missing).');
     const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 
     const body = { model, prompt };
@@ -734,7 +810,8 @@ async function generateVideoOpenRouter(model, prompt, opts) {
     return `data:${mime};base64,${buf.toString('base64')}`;
 }
 
-async function generateVideoOmni(model, prompt, opts) {
+async function generateVideoOmni(model, prompt, opts, settings) {
+    const ai = getGenAI(settings);
     if (!ai.interactions?.create) {
         throw new Error('Gemini Omni needs @google/genai ≥ 2.x (Interactions API) — run npm install on the server.');
     }
@@ -767,17 +844,31 @@ async function generateVideoOmni(model, prompt, opts) {
         const name = m ? `files/${m[1]}` : out.uri;
         const deadline = Date.now() + 10 * 60 * 1000;
         while (Date.now() < deadline) {
-            const f = await getGenAI().files.get({ name });
+            const f = await ai.files.get({ name });
             const state = f.state?.name || f.state;
             if (state === 'ACTIVE') break;
             if (state === 'FAILED') throw new Error('Gemini Omni video generation failed.');
             await new Promise(r => setTimeout(r, 5000));
         }
+        if (settings?.apiMode) {
+            // The SDK's files.download writes to disk. Download into memory here.
+            const key = resolveKey('googleApiKey', 'GOOGLE_API_KEY', settings);
+            if (!name.startsWith('files/')) throw new Error('Gemini Omni returned an unsupported file URI.');
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${name}:download?alt=media`, {
+                headers: { 'x-goog-api-key': key }
+            });
+            if (!response.ok) throw new Error(`Gemini Omni download failed (${response.status}).`);
+            const buf = Buffer.from(await response.arrayBuffer());
+            return `data:video/mp4;base64,${buf.toString('base64')}`;
+        }
         const tmp = path.join(os.tmpdir(), `omni-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`);
-        await getGenAI().files.download({ file: out, downloadPath: tmp });
-        const buf = await fsp.readFile(tmp);
-        await fsp.unlink(tmp).catch(() => {});
-        return `data:video/mp4;base64,${buf.toString('base64')}`;
+        try {
+            await ai.files.download({ file: out, downloadPath: tmp });
+            const buf = await fsp.readFile(tmp);
+            return `data:video/mp4;base64,${buf.toString('base64')}`;
+        } finally {
+            await fsp.unlink(tmp).catch(() => {});
+        }
     }
     throw new Error('Gemini Omni returned no video.');
 }
@@ -789,6 +880,7 @@ async function generateVideoOmni(model, prompt, opts) {
 // the duration is part of the estimate; everything else is per run.
 
 async function recordUsage({ user, type, model, credits, seconds = null, settings = null }) {
+    if (user?.isApiMode) return;
     try {
         const cfg = settings || await storage.getSettings();
         const unitPrice = cfg.modelPrices?.[model] ?? 0;
@@ -818,8 +910,9 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
             return res.status(400).json({ error: `Unknown video model: ${model}` });
         }
 
-        const settings = await storage.getSettings();
-        const cost = COMFY_TEMPLATES.has(model)
+        const settings = await requestSettings(req);
+        if (settings.apiMode && !DESKTOP_MODE && COMFY_TEMPLATES.has(model)) return res.status(403).json({ error: 'Local workflows are unavailable in API mode.' });
+        const cost = settings.apiMode ? 0 : COMFY_TEMPLATES.has(model)
             ? (settings.modelCosts[model] ?? COMFY_TEMPLATES.get(model).cost)
             : (settings.modelCosts[model] || 8);
         if (!DESKTOP_MODE && cost > 0 && (!req.user.credits || req.user.credits < cost)) {
@@ -841,11 +934,11 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
                 const video = COMFY_TEMPLATES.has(model)
                     ? await generateVideoComfy(model, prompt, opts, settings)
                     : OPENROUTER_VIDEO_MODELS.has(model)
-                        ? await generateVideoOpenRouter(model, prompt, opts)
-                        : await generateVideoOmni(model, prompt, opts);
+                        ? await generateVideoOpenRouter(model, prompt, opts, settings)
+                        : await generateVideoOmni(model, prompt, opts, settings);
 
                 // Charge only on success
-                const users = await storage.getUsers();
+                const users = req.apiMode ? [] : await storage.getUsers();
                 const idx = users.findIndex(u => u.id === job.userId);
                 if (idx !== -1) {
                     users[idx].credits = (users[idx].credits || 0) - cost;
@@ -858,13 +951,13 @@ app.post('/api/generate-video', isAuthenticated, async (req, res) => {
                 job.status = 'completed';
                 console.log(`Video job ${jobId} completed in ${Math.round((Date.now() - t0) / 1000)}s`);
             } catch (err) {
-                console.error(`Video job ${jobId} failed:`, err);
+                logGenerationError(req, `Video job ${jobId} failed:`, err);
                 job.status = 'failed';
                 job.error = err?.error?.message || err?.message || 'Video generation failed.';
             }
         })();
     } catch (error) {
-        console.error('Error submitting video job:', error);
+        logGenerationError(req, 'Error submitting video job:', error);
         res.status(500).json({ error: error?.message || 'Failed to start video generation.' });
     }
 });
@@ -977,9 +1070,9 @@ function pickModelUrl(output) {
     return byExt || urls.find(u => !/\.(mp4|webm|png|jpg|jpeg|gif|ply)(\?|$)/i.test(u)) || urls[0] || null;
 }
 
-async function generate3DReplicate(model, opts) {
-    const token = process.env.REPLICATE_API_TOKEN;
-    if (!token) throw new Error('Image → 3D is not configured on this server (REPLICATE_API_TOKEN is missing).');
+async function generate3DReplicate(model, opts, settings) {
+    const token = resolveKey('replicateApiToken', 'REPLICATE_API_TOKEN', settings);
+    if (!token) throw new Error(settings?.apiMode ? 'Add your Replicate token in API settings on the canvas.' : 'Image → 3D is not configured on this server (REPLICATE_API_TOKEN is missing).');
     const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
     const meta = await replicateModelMeta(model, token);
@@ -1030,8 +1123,8 @@ app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
         if (!image || !image.startsWith('data:image/')) return res.status(400).json({ error: 'No source image provided' });
         if (!REPLICATE_3D_MODELS.has(model)) return res.status(400).json({ error: `Unknown 3D model: ${model}` });
 
-        const settings = await storage.getSettings();
-        const cost = settings.modelCosts[model] || 6;
+        const settings = await requestSettings(req);
+        const cost = settings.apiMode ? 0 : settings.modelCosts[model] || 6;
         if (!DESKTOP_MODE && cost > 0 && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
@@ -1047,8 +1140,8 @@ app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
             const t0 = Date.now();
             try {
                 job.status = 'in_progress';
-                const result = await generate3DReplicate(model, { image, prompt, quality, seed });
-                const users = await storage.getUsers();
+                const result = await generate3DReplicate(model, { image, prompt, quality, seed }, settings);
+                const users = req.apiMode ? [] : await storage.getUsers();
                 const idx = users.findIndex(u => u.id === job.userId);
                 if (idx !== -1) {
                     users[idx].credits = (users[idx].credits || 0) - cost;
@@ -1061,13 +1154,13 @@ app.post('/api/generate-3d', isAuthenticated, async (req, res) => {
                 job.status = 'completed';
                 console.log(`3D job ${jobId} completed in ${Math.round((Date.now() - t0) / 1000)}s (${result.modelType}, ${Math.round(result.modelData.length / 1024)} KB)`);
             } catch (err) {
-                console.error(`3D job ${jobId} failed:`, err);
+                logGenerationError(req, `3D job ${jobId} failed:`, err);
                 job.status = 'failed';
                 job.error = err?.error?.message || err?.message || '3D generation failed.';
             }
         })();
     } catch (error) {
-        console.error('Error submitting 3D job:', error);
+        logGenerationError(req, 'Error submitting 3D job:', error);
         res.status(500).json({ error: error?.message || 'Failed to start 3D generation.' });
     }
 });
@@ -1085,15 +1178,15 @@ const CHAT_MODELS = new Set([
 
 app.post('/api/chat', isAuthenticated, async (req, res) => {
     try {
-        const settings = await storage.getSettings().catch(() => ({}));
-        const apiKey = settings?.apiKeys?.openrouterApiKey || process.env.OPENROUTER_API_KEY;
-        if (!apiKey) return res.status(500).json({ error: 'The assistant is not configured on this server (OPENROUTER_API_KEY is missing).' });
+        const settings = await requestSettings(req);
+        const apiKey = resolveKey('openrouterApiKey', 'OPENROUTER_API_KEY', settings);
+        if (!apiKey) return res.status(500).json({ error: settings?.apiMode ? 'Add your OpenRouter key in API settings on the canvas.' : 'The assistant is not configured on this server (OPENROUTER_API_KEY is missing).' });
 
         const { model, messages, system } = req.body;
         if (!CHAT_MODELS.has(model)) return res.status(400).json({ error: `Unknown chat model: ${model}` });
         if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'No messages' });
 
-        const cost = settings?.modelCosts?.[model] || 1;
+        const cost = settings.apiMode ? 0 : settings?.modelCosts?.[model] || 1;
         if (!DESKTOP_MODE && cost > 0 && (!req.user.credits || req.user.credits < cost)) {
             return res.status(403).json({ error: `Insufficient credits. This model requires ${cost} credits.` });
         }
@@ -1133,7 +1226,7 @@ app.post('/api/chat', isAuthenticated, async (req, res) => {
             : Array.isArray(content) ? content.map(p => p.text || '').join('') : '';
         if (!text.trim()) throw new Error('The model returned no text.');
 
-        const users = await storage.getUsers();
+        const users = req.apiMode ? [] : await storage.getUsers();
         const idx = users.findIndex(u => u.id === req.user.id);
         let creditsRemaining;
         if (idx !== -1) {
@@ -1145,7 +1238,7 @@ app.post('/api/chat', isAuthenticated, async (req, res) => {
         }
         res.json({ text: text.trim(), creditsRemaining });
     } catch (error) {
-        console.error('Chat error:', error);
+        logGenerationError(req, 'Chat error:', error);
         res.status(500).json({ error: error?.message || 'Chat failed.' });
     }
 });
@@ -1166,9 +1259,10 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         const { prompt, images, model, resolution, outputFormat, steps, guidance, sourceWidth, sourceHeight } = req.body;
         
         // Determine cost based on model
-        const settings = await storage.getSettings();
+        const settings = await requestSettings(req);
         const selectedModel = model || (images && images.length > 0 ? 'gemini-3.1-flash-image' : 'imagen-4.0-fast-generate-001');
-        const cost = COMFY_TEMPLATES.has(selectedModel)
+        if (settings.apiMode && !DESKTOP_MODE && COMFY_TEMPLATES.has(selectedModel)) return res.status(403).json({ error: 'Local workflows are unavailable in API mode.' });
+        const cost = settings.apiMode ? 0 : COMFY_TEMPLATES.has(selectedModel)
             ? (settings.modelCosts[selectedModel] ?? COMFY_TEMPLATES.get(selectedModel).cost)
             : (settings.modelCosts[selectedModel] || 1);
 
@@ -1183,7 +1277,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             return res.status(400).json({ error: 'No prompt provided' });
         }
 
-        console.log('Generating image with prompt:', prompt);
+        if (!req.apiMode) console.log('Generating image with prompt:', prompt);
         console.log('Number of input images:', images ? images.length : 0);
         
         console.log('Using model:', selectedModel, 'Cost:', cost);
@@ -1215,7 +1309,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             console.log(`Using ${selectedModel} (FLUX.2 / BFL) for generation`);
             result.image = await generateWithBFL(
                 selectedModel, prompt, images, userAspectRatio, resolution, outputFormat,
-                { steps, guidance, sourceWidth, sourceHeight }
+                { steps, guidance, sourceWidth, sourceHeight }, settings
             );
             console.log('FLUX.2 image received');
 
@@ -1299,7 +1393,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
             // Process response - Imagen returns generatedImages array
             if (!response || !response.generatedImages || response.generatedImages.length === 0) {
-                console.error('No images generated:', JSON.stringify(response, null, 2));
+                logGenerationError(req, 'No images generated:', response);
                 return res.status(500).json({ error: 'No images generated by the model.' });
             }
 
@@ -1366,7 +1460,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             // Process response
             if (!response || !response.candidates || !response.candidates[0]) {
                 const blockReason = response?.promptFeedback?.blockReason || null;
-                console.error(
+                if (!req.apiMode) console.error(
                     'No candidates in response. blockReason:', blockReason || 'none',
                     '\nresponse:', JSON.stringify(response, null, 2)
                 );
@@ -1381,7 +1475,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
             if (!candidate.content || !candidate.content.parts) {
                 const finishReason = candidate.finishReason || 'UNKNOWN';
                 const blockReason = response.promptFeedback?.blockReason || null;
-                console.error(
+                if (!req.apiMode) console.error(
                     'No content in response. finishReason:', finishReason,
                     'blockReason:', blockReason || 'none',
                     '\ncandidate:', JSON.stringify(candidate, null, 2),
@@ -1407,7 +1501,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
         }
 
         // Deduct credits from user
-        const users = await storage.getUsers();
+        const users = req.apiMode ? [] : await storage.getUsers();
         const userIndex = users.findIndex(u => u.id === req.user.id);
 
         if (userIndex !== -1) {
@@ -1430,7 +1524,7 @@ app.post('/api/generate', isAuthenticated, async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Error generating content:', error);
+        logGenerationError(req, 'Error generating content:', error);
         const message = error?.error?.message || error?.message || 'Failed to generate image. Please try again.';
         res.status(500).json({ error: message });
     }
@@ -1489,7 +1583,7 @@ app.post('/api/images', isAuthenticated, async (req, res) => {
 // GET /api/images/:id — serve image binary (allows authenticated users OR guests with a valid board share token)
 app.get('/api/images/:id', async (req, res) => {
     try {
-        const user = getAuthUser(req);
+        const user = DESKTOP_MODE ? DESKTOP_OWNER : getAuthUser(req);
         const shareGuest = req.cookies.share_token ? verifyShareToken(req.cookies.share_token) : null;
         if (!user && !shareGuest) {
             return res.status(401).json({ error: 'Unauthorized' });

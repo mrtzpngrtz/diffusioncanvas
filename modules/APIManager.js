@@ -1,3 +1,5 @@
+import { apiFetch as fetch } from './ApiSession.js';
+
 export class APIManager {
     constructor(uiManager) {
         this.uiManager = uiManager;

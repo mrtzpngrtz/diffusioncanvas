@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test": "node --test",
     "dev": "nodemon server.js",
     "desktop": "electron desktop/main.js",
     "dist:win": "electron-builder --win",
@@ -48,9 +49,12 @@
     "productName": "Diffusion Canvas",
     "directories": {
       "output": "dist",
-      "buildResources": "desktop"
+      "buildResources": "desktop/assets"
     },
     "asar": false,
+    "extraMetadata": {
+      "main": "desktop/main.js"
+    },
     "files": [
       "**/*",
       "!dist/**",
@@ -60,7 +64,8 @@
       "!users.json",
       "!*.log",
       "!**/*.md",
-      "!extract_images.js"
+      "!extract_images.js",
+      "!tests/**"
     ],
     "win": {
       "target": [
