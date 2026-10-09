@@ -82,7 +82,37 @@ export function resolveProviderKey(settingsKey, envKey, settings, env = process.
 
 export function apiModeRouteAllowed(method, pathname) {
     if (method === 'PUT') return pathname === '/api/api-mode';
-    if (method === 'GET') return ['/api/user', '/api/config', '/api/workflows'].includes(pathname) || /^\/api\/video-jobs\/[^/]+$/.test(pathname);
+    if (method === 'GET') return ['/api/user', '/api/config', '/api/workflows', '/api/api-example'].includes(pathname) || /^\/api\/video-jobs\/[^/]+$/.test(pathname);
     if (method === 'POST') return ['/api/generate', '/api/generate-video', '/api/generate-3d', '/api/chat'].includes(pathname);
     return method === 'DELETE' && pathname === '/api/api-mode';
+}
+
+// Resolve media before publishing. A missing blob must not replace a working
+// example with a broken one; private blob routes remain blocked in API mode.
+export async function createApiExample(name, state, getImage) {
+    if (!state?.version || !Array.isArray(state.nodes) || !state.nodes.length) {
+        throw new Error('Save a non-empty board before publishing it as the API example.');
+    }
+    const copy = structuredClone(state);
+    const blobs = new Map();
+    for (const node of copy.nodes) {
+        const data = node.data;
+        if (!data || typeof data !== 'object') throw new Error('Invalid board node.');
+        for (const [refKey, dataKey] of [['imageRef', 'imageData'], ['videoRef', 'videoData'], ['modelRef', 'modelData']]) {
+            const ref = data[refKey];
+            if (!ref) continue;
+            if (typeof ref !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(ref)) throw new Error('Invalid media reference.');
+            if (!blobs.has(ref)) blobs.set(ref, await getImage(ref));
+            const blob = blobs.get(ref);
+            if (!blob) throw new Error('Board media is missing. Reload and save the board before publishing.');
+            if (dataKey === 'modelData') {
+                data[dataKey] = ['glb', 'fbx', 'stl'].includes(data.modelType || 'glb')
+                    ? blob.buffer.toString('base64') : blob.buffer.toString('utf8');
+            } else {
+                data[dataKey] = `data:${blob.mimeType};base64,${blob.buffer.toString('base64')}`;
+            }
+            data[refKey] = null;
+        }
+    }
+    return { name, publishedAt: new Date().toISOString(), state: copy };
 }

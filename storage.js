@@ -11,6 +11,7 @@ const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const BOARDS_FILE   = path.join(DATA_DIR, 'boards.json');  // metadata only — no state
 const USAGE_FILE    = path.join(DATA_DIR, 'usage.json');   // one entry per generation
+const API_EXAMPLE_FILE = path.join(DATA_DIR, 'api-example.json');
 
 const MAX_USAGE_ENTRIES = 50000;
 
@@ -81,6 +82,34 @@ const useRedis = () => !!process.env.REDIS_URL;
 // ── Storage API ───────────────────────────────────────────────────────────────
 
 export const storage = {
+    // An explicitly published, self-contained copy, never a live private board.
+    async getApiExample() {
+        if (useRedis()) {
+            const r = await getRedis();
+            const value = await r.get('api-example');
+            return value ? JSON.parse(value) : null;
+        }
+        return readJSON(API_EXAMPLE_FILE, null);
+    },
+
+    async setApiExample(example) {
+        await withUserLock('__api_example__', async () => {
+            if (useRedis()) {
+                const r = await getRedis();
+                if (example) await r.set('api-example', JSON.stringify(example));
+                else await r.del('api-example');
+                return;
+            }
+            if (!example) {
+                await fs.rm(API_EXAMPLE_FILE, { force: true });
+                return;
+            }
+            const temp = `${API_EXAMPLE_FILE}.tmp`;
+            await writeJSON(temp, example);
+            await fs.rename(temp, API_EXAMPLE_FILE);
+        });
+    },
+
     async getUsers() {
         if (useRedis()) {
             const r = await getRedis();

@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import net from 'node:net';
+import bcrypt from 'bcryptjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -75,6 +76,11 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
             await fs.cp(path.join(root, name), path.join(appDir, name), { recursive: true });
         }
         await fs.symlink(path.join(root, 'node_modules'), path.join(appDir, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
+        await fs.mkdir(path.join(appDir, 'data'));
+        await fs.writeFile(path.join(appDir, 'data', 'users.json'), JSON.stringify([{
+            id: 'example-admin', email: 'admin@example.test', password: await bcrypt.hash('test-password', 4),
+            provider: 'local', displayName: 'Example admin', isAdmin: true, credits: 0
+        }]));
         const port = await freePort();
         const debugPort = await freePort();
         server = spawn(process.execPath, ['--import', pathToFileURL(path.join(root, 'tests', 'fixtures', 'providers.js')).href, path.join(appDir, 'server.js')], {
@@ -85,7 +91,7 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
         server.stdout.on('data', chunk => { output += chunk; });
         server.stderr.on('data', chunk => { output += chunk; });
         const base = `http://127.0.0.1:${port}`;
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 400; i++) {
             try { if ((await fetch(`${base}/api/user`)).ok) break; } catch {}
             await sleep(50);
         }
@@ -109,6 +115,7 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
             await sleep(200);
         }
         assert.ok(ready, `App did not initialize: ${JSON.stringify(cdp.exceptions)} ${output}`);
+        await cdp.evaluate('document.fonts.ready.then(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))))');
         assert.equal(await cdp.evaluate('document.getElementById("apiModeTab").getAttribute("aria-selected")'), 'true');
         assert.equal(await cdp.evaluate('getComputedStyle(document.getElementById("loginModePanel")).display'), 'none');
         await cdp.evaluate('document.getElementById("apiModeTab").dispatchEvent(new KeyboardEvent("keydown", {key:"ArrowRight", bubbles:true}))');
@@ -124,6 +131,7 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
             for (const dark of [false, true]) {
                 for (const mode of ['api', 'login']) {
                     await cdp.evaluate(`document.body.classList.toggle('dark-mode', ${dark}); document.getElementById('${mode === 'api' ? 'apiModeTab' : 'loginModeTab'}').click();`);
+                    await cdp.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
                     const layout = await cdp.evaluate(`(() => {
                         const card = document.querySelector('.login-container');
                         const bounds = card.getBoundingClientRect();
@@ -131,7 +139,8 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
                         return { fits: card.scrollHeight <= card.clientHeight + 1 && card.scrollWidth <= card.clientWidth + 1,
                             inViewport: bounds.top >= 0 && bounds.bottom <= innerHeight && bounds.left >= 0 && bounds.right <= innerWidth,
                             controlsFit: visible.every(el => { const r = el.getBoundingClientRect(); return r.top >= bounds.top && r.bottom <= bounds.bottom + 1; }),
-                            overflow: getComputedStyle(card).overflowY, width: bounds.width, height: bounds.height };
+                            overflow: getComputedStyle(card).overflowY, width: bounds.width, height: bounds.height,
+                            children: [...card.children].map(el => ({id:el.id, cls:el.className, hidden:el.hidden, height:el.getBoundingClientRect().height, scroll:el.scrollHeight})) };
                     })()`);
                     assert.equal(layout.fits, true, `Clipped card at ${width}x${height} ${mode} dark=${dark}: ${JSON.stringify(layout)}`);
                     assert.equal(layout.inViewport, true, JSON.stringify(layout));
@@ -146,6 +155,7 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
         await cdp.evaluate('document.querySelector(".oauth-buttons").innerHTML = \'<a href="/auth/google" class="oauth-btn google-btn">Continue with Google</a>\'; document.querySelector(".login-separator").hidden = false; document.getElementById("loginError").textContent = "Login failed. Please try again.";');
         for (const [width, height] of [[375, 667], [320, 568], [844, 390]]) {
             await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+            await cdp.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
             const layout = await cdp.evaluate('(() => { const c = document.querySelector(".login-container"); return {scroll:c.scrollHeight, client:c.clientHeight, bottom:c.getBoundingClientRect().bottom, viewport:innerHeight}; })()');
             assert.ok(layout.scroll <= layout.client + 1 && layout.bottom <= layout.viewport, `OAuth/error layout at ${width}x${height}: ${JSON.stringify(layout)}`);
         }
@@ -205,7 +215,94 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
         assert.equal(await cdp.evaluate('document.body.classList.contains("api-mode")'), false);
         assert.equal(await cdp.evaluate('document.querySelectorAll(".node").length'), 0);
         assert.equal((await fetch(base + '/api/user', { headers: { 'X-Api-Session': apiToken } })).status, 401);
+
+        // Publish through the real login-mode button, then restore the media in
+        // a keyless temporary session. The video is recorded locally, no provider.
+        await cdp.evaluate('document.getElementById("loginModeTab").click(); document.querySelector("#localLoginForm [name=email]").value = "admin@example.test"; document.querySelector("#localLoginForm [name=password]").value = "test-password"; document.getElementById("localLoginForm").requestSubmit();');
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate('document.getElementById("loginModal").classList.contains("hidden")')) break;
+            await sleep(50);
+        }
+        assert.equal(await cdp.evaluate('document.getElementById("removeApiExampleBtn").hidden'), false);
+        const demoImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+        const demoVideo = await cdp.evaluate(`new Promise(resolve => {
+            const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d'); const stream = canvas.captureStream(10);
+            const recorder = new MediaRecorder(stream, {mimeType:'video/webm'}); const chunks = [];
+            recorder.ondataavailable = event => chunks.push(event.data);
+            recorder.onstop = () => { stream.getTracks().forEach(track => track.stop()); const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(new Blob(chunks, {type:'video/webm'})); };
+            recorder.start(); ctx.fillStyle = 'red'; ctx.fillRect(0,0,64,64);
+            setTimeout(() => recorder.stop(), 400);
+        })`);
+        assert.ok(demoVideo.startsWith('data:video/webm;base64,'));
+        const demoBoardId = await cdp.evaluate(`(async () => {
+            const response = await fetch('/api/images', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:${JSON.stringify(demoVideo)}})});
+            const {id:videoRef} = await response.json();
+            const state = {version:'1.0', zoom:1, panX:0, panY:0, nodeIdCounter:2, nodes:[
+                {id:'node-0', type:'result', position:{x:50,y:50}, data:{imageData:${JSON.stringify(demoImage)}, prompt:'Example image'}},
+                {id:'node-1', type:'videoresult', position:{x:500,y:50}, data:{videoRef, prompt:'Example video'}}
+            ], connections:[]};
+            const board = await (await fetch('/api/boards', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:'Browser media example', state})})).json();
+            return board.id;
+        })()`);
+        assert.ok(demoBoardId);
+        await cdp.evaluate('document.getElementById("openBoardsBtn").click()');
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate(`!!document.querySelector('.board-load-btn[data-id="${demoBoardId}"]')`)) break;
+            await sleep(50);
+        }
+        await cdp.evaluate(`document.querySelector('.board-load-btn[data-id="${demoBoardId}"]').click()`);
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate('!document.getElementById("publishApiExampleBtn").hidden')) break;
+            await sleep(50);
+        }
+        assert.equal(await cdp.evaluate('document.getElementById("publishApiExampleBtn").hidden'), false);
+        // Explicit save must upload the inline image before publishing.
+        await cdp.evaluate('document.getElementById("saveBoardBtn").click()');
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate('document.getElementById("status").textContent.includes("saved")')) break;
+            await sleep(50);
+        }
+        assert.equal(await cdp.evaluate(`fetch('/api/boards/${demoBoardId}').then(r => r.json()).then(s => !!s.nodes[0].data.imageRef)`), true);
+        await cdp.send('Page.reload');
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate('!!document.querySelector(".videoresult-node video") && !document.getElementById("publishApiExampleBtn").hidden && !document.getElementById("loadingOverlay").classList.contains("active")')) break;
+            await sleep(50);
+        }
+        assert.equal(await cdp.evaluate('sessionStorage.getItem("diffusionCanvas_sessionBoardId")'), demoBoardId, 'Login-mode board restoration must survive authentication refresh');
+        await cdp.evaluate('document.getElementById("publishApiExampleBtn").click()');
+        assert.equal(await cdp.evaluate('document.getElementById("confirmDialog").classList.contains("active")'), true);
+        await cdp.evaluate('document.getElementById("confirmOk").click()');
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate('document.getElementById("status").textContent.includes("is now the API example")')) break;
+            await sleep(50);
+        }
+        assert.ok(await cdp.evaluate('document.getElementById("status").textContent.includes("is now the API example")'));
+        const published = await fs.readFile(path.join(appDir, 'data', 'api-example.json'), 'utf8');
+        await cdp.send('Page.navigate', { url: base + '/auth/logout' });
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate('!!document.querySelector(".oauth-buttons") && document.querySelector(".oauth-buttons").textContent.includes("No OAuth")')) break;
+            await sleep(50);
+        }
         await start();
+        for (let i = 0; i < 100; i++) {
+            if (await cdp.evaluate('document.getElementById("topBarBoardName").textContent.includes("API example") && document.querySelector(".videoresult-node video")?.readyState > 0')) break;
+            await sleep(50);
+        }
+        assert.equal(await cdp.evaluate('document.querySelector(".result-node img").getAttribute("src")'), demoImage);
+        assert.equal(await cdp.evaluate('document.querySelector(".videoresult-node video").getAttribute("src")'), demoVideo);
+        assert.ok(await cdp.evaluate('document.querySelector(".videoresult-node video").videoWidth > 0'), 'Example video metadata must decode');
+        assert.equal(await cdp.evaluate('document.getElementById("publishApiExampleBtn").hidden'), true);
+        assert.equal(await cdp.evaluate('document.getElementById("apiGoogleKey").value'), '');
+        assert.equal(await cdp.evaluate('sessionStorage.getItem("diffusionCanvas_sessionBoardId")'), demoBoardId, 'API mode must not overwrite the existing login-mode preference');
+        await cdp.evaluate('document.getElementById("addPromptNode").click()');
+        assert.equal(await fs.readFile(path.join(appDir, 'data', 'api-example.json'), 'utf8'), published, 'Visitor edits must not change the example');
+        await fs.rm(filename);
+        await cdp.evaluate('document.getElementById("downloadBoardBtn").click()');
+        for (let i = 0; i < 100; i++) { try { await fs.access(filename); break; } catch {} await sleep(50); }
+        const exampleExport = JSON.parse(await fs.readFile(filename, 'utf8'));
+        assert.equal(exampleExport.state.nodes[0].data.imageData, demoImage);
+        assert.equal(exampleExport.state.nodes[1].data.videoData, demoVideo);
         await cdp.evaluate('import("/modules/ApiSession.js").then(session => session.apiFetch("/api/user"))');
         const secondRequest = cdp.requests.filter(request => request.url === base + '/api/user').at(-1);
         const secondToken = Object.entries(secondRequest.headers).find(([name]) => name.toLowerCase() === 'x-api-session')?.[1];

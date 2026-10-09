@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ApiModeSessions, API_KEY_FIELDS, apiModeRouteAllowed, resolveProviderKey } from '../api-mode.js';
+import { ApiModeSessions, API_KEY_FIELDS, apiModeRouteAllowed, resolveProviderKey, createApiExample } from '../api-mode.js';
 
 test('sessions accept only supported keys and never create account/admin privileges', () => {
     const sessions = new ApiModeSessions();
@@ -77,6 +77,8 @@ test('API mode never falls back to host keys; account mode still does', () => {
 });
 
 test('only stateless generation, config and owned job routes are allowed', () => {
+    assert.equal(apiModeRouteAllowed('GET', '/api/api-example'), true);
+    for (const method of ['POST', 'PUT', 'DELETE']) assert.equal(apiModeRouteAllowed(method, '/api/api-example'), false);
     for (const path of ['/api/generate', '/api/generate-video', '/api/generate-3d', '/api/chat']) assert.equal(apiModeRouteAllowed('POST', path), true);
     assert.equal(apiModeRouteAllowed('GET', '/api/video-jobs/job-123'), true);
     assert.equal(apiModeRouteAllowed('DELETE', '/api/api-mode'), true);
@@ -84,4 +86,39 @@ test('only stateless generation, config and owned job routes are allowed', () =>
     for (const path of ['/api/boards', '/api/images', '/api/admin/settings', '/api/feedback', '/api/user/delete', '/api/share/access/123', '/api/agent/tasks']) {
         for (const method of ['GET', 'POST', 'DELETE', 'PATCH']) assert.equal(apiModeRouteAllowed(method, path), false);
     }
+});
+
+test('published example embeds deduplicated image, video and model blobs without changing its source', async () => {
+    const state = { version: '1.0', nodes: [
+        { type: 'image', data: { imageRef: 'image-1' } },
+        { type: 'result', data: { imageRef: 'image-1' } },
+        { type: 'videoresult', data: { videoRef: 'video-1' } },
+        { type: 'threed', data: { modelRef: 'model-1', modelType: 'glb' } },
+        { type: 'threed', data: { modelRef: 'text-1', modelType: 'obj' } }
+    ], connections: [{ from: 'a', to: 'b' }], areas: [{ title: 'Example' }] };
+    const original = structuredClone(state);
+    const calls = [];
+    const example = await createApiExample('Demo', state, async id => {
+        calls.push(id);
+        return { buffer: Buffer.from(id), mimeType: id === 'video-1' ? 'video/mp4' : 'image/png' };
+    });
+    assert.deepEqual(state, original);
+    assert.deepEqual(calls, ['image-1', 'video-1', 'model-1', 'text-1']);
+    assert.equal(example.name, 'Demo');
+    assert.ok(example.publishedAt);
+    assert.equal(example.state.nodes[0].data.imageData, 'data:image/png;base64,' + Buffer.from('image-1').toString('base64'));
+    assert.equal(example.state.nodes[2].data.videoData, 'data:video/mp4;base64,' + Buffer.from('video-1').toString('base64'));
+    assert.equal(example.state.nodes[3].data.modelData, Buffer.from('model-1').toString('base64'));
+    assert.equal(example.state.nodes[4].data.modelData, 'text-1');
+    for (const node of example.state.nodes) assert.ok(!node.data.imageRef && !node.data.videoRef && !node.data.modelRef);
+    assert.deepEqual(example.state.connections, state.connections);
+    assert.deepEqual(example.state.areas, state.areas);
+});
+
+test('publication rejects empty boards, missing media and unsafe blob references', async () => {
+    for (const state of [null, {}, { version: '1.0', nodes: [] }]) {
+        await assert.rejects(createApiExample('Demo', state, async () => null), /non-empty/);
+    }
+    await assert.rejects(createApiExample('Demo', { version: '1.0', nodes: [{ data: { imageRef: 'missing' } }] }, async () => null), /media is missing/);
+    await assert.rejects(createApiExample('Demo', { version: '1.0', nodes: [{ data: { imageRef: '../private' } }] }, async () => assert.fail('Unsafe reference reached storage')), /Invalid media reference/);
 });

@@ -98,6 +98,23 @@ deliver its close request, the server expires the session after two hours of
 inactivity, with a hard limit of 24 hours. A server restart also clears sessions.
 Already submitted provider jobs may finish and incur charges after you leave.
 
+### Publish a starter board for API mode
+
+Log in as an **administrator**, open your image/video board and **Save Board**.
+Under **06 — Boards**, click **Use as API example** and confirm publication.
+This publishes the **last saved version**, not unsaved edits, and replaces any
+previous example. Its prompts, chat history and media become visible and
+downloadable to all API-mode visitors; only publish content intended for them.
+
+New API sessions automatically load an editable copy, including embedded images,
+videos and 3D media. Loading it needs no provider keys and runs no generation.
+Visitor edits remain temporary and never change either the original login board
+or the published example. The snapshot is explicitly stored in `data/api-example.json`
+(or Redis when configured), independently of the original board. Private board
+and blob endpoints remain inaccessible to API sessions. **Remove API example**
+unpublishes it for future sessions; already loaded/downloaded copies cannot be
+recalled. Without a published example, API mode starts with an empty canvas.
+
 ### Tests
 
 Run `npm test` on Node.js 24 or newer. Session and integration tests use the

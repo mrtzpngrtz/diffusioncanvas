@@ -17,7 +17,7 @@ import passport from './auth.js';
 import bcrypt from 'bcryptjs';
 import { setAuthCookie, getAuthUser, clearAuthCookie, generateShareToken, verifyShareToken } from './jwt-auth.js';
 import { storage } from './storage.js';
-import { ApiModeSessions, apiModeRouteAllowed, resolveProviderKey } from './api-mode.js';
+import { ApiModeSessions, apiModeRouteAllowed, resolveProviderKey, createApiExample } from './api-mode.js';
 import { runAgentTask, getTask, listTasks } from './modules/AgentWorker.js';
 import { loadComfyTemplates, describeTemplate, runComfyWorkflow, checkComfy } from './providers/comfyui.js';
 
@@ -1616,6 +1616,52 @@ app.get('/api/agent/tasks', isAdmin, (req, res) => {
 
 
 // ── BOARDS API ─────────────────────────────────────────────────────────────
+
+// Only the deliberately published snapshot is available to temporary sessions.
+app.get('/api/api-example', isAuthenticated, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        res.json(await storage.getApiExample());
+    } catch {
+        res.status(500).json({ error: 'Failed to load API example' });
+    }
+});
+
+app.post('/api/api-example', isAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        // Verify current privileges and ownership, not just the JWT's old claims.
+        const user = (await storage.getUsers()).find(u => u.id === req.user.id);
+        if (!user?.isAdmin) return res.status(403).json({ error: 'Admin access required' });
+        const boards = await storage.getBoards(user.id);
+        const board = boards.find(b => b.id === req.body.boardId);
+        if (!board) return res.status(404).json({ error: 'Board not found' });
+        const state = await storage.getBoardState(board.id);
+        let example;
+        try {
+            example = await createApiExample(board.name, state, id => storage.getImage(id));
+        } catch (error) {
+            return res.status(400).json({ error: error.message });
+        }
+        await storage.setApiExample(example);
+        res.json({ name: example.name, publishedAt: example.publishedAt });
+    } catch (error) {
+        console.error('API example publication failed:', error);
+        res.status(500).json({ error: 'Failed to publish API example' });
+    }
+});
+
+app.delete('/api/api-example', isAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        const user = (await storage.getUsers()).find(u => u.id === req.user.id);
+        if (!user?.isAdmin) return res.status(403).json({ error: 'Admin access required' });
+        await storage.setApiExample(null);
+        res.sendStatus(204);
+    } catch {
+        res.status(500).json({ error: 'Failed to remove API example' });
+    }
+});
 
 // GET /api/boards — list board metadata for current user (no state payload)
 app.get('/api/boards', isAuthenticated, async (req, res) => {

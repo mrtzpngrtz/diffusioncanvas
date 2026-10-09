@@ -41,7 +41,10 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         await fs.symlink(path.join(root, 'node_modules'), path.join(temp, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
         await fs.mkdir(path.join(temp, 'data'));
         const password = await bcrypt.hash('test-password', 4);
-        await fs.writeFile(path.join(temp, 'data', 'users.json'), JSON.stringify([{ id: 'account-user', email: 'test@example.test', password, provider: 'local', displayName: 'Account user', isAdmin: false, credits: 20 }]));
+        await fs.writeFile(path.join(temp, 'data', 'users.json'), JSON.stringify([
+            { id: 'account-user', email: 'test@example.test', password, provider: 'local', displayName: 'Account user', isAdmin: false, credits: 20 },
+            { id: 'admin-user', email: 'admin@example.test', password, provider: 'local', displayName: 'Admin', isAdmin: true, credits: 20 }
+        ]));
         await fs.writeFile(path.join(temp, 'data', 'settings.json'), JSON.stringify({ modelCosts: { 'gemini-3.1-flash-image': 4 } }));
         const port = await freePort();
         const providerLog = path.join(temp, 'provider.log');
@@ -54,11 +57,13 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         child.stdout.on('data', chunk => { output += chunk; });
         child.stderr.on('data', chunk => { output += chunk; });
         const base = `http://127.0.0.1:${port}`;
-        for (let i = 0; i < 100; i++) {
-            try { if ((await fetch(`${base}/api/user`)).ok) break; } catch {}
+        let ready = false;
+        for (let i = 0; i < 400; i++) {
+            try { if ((await fetch(`${base}/api/user`)).ok) { ready = true; break; } } catch {}
             if (child.exitCode !== null) throw new Error(`Test server exited: ${output}`);
             await new Promise(resolve => setTimeout(resolve, 50));
         }
+        assert.ok(ready, `Test server did not become ready: ${output}`);
         await new Promise(resolve => setTimeout(resolve, 100));
         const call = (route, { token, cookie, body, method = 'GET' } = {}) => fetch(base + route, {
             method,
@@ -68,7 +73,6 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         const login = await call('/auth/local/login', { method: 'POST', body: { email: 'test@example.test', password: 'test-password' } });
         assert.equal(login.status, 200, output);
         const cookie = login.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
-        const before = await snapshot(path.join(temp, 'data'));
         assert.equal((await call('/api/api-mode', { method: 'POST', body: { apiKeys: { googleApiKey: 12 } } })).status, 400);
         const ownKeys = { googleApiKey: 'own-google', openaiApiKey: 'own-openai', bflApiKey: 'own-bfl', openrouterApiKey: 'own-openrouter', replicateApiToken: 'own-replicate' };
         const created = await call('/api/api-mode', { method: 'POST', cookie, body: {} });
@@ -78,6 +82,43 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         const { token, user } = await created.json();
         assert.equal(user.isAdmin, false);
         assert.equal(user.isApiMode, true);
+        assert.equal((await call('/api/api-example')).status, 401);
+        assert.equal(await (await call('/api/api-example', { token })).json(), null);
+        const adminLogin = await call('/auth/local/login', { method: 'POST', body: { email: 'admin@example.test', password: 'test-password' } });
+        const adminCookie = adminLogin.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
+        const image = 'data:image/png;base64,aW1hZ2U=';
+        const video = 'data:video/mp4;base64,dmlkZW8=';
+        const imageRef = (await (await call('/api/images', { cookie: adminCookie, method: 'POST', body: { data: image } })).json()).id;
+        const videoRef = (await (await call('/api/images', { cookie: adminCookie, method: 'POST', body: { data: video } })).json()).id;
+        const sourceState = { version: '1.0', nodes: [
+            { id: 'node-0', type: 'result', position: { x: 0, y: 0 }, data: { imageRef, prompt: 'Public example' } },
+            { id: 'node-1', type: 'videoresult', position: { x: 450, y: 0 }, data: { videoRef } }
+        ], connections: [] };
+        const sourceBoard = await (await call('/api/boards', { cookie: adminCookie, method: 'POST', body: { name: 'Image and video example', state: sourceState } })).json();
+        assert.ok(sourceBoard.id);
+        for (const options of [{}, { cookie }, { token, cookie: adminCookie }]) {
+            assert.equal((await call('/api/api-example', { ...options, method: 'POST', body: { boardId: sourceBoard.id } })).status, 403);
+            assert.equal((await call('/api/api-example', { ...options, method: 'DELETE' })).status, 403);
+        }
+        const otherBoard = await (await call('/api/boards', { cookie, method: 'POST', body: { name: 'Private', state: sourceState } })).json();
+        assert.equal((await call('/api/api-example', { cookie: adminCookie, method: 'POST', body: { boardId: otherBoard.id } })).status, 404);
+        assert.equal((await call('/api/api-example', { cookie: adminCookie, method: 'POST', body: { boardId: sourceBoard.id } })).status, 200);
+        const exampleResponse = await call('/api/api-example', { token });
+        assert.equal(exampleResponse.headers.get('cache-control'), 'no-store');
+        assert.equal(exampleResponse.headers.get('set-cookie'), null);
+        const example = await exampleResponse.json();
+        assert.equal(example.name, sourceBoard.name);
+        assert.equal(example.state.nodes[0].data.imageData, image);
+        assert.equal(example.state.nodes[1].data.videoData, video);
+        assert.equal(example.state.nodes[0].data.imageRef, null);
+        assert.equal(example.state.nodes[1].data.videoRef, null);
+        assert.deepEqual(await (await call(`/api/boards/${sourceBoard.id}`, { cookie: adminCookie })).json(), sourceState);
+        assert.equal((await call(`/api/images/${imageRef}`, { token, cookie: adminCookie })).status, 403);
+        assert.equal((await call(`/api/boards/${sourceBoard.id}`, { token, cookie: adminCookie })).status, 403);
+        const broken = await (await call('/api/boards', { cookie: adminCookie, method: 'POST', body: { name: 'Broken', state: { version: '1.0', nodes: [{ data: { imageRef: 'missing' } }] } } })).json();
+        assert.equal((await call('/api/api-example', { cookie: adminCookie, method: 'POST', body: { boardId: broken.id } })).status, 400);
+        assert.deepEqual(await (await call('/api/api-example', { token })).json(), example);
+        const before = await snapshot(path.join(temp, 'data'));
         assert.equal((await (await call('/api/user', { token, cookie })).json()).user.id, user.id);
         const noKey = await call('/api/generate', { token, method: 'POST', body: { model: 'gemini-3.1-flash-image', prompt: 'No keys yet' } });
         assert.equal(noKey.status, 500);
@@ -140,6 +181,9 @@ test('live Express API mode: own provider keys, no persistence, isolated jobs, a
         assert.equal((await accountImage.json()).creditsRemaining, expectedCredits);
         const after = await snapshot(path.join(temp, 'data'));
         assert.equal(JSON.parse(after['users.json'])[0].credits, expectedCredits);
+        assert.equal((await call('/api/api-example', { cookie: adminCookie, method: 'DELETE' })).status, 204);
+        assert.equal(await (await call('/api/api-example', { token: second.token })).json(), null);
+        assert.deepEqual(await (await call(`/api/boards/${sourceBoard.id}`, { cookie: adminCookie })).json(), sourceState);
         await call('/api/api-mode', { token: second.token, method: 'DELETE' });
     } finally {
         if (child && child.exitCode === null) {

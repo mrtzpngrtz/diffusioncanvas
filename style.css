@@ -2551,6 +2551,8 @@ body.dark-mode .theme-icon-moon { display: block; }
 }
 
 #apiSettingsBtn[hidden] { display: none; }
+#publishApiExampleBtn[hidden],
+#removeApiExampleBtn[hidden] { display: none; }
 
 .ui-dialog.api-settings-dialog {
     width: min(540px, calc(100vw - 32px));
@@ -2583,6 +2585,8 @@ body.dark-mode .theme-icon-moon { display: block; }
 body.api-mode #saveBoardBtn,
 body.api-mode #newBoardBtn,
 body.api-mode #openBoardsBtn,
+body.api-mode #publishApiExampleBtn,
+body.api-mode #removeApiExampleBtn,
 body.api-mode #feedbackBtn,
 body.api-mode #userMenuFeedbackBtn,
 body.api-mode #cookieNotice {

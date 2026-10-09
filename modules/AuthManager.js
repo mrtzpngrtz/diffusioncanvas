@@ -121,6 +121,7 @@ export class AuthManager {
     }
 
     showApiMode(user) {
+        this.currentUser = user;
         document.body.classList.add('api-mode');
         this.loginModal.classList.add('hidden');
         this.userInfo.style.display = 'flex';
@@ -253,6 +254,8 @@ export class AuthManager {
                 credentials: 'include'
             });
             const data = await response.json();
+            this.currentUser = data.user || null;
+            window.dispatchEvent(new Event('auth-changed'));
             
             if (data.user) {
                 // User is authenticated

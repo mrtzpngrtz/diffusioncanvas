@@ -95,6 +95,7 @@ class App {
         this.setupContextMenu();
         this.setupCanvasDrop();
         this.feedbackManager.init();
+        window.addEventListener('auth-changed', () => this._updateApiExampleControls());
 
         window.addEventListener('api-mode-started', () => {
             this._clearCanvasImmediate();
@@ -110,6 +111,7 @@ class App {
             badge.className = 'autosave-badge visible';
             badge.textContent = 'API mode · not saved';
             this.uiManager.updateStatus('Temporary API session — own keys, no autosave');
+            this._loadApiExample();
         });
 
         // Start auto-save
@@ -202,6 +204,8 @@ class App {
             if (isApiMode()) this._downloadTemporaryCanvas();
             else if (this.currentBoardId) this._downloadBoard(this.currentBoardId);
         });
+        document.getElementById('publishApiExampleBtn').addEventListener('click', () => this._publishApiExample());
+        document.getElementById('removeApiExampleBtn').addEventListener('click', () => this._removeApiExample());
         document.getElementById('boardsModalClose').addEventListener('click', () => this.closeBoardsModal());
         document.getElementById('boardsModalNew').addEventListener('click', () => this.newEmptyBoard());
         document.getElementById('boardsModalImport').addEventListener('click', () => this._importBoardFromFile());
@@ -1190,6 +1194,12 @@ Object.assign(App.prototype, {
         }
         this.uiManager.updateStatus('Saving board...');
         try {
+            await this._uploadPendingImages((cls, text) => this.uiManager.updateStatus(text));
+            const missingMedia = this.nodeManager.nodes.some(node =>
+                (node.type !== 'comp' && node.type !== 'outpaint' && node.data.imageData && !node.data.imageRef) ||
+                (node.data.videoData && !node.data.videoRef) ||
+                (node.type === 'threed' && node.data.modelData && !node.data.modelRef));
+            if (missingMedia) throw new Error('Media upload failed. Please retry saving the board.');
             const state = this.serializeCanvas();
             const preview = this._generatePreview();
             const body = { name, state, preview };
@@ -1498,11 +1508,76 @@ Object.assign(App.prototype, {
         if (topBarEl) topBarEl.textContent = name;
         const dlBtn = document.getElementById('downloadBoardBtn');
         if (dlBtn) dlBtn.style.display = this.currentBoardId || isApiMode() ? '' : 'none';
+        this._updateApiExampleControls();
         if (isApiMode()) return;
         if (this.currentBoardId) {
             sessionStorage.setItem('diffusionCanvas_sessionBoardId', this.currentBoardId);
         } else {
             sessionStorage.removeItem('diffusionCanvas_sessionBoardId');
+        }
+    },
+
+    _updateApiExampleControls() {
+        const canPublish = !isApiMode() && !this.isSharedGuestView && !!this.authManager.currentUser?.isAdmin;
+        document.getElementById('publishApiExampleBtn').hidden = !canPublish || !this.currentBoardId;
+        document.getElementById('removeApiExampleBtn').hidden = !canPublish;
+    },
+
+    async _publishApiExample() {
+        if (isApiMode() || this.isSharedGuestView || !this.currentBoardId || !this.authManager.currentUser?.isAdmin) return;
+        if (!await this._confirm('Publish the LAST SAVED version of this board as the API example? All API-mode visitors will be able to view and download its prompts, chat history, images, videos and 3D media. Unsaved edits are not included. This replaces the previous example without changing the original board.')) return;
+        const button = document.getElementById('publishApiExampleBtn');
+        button.disabled = true;
+        this._showLoading('Publishing API example with media...');
+        try {
+            const response = await fetch('/api/api-example', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ boardId: this.currentBoardId })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Publication failed');
+            this.uiManager.updateStatus(`"${result.name}" is now the API example`, '#27ae60');
+        } catch (error) {
+            this.uiManager.updateStatus(`Publication failed: ${error.message}`, '#e74c3c');
+        } finally {
+            button.disabled = false;
+            this._hideLoading();
+        }
+    },
+
+    async _removeApiExample() {
+        if (isApiMode() || this.isSharedGuestView || !this.authManager.currentUser?.isAdmin) return;
+        if (!await this._confirm('Remove the published API example? New API sessions will start with an empty canvas. The original board and copies already loaded by visitors are not changed.')) return;
+        const button = document.getElementById('removeApiExampleBtn');
+        button.disabled = true;
+        try {
+            const response = await fetch('/api/api-example', { method: 'DELETE', credentials: 'include' });
+            if (!response.ok) throw new Error('Removal failed');
+            this.uiManager.updateStatus('API example removed', '#27ae60');
+        } catch (error) {
+            this.uiManager.updateStatus(error.message, '#e74c3c');
+        } finally {
+            button.disabled = false;
+        }
+    },
+
+    async _loadApiExample() {
+        this._showLoading('Loading API example...');
+        try {
+            const response = await fetch('/api/api-example');
+            if (!response.ok) throw new Error('Example could not be loaded');
+            const example = await response.json();
+            if (!example || !isApiMode()) return;
+            await this.deserializeCanvas(example.state);
+            this.currentBoardName = `${example.name} · API example`;
+            this._updateBoardUI();
+            this.uiManager.updateStatus('API example loaded — editable copy, no autosave', '#27ae60');
+        } catch (error) {
+            // A failed example must never prevent entry to the temporary canvas.
+            this.uiManager.updateStatus('API example unavailable — temporary canvas ready', '#e67e22');
+        } finally {
+            this._hideLoading();
         }
     },
 
