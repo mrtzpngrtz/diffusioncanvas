@@ -115,6 +115,16 @@ test('real Chromium browser: API entry, canvas, transient preferences, download,
             await sleep(200);
         }
         assert.ok(ready, `App did not initialize: ${JSON.stringify(cdp.exceptions)} ${output}`);
+        const websiteLink = await cdp.evaluate(`(() => {
+            const link = document.querySelector('.top-bar-sub a');
+            return { href: link.href, target: link.target, rel: link.rel, text: link.textContent,
+                color: getComputedStyle(link).color, parentColor: getComputedStyle(link.parentElement).color };
+        })()`);
+        assert.equal(websiteLink.href, 'https://moritzpongratz.com/');
+        assert.equal(websiteLink.target, '_blank');
+        assert.ok(websiteLink.rel.includes('noopener') && websiteLink.rel.includes('noreferrer'));
+        assert.equal(websiteLink.text, 'moritzpongratz.com');
+        assert.equal(websiteLink.color, websiteLink.parentColor);
         await cdp.evaluate('document.fonts.ready.then(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))))');
         assert.equal(await cdp.evaluate('document.getElementById("apiModeTab").getAttribute("aria-selected")'), 'true');
         assert.equal(await cdp.evaluate('getComputedStyle(document.getElementById("loginModePanel")).display'), 'none');
